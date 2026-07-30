@@ -196,7 +196,7 @@ function BannerCard({ banner, storageBaseUrl }: { banner: BannerEditor; storageB
   const showText = !imageUrl && (banner.title || banner.subtitle);
 
   return (
-    <div className="group relative h-[190px] w-full shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60 sm:h-[250px]">
+    <div className="group relative h-[190px] w-full max-w-full shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60 sm:h-[250px]">
       {imageUrl ? <Image src={imageUrl} alt={banner.title || "Banner"} fill sizes="(min-width: 1280px) 860px, 100vw" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(138,29,238,.55),transparent_38%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
       {showText ? <div className="absolute inset-0 bg-gradient-to-r from-black/78 via-black/35 to-transparent" /> : null}
       {!imageUrl ? <div className="absolute left-4 top-4 rounded-full bg-black/65 px-3 py-1 text-xs font-bold uppercase text-white/75">
@@ -488,7 +488,7 @@ function SortableCard({ id, children }: { id: string; children: React.ReactNode 
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
-    <div ref={setNodeRef} style={style} className={isDragging ? "w-full opacity-70" : "w-full"}>
+    <div ref={setNodeRef} style={style} className={isDragging ? "w-full max-w-full opacity-70" : "w-full max-w-full"}>
       <div className="relative">
         <button type="button" aria-label="Arrastar" className="absolute left-3 top-3 z-20 flex h-8 w-8 items-center justify-center text-white/75 hover:text-white" {...attributes} {...listeners}>
           <GripVertical className="h-5 w-5" />
@@ -838,7 +838,7 @@ function CategoryDashboardCard({
   storageUploadReady: boolean;
 }) {
   return (
-    <div className="w-full overflow-hidden rounded-lg border border-white/10 bg-[#151019] p-5 shadow-xl transition hover:border-[#8A1DEE]/50">
+    <div className="w-full max-w-full overflow-hidden rounded-lg border border-white/10 bg-[#151019] p-5 shadow-xl transition hover:border-[#8A1DEE]/50">
       <div className="mb-4 flex min-w-0 flex-wrap items-end justify-between gap-4 pl-8">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wide text-[#8A1DEE]">{categoria.status}</p>
@@ -897,7 +897,7 @@ function DashboardBlockShelf({
   return (
     <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={items.map((item) => item.block.id)} strategy={verticalListSortingStrategy}>
-        <div className="grid gap-6 data-[pending=true]:opacity-80" data-pending={pending}>
+        <div className="grid min-w-0 max-w-full gap-6 overflow-hidden data-[pending=true]:opacity-80" data-pending={pending}>
           {items.map((item) => (
             <SortableDashboardBlock key={item.block.id} item={item} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
           ))}
@@ -928,7 +928,7 @@ function ModuleShelf({ categoria, storageBaseUrl, storageUploadReady }: { catego
   return (
     <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={items.map((item) => item.id)} strategy={horizontalListSortingStrategy}>
-        <div className="module-shelf flex snap-x gap-4 overflow-x-auto pb-5 data-[pending=true]:opacity-80" data-pending={pending}>
+        <div className="module-shelf flex max-w-full snap-x gap-4 overflow-x-auto pb-5 data-[pending=true]:opacity-80" data-pending={pending}>
           {items.length ? (
             items.map((module) => <SortableModule key={module.id} module={module} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />)
           ) : (
@@ -1005,8 +1005,8 @@ function AdminMetricCard({
 
 function AdminInfoSidebar({ metrics }: { metrics: CourseContentEditorProps["metrics"] }) {
   return (
-    <aside className="xl:sticky xl:top-24 xl:self-start">
-      <div className="grid gap-4 rounded-lg border border-white/10 bg-white/[0.02] p-4">
+    <aside className="w-full min-w-0 xl:sticky xl:top-24 xl:w-[340px] xl:self-start">
+      <div className="grid max-h-none gap-4 overflow-visible rounded-lg border border-white/10 bg-white/[0.02] p-4 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
         <div>
           <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Painel rapido</p>
           <h2 className="mt-1 text-xl font-bold">Estado da plataforma</h2>
@@ -1042,8 +1042,8 @@ export function CourseContentEditor({ course, banners, dashboardBlocks, categori
   const activeBanners = banners.filter((banner) => banner.status === "ACTIVE").length;
 
   return (
-    <div className="mx-auto grid min-w-0 max-w-[1500px] gap-8 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_360px]">
-      <main className="min-w-0 space-y-8">
+    <div className="mx-auto grid w-full min-w-0 max-w-[1500px] items-start gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <main className="min-w-0 max-w-full space-y-8 overflow-hidden">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Editor de conteudo</p>
