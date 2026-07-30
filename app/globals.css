@@ -83,6 +83,14 @@ a {
   background: #53009f;
 }
 
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
 .content-copy p {
   color: rgba(245, 243, 243, 0.78);
   line-height: 1.75;

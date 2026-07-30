@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -192,7 +192,7 @@ function BannerCard({ banner, storageBaseUrl }: { banner: BannerEditor; storageB
 
   return (
     <div className="group relative h-[190px] w-full max-w-full shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60 sm:h-[250px]">
-      {imageUrl ? <Image src={imageUrl} alt={banner.title || "Banner"} fill sizes="(min-width: 1280px) 860px, 100vw" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(138,29,238,.55),transparent_38%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
+      {imageUrl ? <Image src={imageUrl} alt={banner.title || "Banner"} fill sizes="(min-width: 1280px) 860px, 100vw" className="object-contain transition duration-300 group-hover:scale-[1.01]" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(138,29,238,.55),transparent_38%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
       {showText ? <div className="absolute inset-0 bg-gradient-to-r from-black/78 via-black/35 to-transparent" /> : null}
       {!imageUrl ? <div className="absolute left-4 top-4 rounded-full bg-black/65 px-3 py-1 text-xs font-bold uppercase text-white/75">
         {banner.status === "ACTIVE" ? "Ativo" : "Inativo"}
@@ -478,12 +478,13 @@ function ModuleCard({ module, storageBaseUrl }: { module: ModuleEditor; storageB
   );
 }
 
-function SortableCard({ id, children }: { id: string; children: React.ReactNode }) {
+function SortableCard({ id, children, fullWidth = false }: { id: string; children: React.ReactNode; fullWidth?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
   const style = { transform: CSS.Transform.toString(transform), transition };
+  const widthClass = fullWidth ? "w-full max-w-full" : "shrink-0";
 
   return (
-    <div ref={setNodeRef} style={style} className={isDragging ? "w-full max-w-full opacity-70" : "w-full max-w-full"}>
+    <div ref={setNodeRef} style={style} className={`${widthClass} ${isDragging ? "opacity-70" : ""}`}>
       <div className="relative">
         <button type="button" aria-label="Arrastar" className="absolute left-3 top-3 z-20 flex h-8 w-8 items-center justify-center text-white/75 hover:text-white" {...attributes} {...listeners}>
           <GripVertical className="h-5 w-5" />
@@ -806,7 +807,7 @@ function SortableDashboardBlock({
   storageUploadReady: boolean;
 }) {
   return (
-    <SortableCard id={item.block.id}>
+    <SortableCard id={item.block.id} fullWidth>
       {item.banner ? (
         <>
           <BannerCard banner={item.banner} storageBaseUrl={storageBaseUrl} />
@@ -905,10 +906,31 @@ function DashboardBlockShelf({
 function ModuleShelf({ categoria, storageBaseUrl, storageUploadReady }: { categoria: CategoriaEditor; storageBaseUrl: string | null; storageUploadReady: boolean }) {
   const [items, setItems] = useState(categoria.modules);
   const [pending, startTransition] = useTransition();
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [hasOverflow, setHasOverflow] = useState(false);
 
   useEffect(() => {
     setItems(categoria.modules);
   }, [categoria.modules]);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    const measureOverflow = () => {
+      setHasOverflow(scroller.scrollWidth > scroller.clientWidth + 1);
+    };
+
+    measureOverflow();
+    const observer = new ResizeObserver(measureOverflow);
+    observer.observe(scroller);
+    window.addEventListener("resize", measureOverflow);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measureOverflow);
+    };
+  }, [items]);
 
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -923,7 +945,7 @@ function ModuleShelf({ categoria, storageBaseUrl, storageUploadReady }: { catego
   return (
     <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={items.map((item) => item.id)} strategy={horizontalListSortingStrategy}>
-        <div className="module-shelf flex max-w-full snap-x gap-4 overflow-x-auto pb-5 data-[pending=true]:opacity-80" data-pending={pending}>
+        <div ref={scrollerRef} className={`module-shelf flex max-w-full snap-x gap-4 overflow-x-auto data-[pending=true]:opacity-80 ${hasOverflow ? "pb-5" : "scrollbar-hidden pb-0"}`} data-pending={pending}>
           {items.length ? (
             items.map((module) => <SortableModule key={module.id} module={module} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />)
           ) : (
