@@ -18,18 +18,21 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Progress } from "@/components/ui/progress";
 import {
   createCategoria,
+  createBanner,
   createModule,
+  deleteBanner,
   deleteCategoria,
   deleteModule,
   moveModuleToCategoria,
   removeModuleFromCategoria,
+  reorderBanners,
   reorderCategorias,
   reorderModules,
+  updateBanner,
+  updateBannerStatus,
   updateCategoria,
-  updateCourseSettings,
   updateModule,
   updateModuleStatus
 } from "@/lib/actions";
@@ -61,6 +64,18 @@ type CategoriaEditor = {
   modules: ModuleEditor[];
 };
 
+type BannerEditor = {
+  id: string;
+  imageUrl: string;
+  title: string | null;
+  subtitle: string | null;
+  order: number;
+  status: "ACTIVE" | "INACTIVE";
+  targetType: "CATEGORY" | "MODULE" | "URL" | null;
+  targetId: string | null;
+  targetUrl: string | null;
+};
+
 type CourseEditor = {
   id: string;
   title: string;
@@ -71,6 +86,7 @@ type CourseEditor = {
 
 type CourseContentEditorProps = {
   course: CourseEditor;
+  banners: BannerEditor[];
   categorias: CategoriaEditor[];
   allModules: ModuleEditor[];
   storageBaseUrl: string | null;
@@ -156,59 +172,309 @@ function ConfirmActionButton({
   );
 }
 
-function CourseBanner({ course, storageBaseUrl, storageUploadReady }: { course: CourseEditor; storageBaseUrl: string | null; storageUploadReady: boolean }) {
-  const bannerUrl = assetUrl(course.bannerUrl, storageBaseUrl);
-  const showText = !course.hideText;
+function BannerCard({ banner, storageBaseUrl }: { banner: BannerEditor; storageBaseUrl: string | null }) {
+  const imageUrl = assetUrl(banner.imageUrl, storageBaseUrl);
 
   return (
-    <section className="relative min-h-[260px] overflow-hidden rounded-lg border border-white/10 bg-gradient-to-br from-[#53009F] to-[#12051f] p-5 sm:p-8">
-      {bannerUrl ? <Image src={bannerUrl} alt={course.title || "Curso"} fill priority sizes="(min-width: 1024px) 1120px, 100vw" className="object-cover" /> : null}
-      {showText ? <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-black/20" /> : null}
-      {showText ? (
-        <div className="relative z-10 flex min-h-[220px] flex-col justify-between gap-8">
-          <div className="max-w-3xl">
-            <p className="text-sm font-bold uppercase tracking-wide text-[#F5F3F3]/70">MiBusca Brasil</p>
-            {course.title ? <h1 className="mt-3 break-words text-4xl font-bold md:text-6xl">{course.title}</h1> : null}
-            {course.description ? <p className="mt-4 max-w-2xl break-words leading-7 text-[#F5F3F3]/76">{course.description}</p> : null}
-          </div>
-          <div className="max-w-lg">
-            <div className="mb-2 flex justify-between text-sm text-white/80">
-              <span>Progresso geral</span>
-              <span>0%</span>
-            </div>
-            <Progress value={0} />
-          </div>
+    <div className="group relative h-[170px] w-[360px] shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60 sm:w-[420px]">
+      {imageUrl ? <Image src={imageUrl} alt={banner.title || "Banner"} fill sizes="420px" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(138,29,238,.55),transparent_38%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
+      {(banner.title || banner.subtitle) ? <div className="absolute inset-0 bg-gradient-to-r from-black/78 via-black/35 to-transparent" /> : null}
+      <div className="absolute left-4 top-4 rounded-full bg-black/65 px-3 py-1 text-xs font-bold uppercase text-white/75">
+        {banner.status === "ACTIVE" ? "Ativo" : "Inativo"}
+      </div>
+      {(banner.title || banner.subtitle) ? (
+        <div className="absolute inset-x-0 bottom-0 max-w-[82%] p-4">
+          {banner.title ? <h3 className="line-clamp-2 break-words text-xl font-black leading-tight text-white">{banner.title}</h3> : null}
+          {banner.subtitle ? <p className="mt-2 line-clamp-2 break-words text-sm text-white/68">{banner.subtitle}</p> : null}
         </div>
       ) : null}
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button type="button" className="absolute right-4 top-4 z-20" size="sm">
-            <Edit3 className="h-4 w-4" />
-            Editar banner
+    </div>
+  );
+}
+
+function BannerDestinationFields({
+  banner,
+  categorias,
+  allModules
+}: {
+  banner?: BannerEditor;
+  categorias: CategoriaEditor[];
+  allModules: ModuleEditor[];
+}) {
+  const [targetType, setTargetType] = useState(banner?.targetType || "");
+
+  return (
+    <div className="grid gap-4">
+      <Field label="Tipo de destino">
+        <SelectField name="targetType" value={targetType} onChange={(event) => setTargetType(event.target.value)}>
+          <option value="">Sem link</option>
+          <option value="CATEGORY">Categoria</option>
+          <option value="MODULE">Modulo</option>
+          <option value="URL">URL externa</option>
+        </SelectField>
+      </Field>
+      {targetType === "CATEGORY" ? (
+        <Field label="Categoria de destino">
+          <SelectField name="targetCategoryId" defaultValue={banner?.targetType === "CATEGORY" ? banner.targetId || "" : ""}>
+            <option value="">Escolher categoria</option>
+            {categorias.map((categoria) => (
+              <option key={categoria.id} value={categoria.id}>{categoria.title}</option>
+            ))}
+          </SelectField>
+        </Field>
+      ) : null}
+      {targetType === "MODULE" ? (
+        <Field label="Modulo de destino">
+          <SelectField name="targetModuleId" defaultValue={banner?.targetType === "MODULE" ? banner.targetId || "" : ""}>
+            <option value="">Escolher modulo</option>
+            {allModules.map((module) => (
+              <option key={module.id} value={module.id}>Modulo {module.number} - {module.title}</option>
+            ))}
+          </SelectField>
+        </Field>
+      ) : null}
+      {targetType === "URL" ? (
+        <Field label="URL externa">
+          <TextInput name="targetUrl" defaultValue={banner?.targetType === "URL" ? banner.targetUrl || "" : ""} placeholder="https://..." />
+        </Field>
+      ) : null}
+    </div>
+  );
+}
+
+function BannerSettingsDialog({
+  banner,
+  categorias,
+  allModules,
+  storageUploadReady
+}: {
+  banner: BannerEditor;
+  categorias: CategoriaEditor[];
+  allModules: ModuleEditor[];
+  storageUploadReady: boolean;
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8" type="button">
+          <Edit3 className="h-4 w-4 text-[#8A1DEE]" />
+          Editar banner
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[92dvh] max-w-3xl overflow-y-auto">
+        <DialogTitle>Editar banner</DialogTitle>
+        <form action={updateBanner} className="grid gap-4">
+          <input type="hidden" name="id" value={banner.id} />
+          <input type="hidden" name="currentImageUrl" value={banner.imageUrl} />
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_120px]">
+            <Field label="Titulo opcional">
+              <TextInput name="title" defaultValue={banner.title || ""} />
+            </Field>
+            <Field label="Ordem">
+              <TextInput name="order" type="number" defaultValue={banner.order} />
+            </Field>
+          </div>
+          <Field label="Subtitulo opcional">
+            <TextArea name="subtitle" defaultValue={banner.subtitle || ""} rows={2} />
+          </Field>
+          <Field label="Status">
+            <SelectField name="status" defaultValue={banner.status}>
+              <option value="ACTIVE">Ativo</option>
+              <option value="INACTIVE">Inativo</option>
+            </SelectField>
+          </Field>
+          <Field label="Imagem do banner (1280 x 360)">
+            <FileInput name="bannerFile" disabled={!storageUploadReady} />
+          </Field>
+          <Field label="URL da imagem">
+            <TextInput name="imageUrl" defaultValue={banner.imageUrl.startsWith("http") ? banner.imageUrl : ""} placeholder="Opcional se enviar arquivo" />
+          </Field>
+          <BannerDestinationFields banner={banner} categorias={categorias} allModules={allModules} />
+          <Button type="submit" className="w-fit">
+            <Save className="h-4 w-4" />
+            Salvar banner
           </Button>
-        </DialogTrigger>
-        <DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto">
-          <DialogTitle>Banner do curso</DialogTitle>
-          <form action={updateCourseSettings} className="grid gap-4">
-            <input type="hidden" name="id" value={course.id} />
-            <Field label="Titulo">
-              <TextInput name="title" defaultValue={course.title} />
-            </Field>
-            <Field label="Descricao">
-              <TextArea name="description" defaultValue={course.description || ""} rows={3} />
-            </Field>
-            <ToggleField name="hideText" defaultChecked={course.hideText} label="Ocultar texto" />
-            <Field label="Imagem do banner (1280 x 360)">
-              <FileInput name="bannerFile" disabled={!storageUploadReady} />
-            </Field>
-            <Button type="submit" className="w-fit">
-              <Save className="h-4 w-4" />
-              Salvar banner
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeleteBannerDialog({ banner }: { banner: BannerEditor }) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-red-100 hover:bg-red-500/10" type="button">
+          <Trash2 className="h-4 w-4 text-red-300" />
+          Excluir banner
+        </button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogTitle>Excluir banner</AlertDialogTitle>
+        <AlertDialogDescription>Este banner sera removido da area de membros. A imagem enviada no storage nao sera apagada automaticamente.</AlertDialogDescription>
+        <div className="flex flex-wrap gap-3">
+          <AlertDialogAction asChild>
+            <Button type="button" variant="destructive" onClick={() => void deleteBanner(banner.id)}>
+              Excluir definitivamente
             </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </section>
+          </AlertDialogAction>
+          <AlertDialogCancel className="inline-flex min-h-10 items-center justify-center rounded-lg border border-white/10 bg-white/8 px-4 py-2 text-sm font-semibold text-[#F5F3F3] hover:bg-white/12">
+            Cancelar
+          </AlertDialogCancel>
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+function BannerMenu({
+  banner,
+  categorias,
+  allModules,
+  storageUploadReady
+}: {
+  banner: BannerEditor;
+  categorias: CategoriaEditor[];
+  allModules: ModuleEditor[];
+  storageUploadReady: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="absolute right-3 top-3 z-30">
+      <button type="button" aria-label="Abrir opcoes" className="flex h-8 w-8 items-center justify-center text-white transition hover:text-[#8A1DEE]" onClick={() => setOpen((value) => !value)}>
+        <MoreHorizontal className="h-6 w-6" />
+      </button>
+      {open ? (
+        <div className="absolute right-0 top-10 w-52 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl">
+          <BannerSettingsDialog banner={banner} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
+          <button
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8"
+            type="button"
+            onClick={() => void updateBannerStatus(banner.id, banner.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}
+          >
+            {banner.status === "ACTIVE" ? <EyeOff className="h-4 w-4 text-[#8A1DEE]" /> : <Eye className="h-4 w-4 text-[#8A1DEE]" />}
+            {banner.status === "ACTIVE" ? "Desativar" : "Ativar"}
+          </button>
+          <DeleteBannerDialog banner={banner} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SortableBanner({
+  banner,
+  storageBaseUrl,
+  categorias,
+  allModules,
+  storageUploadReady
+}: {
+  banner: BannerEditor;
+  storageBaseUrl: string | null;
+  categorias: CategoriaEditor[];
+  allModules: ModuleEditor[];
+  storageUploadReady: boolean;
+}) {
+  return (
+    <SortableCard id={banner.id}>
+      <BannerCard banner={banner} storageBaseUrl={storageBaseUrl} />
+      <BannerMenu banner={banner} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
+    </SortableCard>
+  );
+}
+
+function BannerShelf({
+  banners,
+  storageBaseUrl,
+  categorias,
+  allModules,
+  storageUploadReady
+}: {
+  banners: BannerEditor[];
+  storageBaseUrl: string | null;
+  categorias: CategoriaEditor[];
+  allModules: ModuleEditor[];
+  storageUploadReady: boolean;
+}) {
+  const [items, setItems] = useState(banners);
+  const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setItems(banners);
+  }, [banners]);
+
+  function onDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = items.findIndex((item) => item.id === active.id);
+    const newIndex = items.findIndex((item) => item.id === over.id);
+    const next = arrayMove(items, oldIndex, newIndex);
+    setItems(next);
+    startTransition(() => void reorderBanners(next.map((item) => item.id)));
+  }
+
+  if (!items.length) {
+    return (
+      <div className="flex min-h-[170px] items-center justify-center rounded-lg border border-dashed border-white/15 text-sm text-white/50">
+        Nenhum banner cadastrado ainda.
+      </div>
+    );
+  }
+
+  return (
+    <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <SortableContext items={items.map((item) => item.id)} strategy={horizontalListSortingStrategy}>
+        <div className="module-shelf flex snap-x gap-4 overflow-x-auto pb-5 data-[pending=true]:opacity-80" data-pending={pending}>
+          {items.map((banner) => (
+            <SortableBanner key={banner.id} banner={banner} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
+function NewBannerDialog({
+  categorias,
+  allModules,
+  storageUploadReady
+}: {
+  categorias: CategoriaEditor[];
+  allModules: ModuleEditor[];
+  storageUploadReady: boolean;
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button">
+          <Plus className="h-4 w-4" />
+          Novo banner
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[92dvh] max-w-3xl overflow-y-auto">
+        <DialogTitle>Novo banner</DialogTitle>
+        <form action={createBanner} className="grid gap-4">
+          <Field label="Imagem do banner (1280 x 360)">
+            <FileInput name="bannerFile" disabled={!storageUploadReady} />
+          </Field>
+          <Field label="URL da imagem">
+            <TextInput name="imageUrl" placeholder="Opcional se enviar arquivo" />
+          </Field>
+          <Field label="Titulo opcional">
+            <TextInput name="title" />
+          </Field>
+          <Field label="Subtitulo opcional">
+            <TextArea name="subtitle" rows={2} />
+          </Field>
+          <BannerDestinationFields categorias={categorias} allModules={allModules} />
+          <Button type="submit" className="w-fit">
+            <Save className="h-4 w-4" />
+            Criar banner
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -641,9 +907,10 @@ function NewCategoryDialog({ courseId, storageUploadReady }: { courseId: string;
   );
 }
 
-export function CourseContentEditor({ course, categorias, allModules, storageBaseUrl, storageUploadReady }: CourseContentEditorProps) {
+export function CourseContentEditor({ course, banners, categorias, allModules, storageBaseUrl, storageUploadReady }: CourseContentEditorProps) {
   const totalLessons = allModules.reduce((sum, module) => sum + module.lessonCount, 0);
   const publishedCategorias = categorias.filter((categoria) => categoria.status === "PUBLISHED").length;
+  const activeBanners = banners.filter((banner) => banner.status === "ACTIVE").length;
 
   return (
     <div className="mx-auto min-w-0 max-w-6xl space-y-8">
@@ -662,7 +929,16 @@ export function CourseContentEditor({ course, categorias, allModules, storageBas
         </div>
       ) : null}
 
-      <CourseBanner course={course} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />
+      <section className="min-w-0 space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">Banners da area de membros</h2>
+            <p className="mt-1 text-sm text-white/55">Arraste para reordenar. Use os tres pontos para editar, ativar, desativar ou excluir.</p>
+          </div>
+          <NewBannerDialog categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
+        </div>
+        <BannerShelf banners={banners} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
+      </section>
 
       <section className="grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,.55fr)]">
         <div className="rounded-lg border border-white/10 bg-[#151019] p-5">
@@ -678,8 +954,8 @@ export function CourseContentEditor({ course, categorias, allModules, storageBas
           <div className="flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-[#8A1DEE]" />
             <div>
-              <h2 className="font-bold">Conteudo total</h2>
-              <p className="text-sm text-white/55">{totalLessons} aulas cadastradas</p>
+              <h2 className="font-bold">Destaques ativos</h2>
+              <p className="text-sm text-white/55">{activeBanners} banners visiveis e {totalLessons} aulas cadastradas</p>
             </div>
           </div>
         </div>

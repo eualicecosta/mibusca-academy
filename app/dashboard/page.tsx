@@ -3,10 +3,12 @@ import Image from "next/image";
 import { Suspense } from "react";
 import { ArrowRight, BookOpen, CheckCircle2, Lock } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { BannerCarousel, type StudentBanner } from "@/components/student/banner-carousel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { requireApprovedStudent } from "@/lib/auth";
 import { firstUnlockedLesson, getStudentCourse } from "@/lib/course";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
@@ -30,38 +32,70 @@ export default async function DashboardPage() {
 }
 
 async function DashboardContent({ profileId }: { profileId: string }) {
-  const data = await getStudentCourse(profileId);
+  const [data, bannerRecords] = await Promise.all([
+    getStudentCourse(profileId),
+    prisma.banner.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        imageUrl: true,
+        title: true,
+        subtitle: true,
+        targetType: true,
+        targetId: true,
+        targetUrl: true
+      }
+    })
+  ]);
   const nextLesson = firstUnlockedLesson(data.flatLessons);
   const course = data.course;
-  const bannerUrl = imageUrl(course?.bannerUrl);
-  const showBannerText = !course?.hideText;
+  const categoryIds = new Set(data.categorias.map((categoria) => categoria.id));
+  const banners: StudentBanner[] = bannerRecords
+    .map((banner) => {
+      const resolvedImageUrl = imageUrl(banner.imageUrl);
+      if (!resolvedImageUrl) return null;
+
+      let href: string | null = null;
+      if (banner.targetType === "URL" && banner.targetUrl) {
+        href = banner.targetUrl;
+      }
+      if (banner.targetType === "CATEGORY" && banner.targetId && categoryIds.has(banner.targetId)) {
+        href = `#categoria-${banner.targetId}`;
+      }
+      if (banner.targetType === "MODULE" && banner.targetId) {
+        const targetModule = data.modules.find((module) => module.id === banner.targetId);
+        const targetLesson = targetModule?.lessons.find((lesson) => !lesson.locked) || targetModule?.lessons[0];
+        href = targetLesson ? `/curso/${targetLesson.id}` : null;
+      }
+
+      return {
+        id: banner.id,
+        imageUrl: resolvedImageUrl,
+        title: banner.title,
+        subtitle: banner.subtitle,
+        href
+      };
+    })
+    .filter((banner): banner is StudentBanner => Boolean(banner));
+
+  const fallbackBannerUrl = imageUrl(course?.bannerUrl);
+  const fallbackBanners: StudentBanner[] = fallbackBannerUrl
+    ? [
+        {
+          id: "course-banner",
+          imageUrl: fallbackBannerUrl,
+          title: course?.hideText ? null : course?.title || "Conhecimento iFood",
+          subtitle: course?.hideText ? null : course?.description || "Curso pratico para dominar funil, cardapio, campanhas, ROI, precificacao e operacao dentro do iFood.",
+          href: null
+        }
+      ]
+    : [];
+  const visibleBanners = banners.length ? banners : fallbackBanners;
 
   return (
     <div className="mx-auto min-w-0 max-w-6xl space-y-8">
-      <section className="relative min-h-[260px] overflow-hidden rounded-lg border border-white/10 bg-gradient-to-br from-[#53009F] to-[#12051f] p-5 sm:p-8">
-        {bannerUrl ? (
-          <Image src={bannerUrl} alt={course?.title || "Conhecimento iFood"} fill priority sizes="(min-width: 1024px) 1120px, 100vw" className="object-cover" />
-        ) : null}
-        {showBannerText ? <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/45 to-black/20" /> : null}
-        {showBannerText ? (
-          <div className="relative z-10 flex min-h-[220px] flex-col justify-between gap-8">
-            <div className="max-w-3xl">
-              <p className="text-sm font-bold uppercase tracking-wide text-[#F5F3F3]/70">MiBusca Brasil</p>
-              <h1 className="mt-3 break-words text-4xl font-bold md:text-6xl">{course?.title || "Conhecimento iFood"}</h1>
-              <p className="mt-4 max-w-2xl break-words leading-7 text-[#F5F3F3]/76">
-                {course?.description || "Curso pratico para dominar funil, cardapio, campanhas, ROI, precificacao e operacao dentro do iFood."}
-              </p>
-            </div>
-            <div className="max-w-lg">
-              <div className="mb-2 flex justify-between text-sm text-white/80">
-                <span>Progresso geral</span>
-                <span>{data.percent}%</span>
-              </div>
-              <Progress value={data.percent} />
-            </div>
-          </div>
-        ) : null}
-      </section>
+      <BannerCarousel banners={visibleBanners} />
 
       <section className="grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,.7fr)]">
         <Card>
@@ -104,7 +138,7 @@ async function DashboardContent({ profileId }: { profileId: string }) {
 
       <section className="space-y-9">
         {data.categorias.map((categoria) => (
-          <div key={categoria.id} className="min-w-0">
+          <div key={categoria.id} id={`categoria-${categoria.id}`} className="min-w-0 scroll-mt-24">
             <div className="mb-4">
               <h2 className="break-words text-2xl font-bold">{categoria.title}</h2>
               {categoria.description ? <p className="mt-1 break-words text-sm text-white/55">{categoria.description}</p> : null}

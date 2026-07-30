@@ -120,6 +120,48 @@ async function normalizeCategoriaOrders(courseId: string) {
   ]);
 }
 
+async function normalizeBannerOrders() {
+  const banners = await prisma.banner.findMany({
+    orderBy: { order: "asc" },
+    select: { id: true }
+  });
+
+  if (!banners.length) {
+    return;
+  }
+
+  await prisma.$transaction([
+    ...banners.map((banner, index) =>
+      prisma.banner.update({
+        where: { id: banner.id },
+        data: { order: -1000 - index }
+      })
+    ),
+    ...banners.map((banner, index) =>
+      prisma.banner.update({
+        where: { id: banner.id },
+        data: { order: index + 1 }
+      })
+    )
+  ]);
+}
+
+function bannerTargetData(formData: FormData) {
+  const targetTypeValue = String(formData.get("targetType") || "");
+  const targetType = ["CATEGORY", "MODULE", "URL"].includes(targetTypeValue)
+    ? (targetTypeValue as "CATEGORY" | "MODULE" | "URL")
+    : null;
+  const categoryId = String(formData.get("targetCategoryId") || "").trim();
+  const moduleId = String(formData.get("targetModuleId") || "").trim();
+  const targetUrl = String(formData.get("targetUrl") || "").trim();
+
+  return {
+    targetType,
+    targetId: targetType === "CATEGORY" ? categoryId || null : targetType === "MODULE" ? moduleId || null : null,
+    targetUrl: targetType === "URL" ? targetUrl || null : null
+  };
+}
+
 export async function updateUserApproval(userId: string, status: "PENDING" | "ACTIVE" | "REFUSED") {
   await requireAdmin();
   await prisma.userProfile.update({
@@ -212,6 +254,122 @@ export async function updateModuleStatus(moduleId: string, status: "DRAFT" | "PU
     data: { status }
   });
   revalidateTag("course-structure");
+  revalidatePath("/admin/conteudo");
+  revalidatePath("/dashboard");
+}
+
+export async function createBanner(formData: FormData) {
+  await requireAdmin();
+  const imagePath = await uploadImageFile(formData.get("bannerFile"), "banners");
+  const imageUrl = imagePath || String(formData.get("imageUrl") || "").trim();
+
+  if (!imageUrl) {
+    return;
+  }
+
+  const last = await prisma.banner.findFirst({
+    orderBy: { order: "desc" },
+    select: { order: true }
+  });
+
+  await prisma.banner.create({
+    data: {
+      imageUrl,
+      title: String(formData.get("title") || "").trim() || null,
+      subtitle: String(formData.get("subtitle") || "").trim() || null,
+      order: last ? last.order + 1 : 1,
+      status: "ACTIVE",
+      ...bannerTargetData(formData)
+    }
+  });
+
+  revalidatePath("/admin/conteudo");
+  revalidatePath("/dashboard");
+}
+
+export async function updateBanner(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") || "");
+  const imagePath = await uploadImageFile(formData.get("bannerFile"), `banners/${id}`);
+  const currentImageUrl = String(formData.get("currentImageUrl") || "").trim();
+  const typedImageUrl = String(formData.get("imageUrl") || "").trim();
+  const requestedOrder = Math.max(1, Number(formData.get("order") || 999));
+
+  const banner = await prisma.banner.update({
+    where: { id },
+    data: {
+      imageUrl: imagePath || typedImageUrl || currentImageUrl,
+      title: String(formData.get("title") || "").trim() || null,
+      subtitle: String(formData.get("subtitle") || "").trim() || null,
+      status: String(formData.get("status") || "ACTIVE") as "ACTIVE" | "INACTIVE",
+      ...bannerTargetData(formData)
+    },
+    select: { id: true }
+  });
+
+  const banners = await prisma.banner.findMany({
+    orderBy: { order: "asc" },
+    select: { id: true }
+  });
+  const orderedIds = banners.map((item) => item.id).filter((itemId) => itemId !== banner.id);
+  orderedIds.splice(Math.min(requestedOrder - 1, orderedIds.length), 0, banner.id);
+
+  await prisma.$transaction([
+    ...orderedIds.map((itemId, index) =>
+      prisma.banner.update({
+        where: { id: itemId },
+        data: { order: -1000 - index }
+      })
+    ),
+    ...orderedIds.map((itemId, index) =>
+      prisma.banner.update({
+        where: { id: itemId },
+        data: { order: index + 1 }
+      })
+    )
+  ]);
+
+  revalidatePath("/admin/conteudo");
+  revalidatePath("/dashboard");
+}
+
+export async function updateBannerStatus(bannerId: string, status: "ACTIVE" | "INACTIVE") {
+  await requireAdmin();
+  await prisma.banner.update({
+    where: { id: bannerId },
+    data: { status }
+  });
+  revalidatePath("/admin/conteudo");
+  revalidatePath("/dashboard");
+}
+
+export async function deleteBanner(bannerId: string) {
+  await requireAdmin();
+  await prisma.banner.delete({
+    where: { id: bannerId }
+  });
+  await normalizeBannerOrders();
+  revalidatePath("/admin/conteudo");
+  revalidatePath("/dashboard");
+}
+
+export async function reorderBanners(orderedIds: string[]) {
+  await requireAdmin();
+  await prisma.$transaction([
+    ...orderedIds.map((id, index) =>
+      prisma.banner.update({
+        where: { id },
+        data: { order: -1000 - index }
+      })
+    ),
+    ...orderedIds.map((id, index) =>
+      prisma.banner.update({
+        where: { id },
+        data: { order: index + 1 }
+      })
+    )
+  ]);
+  await normalizeBannerOrders();
   revalidatePath("/admin/conteudo");
   revalidatePath("/dashboard");
 }

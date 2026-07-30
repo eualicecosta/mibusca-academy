@@ -33,6 +33,17 @@ enum ContentBlockType {
   IMAGE
 }
 
+enum BannerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum BannerTargetType {
+  CATEGORY
+  MODULE
+  URL
+}
+
 model UserProfile {
   id         String         @id @default(cuid())
   clerkId    String         @unique
@@ -64,6 +75,23 @@ model Course {
 
   categorias Categoria[]
   modules    Module[]
+}
+
+model Banner {
+  id         String            @id @default(cuid())
+  imageUrl   String
+  title      String?
+  subtitle   String?
+  order      Int
+  status     BannerStatus      @default(ACTIVE)
+  targetType BannerTargetType?
+  targetId   String?
+  targetUrl  String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@unique([order])
+  @@index([status, order])
 }
 
 model Categoria {

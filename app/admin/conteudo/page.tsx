@@ -7,48 +7,64 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminContentPage() {
   const profile = await requireAdmin();
-  const course = await prisma.course.findFirst({
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      bannerUrl: true,
-      hideText: true,
-      categorias: {
-        orderBy: { order: "asc" },
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          coverImagePath: true,
-          order: true,
-          status: true,
-          modules: {
-            orderBy: { order: "asc" },
-            select: {
-              id: true,
-              categoriaId: true,
-              number: true,
-              title: true,
-              objective: true,
-              coverImagePath: true,
-              hideText: true,
-              order: true,
-              status: true,
-              lessons: {
-                orderBy: { order: "asc" },
-                select: {
-                  id: true,
-                  progress: { where: { completed: true }, select: { id: true } }
+  const [course, banners] = await Promise.all([
+    prisma.course.findFirst({
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        bannerUrl: true,
+        hideText: true,
+        categorias: {
+          orderBy: { order: "asc" },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            coverImagePath: true,
+            order: true,
+            status: true,
+            modules: {
+              orderBy: { order: "asc" },
+              select: {
+                id: true,
+                categoriaId: true,
+                number: true,
+                title: true,
+                objective: true,
+                coverImagePath: true,
+                hideText: true,
+                order: true,
+                status: true,
+                lessons: {
+                  orderBy: { order: "asc" },
+                  select: {
+                    id: true,
+                    progress: { where: { completed: true }, select: { id: true } }
+                  }
                 }
               }
             }
           }
         }
       }
-    }
-  });
+    }),
+    prisma.banner.findMany({
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        imageUrl: true,
+        title: true,
+        subtitle: true,
+        order: true,
+        status: true,
+        targetType: true,
+        targetId: true,
+        targetUrl: true
+      }
+    })
+  ]);
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const bucket = process.env.SUPABASE_STORAGE_BUCKET || "course-images";
@@ -66,6 +82,7 @@ export default async function AdminContentPage() {
             bannerUrl: course.bannerUrl,
             hideText: course.hideText
           }}
+          banners={banners}
           categorias={course.categorias.map((categoria) => ({
             id: categoria.id,
             title: categoria.title,
