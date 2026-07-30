@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+enum ApprovalStatus {
+  PENDING
+  ACTIVE
+  REFUSED
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+}
+
+enum ContentBlockType {
+  TEXT
+  STEP
+  TIP
+  WARNING
+  IMAGE
+}
+
+model UserProfile {
+  id         String         @id @default(cuid())
+  clerkId    String         @unique
+  name       String
+  email      String         @unique
+  whatsapp   String?
+  role       UserRole       @default(STUDENT)
+  status     ApprovalStatus @default(PENDING)
+  approvedAt DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  lessonProgress      LessonProgress[]
+  checklistCompletion ChecklistCompletion[]
+
+  @@index([role, status])
+}
+
+model Course {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  description String?
+  bannerUrl   String?
+  hideText    Boolean       @default(false)
+  status      ContentStatus @default(PUBLISHED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  categorias Categoria[]
+  modules    Module[]
+}
+
+model Categoria {
+  id             String        @id @default(cuid())
+  courseId       String
+  title          String
+  description    String?
+  coverImagePath String?
+  order          Int
+  status         ContentStatus @default(PUBLISHED)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  modules Module[]
+
+  @@unique([courseId, order])
+  @@index([courseId, status, order])
+}
+
+model Module {
+  id        String        @id @default(cuid())
+  courseId  String
+  categoriaId String
+  number    String
+  title     String
+  objective String?
+  coverImagePath String?
+  hideText  Boolean       @default(false)
+  order     Int
+  status    ContentStatus @default(PUBLISHED)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  categoria Categoria @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+  lessons   Lesson[]
+
+  @@unique([categoriaId, order])
+  @@index([courseId, status, order])
+  @@index([categoriaId, status, order])
+}
+
+model Lesson {
+  id           String        @id @default(cuid())
+  moduleId     String
+  number       String
+  title        String
+  objective    String?
+  context      String?
+  order        Int
+  status       ContentStatus @default(PUBLISHED)
+  tipKind      String?
+  tipText      String?
+  imagePath    String?
+  imageCaption String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  module         Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  blocks         ContentBlock[]
+  checklistItems ChecklistItem[]
+  progress       LessonProgress[]
+
+  @@unique([moduleId, order])
+  @@index([moduleId, status, order])
+}
+
+model ContentBlock {
+  id           String           @id @default(cuid())
+  lessonId     String
+  type         ContentBlockType
+  order        Int
+  content      String
+  imagePath    String?
+  imageCaption String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, order])
+  @@index([lessonId, type, order])
+}
+
+model ChecklistItem {
+  id        String   @id @default(cuid())
+  lessonId  String
+  text      String
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lesson      Lesson                @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completions ChecklistCompletion[]
+
+  @@unique([lessonId, order])
+  @@index([lessonId, order])
+}
+
+model LessonProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  lessonId    String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user   UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson      @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId, completed])
+}
+
+model ChecklistCompletion {
+  id              String    @id @default(cuid())
+  userId          String
+  checklistItemId String
+  checked         Boolean   @default(false)
+  checkedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user          UserProfile   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checklistItem ChecklistItem @relation(fields: [checklistItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, checklistItemId])
+  @@index([userId, checked])
+}
