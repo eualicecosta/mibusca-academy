@@ -44,6 +44,11 @@ enum BannerTargetType {
   URL
 }
 
+enum DashboardBlockType {
+  BANNER
+  CATEGORY
+}
+
 model UserProfile {
   id         String         @id @default(cuid())
   clerkId    String         @unique
@@ -73,13 +78,14 @@ model Course {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  categorias Categoria[]
-  modules    Module[]
+  categorias      Categoria[]
+  modules         Module[]
+  dashboardBlocks DashboardBlock[]
 }
 
 model Banner {
   id         String            @id @default(cuid())
-  imageUrl   String
+  imageUrl   String?
   title      String?
   subtitle   String?
   order      Int
@@ -90,8 +96,26 @@ model Banner {
   createdAt  DateTime          @default(now())
   updatedAt  DateTime          @updatedAt
 
+  images         BannerImage[]
+  dashboardBlock DashboardBlock?
+
   @@unique([order])
   @@index([status, order])
+}
+
+model BannerImage {
+  id        String   @id @default(cuid())
+  bannerId  String
+  imageUrl  String
+  altText   String?
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  banner Banner @relation(fields: [bannerId], references: [id], onDelete: Cascade)
+
+  @@unique([bannerId, order])
+  @@index([bannerId, order])
 }
 
 model Categoria {
@@ -105,26 +129,45 @@ model Categoria {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  modules Module[]
+  course         Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  modules        Module[]
+  dashboardBlock DashboardBlock?
 
   @@unique([courseId, order])
   @@index([courseId, status, order])
 }
 
+model DashboardBlock {
+  id          String             @id @default(cuid())
+  courseId    String
+  type        DashboardBlockType
+  order       Int
+  bannerId    String?            @unique
+  categoriaId String?            @unique
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  course    Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  banner    Banner?    @relation(fields: [bannerId], references: [id], onDelete: Cascade)
+  categoria Categoria? @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, order])
+  @@index([courseId, type, order])
+}
+
 model Module {
-  id        String        @id @default(cuid())
-  courseId  String
-  categoriaId String
-  number    String
-  title     String
-  objective String?
+  id             String        @id @default(cuid())
+  courseId       String
+  categoriaId    String
+  number         String
+  title          String
+  objective      String?
   coverImagePath String?
-  hideText  Boolean       @default(false)
-  order     Int
-  status    ContentStatus @default(PUBLISHED)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  hideText       Boolean       @default(false)
+  order          Int
+  status         ContentStatus @default(PUBLISHED)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
   categoria Categoria @relation(fields: [categoriaId], references: [id], onDelete: Restrict)

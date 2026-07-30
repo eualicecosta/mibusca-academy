@@ -6,27 +6,37 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type StudentBanner = {
+export type StudentBannerImage = {
   id: string;
   imageUrl: string;
+};
+
+export type StudentBannerBlock = {
+  id: string;
+  images: StudentBannerImage[];
   title: string | null;
   subtitle: string | null;
   href: string | null;
 };
 
-function BannerFrame({ banner, active }: { banner: StudentBanner; active: boolean }) {
+function BannerFrame({ banner, image, active }: { banner: StudentBannerBlock; image: StudentBannerImage | null; active: boolean }) {
+  const showText = !image && (banner.title || banner.subtitle);
   const content = (
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-white/10 bg-[#151019]">
-      <Image
-        src={banner.imageUrl}
-        alt={banner.title || "Banner da area de membros"}
-        fill
-        priority={active}
-        sizes="(min-width: 1024px) 1120px, 100vw"
-        className="object-cover"
-      />
-      {(banner.title || banner.subtitle) ? <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/38 to-transparent" /> : null}
-      {(banner.title || banner.subtitle) ? (
+      {image ? (
+        <Image
+          src={image.imageUrl}
+          alt={banner.title || "Banner da area de membros"}
+          fill
+          priority={active}
+          sizes="(min-width: 1024px) 1120px, 100vw"
+          className="object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(138,29,238,.62),transparent_36%),linear-gradient(145deg,#09050e,#260748_55%,#050306)]" />
+      )}
+      {showText ? <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/38 to-transparent" /> : null}
+      {showText ? (
         <div className="absolute inset-x-0 bottom-0 max-w-3xl p-5 sm:p-8">
           {banner.title ? <h1 className="break-words text-3xl font-bold leading-tight text-white sm:text-5xl">{banner.title}</h1> : null}
           {banner.subtitle ? <p className="mt-3 max-w-2xl break-words text-base leading-7 text-white/72 sm:text-lg">{banner.subtitle}</p> : null}
@@ -54,36 +64,36 @@ function BannerFrame({ banner, active }: { banner: StudentBanner; active: boolea
   );
 }
 
-export function BannerCarousel({ banners }: { banners: StudentBanner[] }) {
+export function BannerCarousel({ banner }: { banner: StudentBannerBlock }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const hasControls = banners.length > 1;
-  const safeIndex = useMemo(() => Math.min(activeIndex, Math.max(banners.length - 1, 0)), [activeIndex, banners.length]);
-  const activeBanner = banners[safeIndex];
+  const hasControls = banner.images.length > 1;
+  const safeIndex = useMemo(() => Math.min(activeIndex, Math.max(banner.images.length - 1, 0)), [activeIndex, banner.images.length]);
+  const activeImage = banner.images[safeIndex] || null;
 
   useEffect(() => {
     if (!hasControls) return;
     const timer = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % banners.length);
+      setActiveIndex((current) => (current + 1) % banner.images.length);
     }, 6000);
 
     return () => window.clearInterval(timer);
-  }, [banners.length, hasControls]);
+  }, [banner.images.length, hasControls]);
 
-  if (!activeBanner) {
+  if (!activeImage && !banner.title && !banner.subtitle) {
     return null;
   }
 
   function previous() {
-    setActiveIndex((current) => (current - 1 + banners.length) % banners.length);
+    setActiveIndex((current) => (current - 1 + banner.images.length) % banner.images.length);
   }
 
   function next() {
-    setActiveIndex((current) => (current + 1) % banners.length);
+    setActiveIndex((current) => (current + 1) % banner.images.length);
   }
 
   return (
     <section className="relative h-[220px] min-w-0 overflow-hidden rounded-lg sm:h-[280px]">
-      <BannerFrame banner={activeBanner} active />
+      <BannerFrame banner={banner} image={activeImage} active />
       {hasControls ? (
         <>
           <button
@@ -103,9 +113,9 @@ export function BannerCarousel({ banners }: { banners: StudentBanner[] }) {
             <ChevronRight className="h-5 w-5" />
           </button>
           <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2 rounded-full bg-black/45 px-3 py-2">
-            {banners.map((banner, index) => (
+            {banner.images.map((image, index) => (
               <button
-                key={banner.id}
+                key={image.id}
                 type="button"
                 aria-label={`Ir para banner ${index + 1}`}
                 onClick={() => setActiveIndex(index)}

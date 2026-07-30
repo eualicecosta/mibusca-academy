@@ -13,6 +13,7 @@
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "db:backfill:blocks": "tsx scripts/backfill-dashboard-blocks.ts",
     "storage:migrate:r2": "tsx scripts/migrate-supabase-storage-to-r2.ts"
   },
   "prisma": {

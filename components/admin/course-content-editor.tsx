@@ -27,8 +27,7 @@ import {
   deleteModule,
   moveModuleToCategoria,
   removeModuleFromCategoria,
-  reorderBanners,
-  reorderCategorias,
+  reorderDashboardBlocks,
   reorderModules,
   updateBanner,
   updateBannerStatus,
@@ -66,7 +65,12 @@ type CategoriaEditor = {
 
 type BannerEditor = {
   id: string;
-  imageUrl: string;
+  imageUrl: string | null;
+  images: {
+    id: string;
+    imageUrl: string;
+    order: number;
+  }[];
   title: string | null;
   subtitle: string | null;
   order: number;
@@ -74,6 +78,14 @@ type BannerEditor = {
   targetType: "CATEGORY" | "MODULE" | "URL" | null;
   targetId: string | null;
   targetUrl: string | null;
+};
+
+type DashboardBlockEditor = {
+  id: string;
+  type: "BANNER" | "CATEGORY";
+  order: number;
+  bannerId: string | null;
+  categoriaId: string | null;
 };
 
 type CourseEditor = {
@@ -87,6 +99,7 @@ type CourseEditor = {
 type CourseContentEditorProps = {
   course: CourseEditor;
   banners: BannerEditor[];
+  dashboardBlocks: DashboardBlockEditor[];
   categorias: CategoriaEditor[];
   allModules: ModuleEditor[];
   storageBaseUrl: string | null;
@@ -173,16 +186,18 @@ function ConfirmActionButton({
 }
 
 function BannerCard({ banner, storageBaseUrl }: { banner: BannerEditor; storageBaseUrl: string | null }) {
-  const imageUrl = assetUrl(banner.imageUrl, storageBaseUrl);
+  const firstImage = banner.images[0]?.imageUrl || banner.imageUrl;
+  const imageUrl = assetUrl(firstImage, storageBaseUrl);
+  const showText = !imageUrl && (banner.title || banner.subtitle);
 
   return (
     <div className="group relative h-[170px] w-[360px] shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60 sm:w-[420px]">
       {imageUrl ? <Image src={imageUrl} alt={banner.title || "Banner"} fill sizes="420px" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(138,29,238,.55),transparent_38%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
-      {(banner.title || banner.subtitle) ? <div className="absolute inset-0 bg-gradient-to-r from-black/78 via-black/35 to-transparent" /> : null}
-      <div className="absolute left-4 top-4 rounded-full bg-black/65 px-3 py-1 text-xs font-bold uppercase text-white/75">
+      {showText ? <div className="absolute inset-0 bg-gradient-to-r from-black/78 via-black/35 to-transparent" /> : null}
+      {!imageUrl ? <div className="absolute left-4 top-4 rounded-full bg-black/65 px-3 py-1 text-xs font-bold uppercase text-white/75">
         {banner.status === "ACTIVE" ? "Ativo" : "Inativo"}
-      </div>
-      {(banner.title || banner.subtitle) ? (
+      </div> : null}
+      {showText ? (
         <div className="absolute inset-x-0 bottom-0 max-w-[82%] p-4">
           {banner.title ? <h3 className="line-clamp-2 break-words text-xl font-black leading-tight text-white">{banner.title}</h3> : null}
           {banner.subtitle ? <p className="mt-2 line-clamp-2 break-words text-sm text-white/68">{banner.subtitle}</p> : null}
@@ -244,11 +259,13 @@ function BannerDestinationFields({
 
 function BannerSettingsDialog({
   banner,
+  storageBaseUrl,
   categorias,
   allModules,
   storageUploadReady
 }: {
   banner: BannerEditor;
+  storageBaseUrl: string | null;
   categorias: CategoriaEditor[];
   allModules: ModuleEditor[];
   storageUploadReady: boolean;
@@ -265,30 +282,50 @@ function BannerSettingsDialog({
         <DialogTitle>Editar banner</DialogTitle>
         <form action={updateBanner} className="grid gap-4">
           <input type="hidden" name="id" value={banner.id} />
-          <input type="hidden" name="currentImageUrl" value={banner.imageUrl} />
-          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_120px]">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
             <Field label="Titulo opcional">
               <TextInput name="title" defaultValue={banner.title || ""} />
             </Field>
-            <Field label="Ordem">
-              <TextInput name="order" type="number" defaultValue={banner.order} />
+            <Field label="Status">
+              <SelectField name="status" defaultValue={banner.status}>
+                <option value="ACTIVE">Ativo</option>
+                <option value="INACTIVE">Inativo</option>
+              </SelectField>
             </Field>
           </div>
           <Field label="Subtitulo opcional">
             <TextArea name="subtitle" defaultValue={banner.subtitle || ""} rows={2} />
           </Field>
-          <Field label="Status">
-            <SelectField name="status" defaultValue={banner.status}>
-              <option value="ACTIVE">Ativo</option>
-              <option value="INACTIVE">Inativo</option>
-            </SelectField>
-          </Field>
-          <Field label="Imagem do banner (1280 x 360)">
-            <FileInput name="bannerFile" disabled={!storageUploadReady} />
-          </Field>
-          <Field label="URL da imagem">
-            <TextInput name="imageUrl" defaultValue={banner.imageUrl.startsWith("http") ? banner.imageUrl : ""} placeholder="Opcional se enviar arquivo" />
-          </Field>
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+            <h3 className="text-sm font-bold text-white">Imagens do bloco</h3>
+            <p className="mt-1 text-sm text-white/55">Use de 1 a 3 imagens. Quando houver imagem, o aluno ve somente a imagem, sem texto sobreposto.</p>
+            {banner.images.length ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {banner.images.map((image) => {
+                  const previewUrl = assetUrl(image.imageUrl, storageBaseUrl);
+                  return (
+                    <label key={image.id} className="grid gap-2 rounded-lg border border-white/10 bg-black/25 p-2 text-xs font-semibold text-white/70">
+                      <span className="relative h-24 overflow-hidden rounded-md bg-black/40">
+                        {previewUrl ? <Image src={previewUrl} alt="Imagem do banner" fill sizes="180px" className="object-cover" /> : null}
+                      </span>
+                      <span className="flex items-center gap-2">
+                        <input type="checkbox" name="removeImageIds" value={image.id} className="h-4 w-4 accent-[#8A1DEE]" />
+                        Remover
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="mt-4 rounded-lg border border-dashed border-white/15 p-3 text-sm text-white/45">Nenhuma imagem cadastrada neste bloco.</p>
+            )}
+            <div className="mt-4 grid gap-3">
+              <FileInput name="bannerFile1" disabled={!storageUploadReady || banner.images.length >= 3} />
+              <FileInput name="bannerFile2" disabled={!storageUploadReady || banner.images.length >= 2} />
+              <FileInput name="bannerFile3" disabled={!storageUploadReady || banner.images.length >= 1} />
+              <TextInput name="imageUrl1" placeholder="URL opcional de imagem" />
+            </div>
+          </div>
           <BannerDestinationFields banner={banner} categorias={categorias} allModules={allModules} />
           <Button type="submit" className="w-fit">
             <Save className="h-4 w-4" />
@@ -329,11 +366,13 @@ function DeleteBannerDialog({ banner }: { banner: BannerEditor }) {
 
 function BannerMenu({
   banner,
+  storageBaseUrl,
   categorias,
   allModules,
   storageUploadReady
 }: {
   banner: BannerEditor;
+  storageBaseUrl: string | null;
   categorias: CategoriaEditor[];
   allModules: ModuleEditor[];
   storageUploadReady: boolean;
@@ -347,7 +386,7 @@ function BannerMenu({
       </button>
       {open ? (
         <div className="absolute right-0 top-10 w-52 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl">
-          <BannerSettingsDialog banner={banner} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
+          <BannerSettingsDialog banner={banner} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
           <button
             className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8"
             type="button"
@@ -363,83 +402,13 @@ function BannerMenu({
   );
 }
 
-function SortableBanner({
-  banner,
-  storageBaseUrl,
-  categorias,
-  allModules,
-  storageUploadReady
-}: {
-  banner: BannerEditor;
-  storageBaseUrl: string | null;
-  categorias: CategoriaEditor[];
-  allModules: ModuleEditor[];
-  storageUploadReady: boolean;
-}) {
-  return (
-    <SortableCard id={banner.id}>
-      <BannerCard banner={banner} storageBaseUrl={storageBaseUrl} />
-      <BannerMenu banner={banner} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
-    </SortableCard>
-  );
-}
-
-function BannerShelf({
-  banners,
-  storageBaseUrl,
-  categorias,
-  allModules,
-  storageUploadReady
-}: {
-  banners: BannerEditor[];
-  storageBaseUrl: string | null;
-  categorias: CategoriaEditor[];
-  allModules: ModuleEditor[];
-  storageUploadReady: boolean;
-}) {
-  const [items, setItems] = useState(banners);
-  const [pending, startTransition] = useTransition();
-
-  useEffect(() => {
-    setItems(banners);
-  }, [banners]);
-
-  function onDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = items.findIndex((item) => item.id === active.id);
-    const newIndex = items.findIndex((item) => item.id === over.id);
-    const next = arrayMove(items, oldIndex, newIndex);
-    setItems(next);
-    startTransition(() => void reorderBanners(next.map((item) => item.id)));
-  }
-
-  if (!items.length) {
-    return (
-      <div className="flex min-h-[170px] items-center justify-center rounded-lg border border-dashed border-white/15 text-sm text-white/50">
-        Nenhum banner cadastrado ainda.
-      </div>
-    );
-  }
-
-  return (
-    <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-      <SortableContext items={items.map((item) => item.id)} strategy={horizontalListSortingStrategy}>
-        <div className="module-shelf flex snap-x gap-4 overflow-x-auto pb-5 data-[pending=true]:opacity-80" data-pending={pending}>
-          {items.map((banner) => (
-            <SortableBanner key={banner.id} banner={banner} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
-          ))}
-        </div>
-      </SortableContext>
-    </DndContext>
-  );
-}
-
 function NewBannerDialog({
+  courseId,
   categorias,
   allModules,
   storageUploadReady
 }: {
+  courseId: string;
   categorias: CategoriaEditor[];
   allModules: ModuleEditor[];
   storageUploadReady: boolean;
@@ -455,12 +424,19 @@ function NewBannerDialog({
       <DialogContent className="max-h-[92dvh] max-w-3xl overflow-y-auto">
         <DialogTitle>Novo banner</DialogTitle>
         <form action={createBanner} className="grid gap-4">
-          <Field label="Imagem do banner (1280 x 360)">
-            <FileInput name="bannerFile" disabled={!storageUploadReady} />
-          </Field>
-          <Field label="URL da imagem">
-            <TextInput name="imageUrl" placeholder="Opcional se enviar arquivo" />
-          </Field>
+          <input type="hidden" name="courseId" value={courseId} />
+          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+            <h3 className="text-sm font-bold text-white">Imagens do bloco</h3>
+            <p className="mt-1 text-sm text-white/55">Adicione de 1 a 3 imagens. Se adicionar mais de uma, este bloco rotaciona somente entre elas.</p>
+            <div className="mt-4 grid gap-3">
+              <FileInput name="bannerFile1" disabled={!storageUploadReady} />
+              <FileInput name="bannerFile2" disabled={!storageUploadReady} />
+              <FileInput name="bannerFile3" disabled={!storageUploadReady} />
+              <TextInput name="imageUrl1" placeholder="URL opcional de imagem" />
+              <TextInput name="imageUrl2" placeholder="URL opcional de segunda imagem" />
+              <TextInput name="imageUrl3" placeholder="URL opcional de terceira imagem" />
+            </div>
+          </div>
           <Field label="Titulo opcional">
             <TextInput name="title" />
           </Field>
@@ -480,28 +456,31 @@ function NewBannerDialog({
 
 function CategoriaCard({ categoria, storageBaseUrl }: { categoria: CategoriaEditor; storageBaseUrl: string | null }) {
   const coverUrl = assetUrl(categoria.coverImagePath, storageBaseUrl);
+  const showText = !coverUrl;
   return (
     <div className="group relative h-[220px] w-[280px] shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60">
       {coverUrl ? <Image src={coverUrl} alt={categoria.title} fill sizes="280px" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(138,29,238,.55),transparent_35%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
-      <div className="absolute inset-x-0 bottom-0 p-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-[#8A1DEE]">{categoria.status}</p>
-        <h3 className="mt-2 line-clamp-2 break-words text-xl font-black leading-tight text-white">{categoria.title}</h3>
-        <p className="mt-2 text-xs text-white/62">{categoria.modules.length} modulos</p>
-      </div>
+      {showText ? <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" /> : null}
+      {showText ? (
+        <div className="absolute inset-x-0 bottom-0 p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-[#8A1DEE]">{categoria.status}</p>
+          <h3 className="mt-2 line-clamp-2 break-words text-xl font-black leading-tight text-white">{categoria.title}</h3>
+          <p className="mt-2 text-xs text-white/62">{categoria.modules.length} modulos</p>
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function ModuleCard({ module, storageBaseUrl }: { module: ModuleEditor; storageBaseUrl: string | null }) {
   const coverUrl = assetUrl(module.coverImagePath, storageBaseUrl);
-  const showText = !module.hideText;
+  const showText = !coverUrl && !module.hideText;
 
   return (
     <div className="group relative h-[292px] w-[220px] shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] text-left shadow-xl transition hover:border-[#8A1DEE]/60">
       {coverUrl ? <Image src={coverUrl} alt={module.title || "Modulo"} fill sizes="220px" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(138,29,238,.55),transparent_35%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
       {showText ? <div className="absolute inset-0 bg-gradient-to-t from-black via-black/58 to-black/10" /> : null}
-      {module.status !== "PUBLISHED" ? (
+      {showText && module.status !== "PUBLISHED" ? (
         <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white/75">
           <Lock className="h-4 w-4" />
         </div>
@@ -793,15 +772,6 @@ function ModuleMenu({ module, storageBaseUrl, storageUploadReady }: { module: Mo
   );
 }
 
-function SortableCategoria({ categoria, storageBaseUrl, allModules, storageUploadReady }: { categoria: CategoriaEditor; storageBaseUrl: string | null; allModules: ModuleEditor[]; storageUploadReady: boolean }) {
-  return (
-    <SortableCard id={categoria.id}>
-      <CategoriaCard categoria={categoria} storageBaseUrl={storageBaseUrl} />
-      <CategoriaMenu categoria={categoria} allModules={allModules} storageUploadReady={storageUploadReady} />
-    </SortableCard>
-  );
-}
-
 function SortableModule({ module, storageBaseUrl, storageUploadReady }: { module: ModuleEditor; storageBaseUrl: string | null; storageUploadReady: boolean }) {
   return (
     <SortableCard id={module.id}>
@@ -811,30 +781,114 @@ function SortableModule({ module, storageBaseUrl, storageUploadReady }: { module
   );
 }
 
-function CategoriaShelf({ courseId, categorias, storageBaseUrl, allModules, storageUploadReady }: { courseId: string; categorias: CategoriaEditor[]; storageBaseUrl: string | null; allModules: ModuleEditor[]; storageUploadReady: boolean }) {
-  const [items, setItems] = useState(categorias);
+type DashboardBlockItem = {
+  block: DashboardBlockEditor;
+  banner: BannerEditor;
+  categoria?: never;
+} | {
+  block: DashboardBlockEditor;
+  categoria: CategoriaEditor;
+  banner?: never;
+};
+
+function buildDashboardBlockItems(blocks: DashboardBlockEditor[], banners: BannerEditor[], categorias: CategoriaEditor[]) {
+  const bannerMap = new Map(banners.map((banner) => [banner.id, banner]));
+  const categoriaMap = new Map(categorias.map((categoria) => [categoria.id, categoria]));
+
+  return blocks
+    .map((block) => {
+      if (block.type === "BANNER" && block.bannerId) {
+        const banner = bannerMap.get(block.bannerId);
+        return banner ? { block, banner } : null;
+      }
+      if (block.type === "CATEGORY" && block.categoriaId) {
+        const categoria = categoriaMap.get(block.categoriaId);
+        return categoria ? { block, categoria } : null;
+      }
+      return null;
+    })
+    .filter((item): item is DashboardBlockItem => Boolean(item));
+}
+
+function SortableDashboardBlock({
+  item,
+  storageBaseUrl,
+  categorias,
+  allModules,
+  storageUploadReady
+}: {
+  item: DashboardBlockItem;
+  storageBaseUrl: string | null;
+  categorias: CategoriaEditor[];
+  allModules: ModuleEditor[];
+  storageUploadReady: boolean;
+}) {
+  return (
+    <SortableCard id={item.block.id}>
+      {item.banner ? (
+        <>
+          <BannerCard banner={item.banner} storageBaseUrl={storageBaseUrl} />
+          <BannerMenu banner={item.banner} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
+        </>
+      ) : null}
+      {item.categoria ? (
+        <>
+          <CategoriaCard categoria={item.categoria} storageBaseUrl={storageBaseUrl} />
+          <CategoriaMenu categoria={item.categoria} allModules={allModules} storageUploadReady={storageUploadReady} />
+        </>
+      ) : null}
+    </SortableCard>
+  );
+}
+
+function DashboardBlockShelf({
+  courseId,
+  blocks,
+  banners,
+  categorias,
+  storageBaseUrl,
+  allModules,
+  storageUploadReady
+}: {
+  courseId: string;
+  blocks: DashboardBlockEditor[];
+  banners: BannerEditor[];
+  categorias: CategoriaEditor[];
+  storageBaseUrl: string | null;
+  allModules: ModuleEditor[];
+  storageUploadReady: boolean;
+}) {
+  const [items, setItems] = useState(() => buildDashboardBlockItems(blocks, banners, categorias));
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    setItems(categorias);
-  }, [categorias]);
+    setItems(buildDashboardBlockItems(blocks, banners, categorias));
+  }, [blocks, banners, categorias]);
 
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = items.findIndex((item) => item.id === active.id);
-    const newIndex = items.findIndex((item) => item.id === over.id);
+    const oldIndex = items.findIndex((item) => item.block.id === active.id);
+    const newIndex = items.findIndex((item) => item.block.id === over.id);
     const next = arrayMove(items, oldIndex, newIndex);
     setItems(next);
-    startTransition(() => void reorderCategorias(courseId, next.map((item) => item.id)));
+    startTransition(() => void reorderDashboardBlocks(courseId, next.map((item) => item.block.id)));
+  }
+
+  if (!items.length) {
+    return (
+      <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-dashed border-white/15 text-sm text-white/50">
+        Nenhum bloco cadastrado na area de membros.
+      </div>
+    );
   }
 
   return (
     <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-      <SortableContext items={items.map((item) => item.id)} strategy={horizontalListSortingStrategy}>
+      <SortableContext items={items.map((item) => item.block.id)} strategy={horizontalListSortingStrategy}>
         <div className="module-shelf flex snap-x gap-4 overflow-x-auto pb-5 data-[pending=true]:opacity-80" data-pending={pending}>
-          {items.map((categoria) => (
-            <SortableCategoria key={categoria.id} categoria={categoria} storageBaseUrl={storageBaseUrl} allModules={allModules} storageUploadReady={storageUploadReady} />
+          {items.map((item) => (
+            <SortableDashboardBlock key={item.block.id} item={item} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
           ))}
         </div>
       </SortableContext>
@@ -907,7 +961,7 @@ function NewCategoryDialog({ courseId, storageUploadReady }: { courseId: string;
   );
 }
 
-export function CourseContentEditor({ course, banners, categorias, allModules, storageBaseUrl, storageUploadReady }: CourseContentEditorProps) {
+export function CourseContentEditor({ course, banners, dashboardBlocks, categorias, allModules, storageBaseUrl, storageUploadReady }: CourseContentEditorProps) {
   const totalLessons = allModules.reduce((sum, module) => sum + module.lessonCount, 0);
   const publishedCategorias = categorias.filter((categoria) => categoria.status === "PUBLISHED").length;
   const activeBanners = banners.filter((banner) => banner.status === "ACTIVE").length;
@@ -920,7 +974,10 @@ export function CourseContentEditor({ course, banners, categorias, allModules, s
           <h1 className="mt-2 break-words text-4xl font-bold">Categorias e modulos</h1>
           <p className="mt-3 break-words text-white/62">Curso &gt; Categoria &gt; Modulo &gt; Aula. Categorias organizam modulos, modulos organizam aulas.</p>
         </div>
-        <NewCategoryDialog courseId={course.id} storageUploadReady={storageUploadReady} />
+        <div className="flex flex-wrap gap-3">
+          <NewBannerDialog courseId={course.id} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
+          <NewCategoryDialog courseId={course.id} storageUploadReady={storageUploadReady} />
+        </div>
       </header>
 
       {!storageUploadReady ? (
@@ -932,12 +989,11 @@ export function CourseContentEditor({ course, banners, categorias, allModules, s
       <section className="min-w-0 space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold">Banners da area de membros</h2>
-            <p className="mt-1 text-sm text-white/55">Arraste para reordenar. Use os tres pontos para editar, ativar, desativar ou excluir.</p>
+            <h2 className="text-2xl font-bold">Organizacao da area de membros</h2>
+            <p className="mt-1 text-sm text-white/55">Arraste banners e categorias para escolher a ordem em que aparecem para o aluno.</p>
           </div>
-          <NewBannerDialog categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
         </div>
-        <BannerShelf banners={banners} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
+        <DashboardBlockShelf courseId={course.id} blocks={dashboardBlocks} banners={banners} categorias={categorias} storageBaseUrl={storageBaseUrl} allModules={allModules} storageUploadReady={storageUploadReady} />
       </section>
 
       <section className="grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,.55fr)]">
@@ -959,14 +1015,6 @@ export function CourseContentEditor({ course, banners, categorias, allModules, s
             </div>
           </div>
         </div>
-      </section>
-
-      <section className="min-w-0">
-        <div className="mb-4">
-          <h2 className="text-2xl font-bold">Categorias do curso</h2>
-          <p className="mt-1 text-sm text-white/55">Arraste para reordenar. Use os tres pontos para editar, adicionar, remover ou excluir.</p>
-        </div>
-        <CategoriaShelf courseId={course.id} categorias={categorias} storageBaseUrl={storageBaseUrl} allModules={allModules} storageUploadReady={storageUploadReady} />
       </section>
 
       <section className="space-y-8">

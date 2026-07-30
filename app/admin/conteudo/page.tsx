@@ -17,6 +17,16 @@ export default async function AdminContentPage() {
         description: true,
         bannerUrl: true,
         hideText: true,
+        dashboardBlocks: {
+          orderBy: { order: "asc" },
+          select: {
+            id: true,
+            type: true,
+            order: true,
+            bannerId: true,
+            categoriaId: true
+          }
+        },
         categorias: {
           orderBy: { order: "asc" },
           select: {
@@ -56,6 +66,14 @@ export default async function AdminContentPage() {
       select: {
         id: true,
         imageUrl: true,
+        images: {
+          orderBy: { order: "asc" },
+          select: {
+            id: true,
+            imageUrl: true,
+            order: true
+          }
+        },
         title: true,
         subtitle: true,
         order: true,
@@ -82,6 +100,7 @@ export default async function AdminContentPage() {
             hideText: course.hideText
           }}
           banners={banners}
+          dashboardBlocks={course.dashboardBlocks}
           categorias={course.categorias.map((categoria) => ({
             id: categoria.id,
             title: categoria.title,
