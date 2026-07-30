@@ -30,7 +30,12 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
   const profile = await requireApprovedStudent();
 
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"}>
+    <AppShell
+      showAdmin={profile.role === "ADMIN"}
+      className="h-dvh overflow-hidden"
+      headerClassName="z-40 shrink-0"
+      mainClassName="h-[calc(100dvh-72px)] min-h-0 overflow-hidden px-0 py-0 md:pl-[72px] md:pr-0"
+    >
       <Suspense fallback={<LessonShellSkeleton />}>
         <LessonShell userId={profile.id} lessonId={lessonId} />
       </Suspense>
@@ -55,8 +60,8 @@ async function LessonShell({ userId, lessonId }: { userId: string; lessonId: str
   const moduleProgress = data.modules.find((module) => module.id === current.moduleId);
 
   return (
-    <div className="min-w-0">
-      <div className="xl:hidden">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden xl:block">
+      <div className="z-30 shrink-0 border-b border-white/10 bg-[#09070d]/95 p-4 backdrop-blur xl:hidden">
         <MobileCourseNav>
           <CourseSidebar categorias={data.categorias} currentLessonId={lessonId} className="max-h-[calc(100dvh-5rem)]" />
         </MobileCourseNav>
@@ -67,7 +72,7 @@ async function LessonShell({ userId, lessonId }: { userId: string; lessonId: str
         showHeading={false}
         className="hidden xl:fixed xl:bottom-0 xl:left-[72px] xl:top-[72px] xl:z-10 xl:block xl:w-[440px] xl:max-h-none xl:rounded-none xl:border-y-0 xl:border-l-0 xl:border-r xl:border-white/10 xl:bg-[#151019]"
       />
-      <div className="min-w-0 pt-6 xl:ml-[496px] xl:pt-2">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-5 scrollbar-thin xl:ml-[440px] xl:h-full xl:px-8 xl:py-8">
         <Suspense fallback={<LessonArticleSkeleton />}>
           <LessonArticle
             userId={userId}
@@ -108,36 +113,40 @@ async function LessonArticle({
   }
 
   return (
-    <article className="min-w-0 space-y-5 rounded-lg border border-white/10 bg-[#151019] p-4 shadow-2xl sm:p-5">
-      <header className="border-b border-white/10 pb-5">
-        <div className="mb-4 grid gap-4 md:grid-cols-3">
+    <article className="mx-auto min-w-0 max-w-6xl overflow-visible rounded-lg border border-white/10 bg-[#151019] shadow-2xl">
+      <header className="sticky top-0 z-20 rounded-t-lg border-b border-white/10 bg-[#151019]/96 p-3 backdrop-blur sm:p-5">
+        <div className="mb-3 grid min-w-0 grid-cols-3 gap-2 sm:mb-4 sm:gap-4">
           <Card className="bg-white/[0.03]">
-            <CardContent className="p-4">
-              <p className="text-xs text-white/55">Aulas</p>
-              <strong className="text-2xl">{totalLessons}</strong>
+            <CardContent className="min-w-0 p-3 sm:p-4">
+              <p className="truncate text-[11px] text-white/55 sm:text-xs">Aulas</p>
+              <strong className="text-xl sm:text-2xl">{totalLessons}</strong>
             </CardContent>
           </Card>
           <Card className="bg-white/[0.03]">
-            <CardContent className="p-4">
-              <p className="text-xs text-white/55">Concluidas</p>
-              <strong className="text-2xl">{completedLessons}</strong>
+            <CardContent className="min-w-0 p-3 sm:p-4">
+              <p className="truncate text-[11px] text-white/55 sm:text-xs">Concluidas</p>
+              <strong className="text-xl sm:text-2xl">{completedLessons}</strong>
             </CardContent>
           </Card>
           <Card className="bg-white/[0.03]">
-            <CardContent className="p-4">
-              <p className="text-xs text-white/55">Modulo atual</p>
-              <strong className="text-2xl">{modulePercent}%</strong>
+            <CardContent className="min-w-0 p-3 sm:p-4">
+              <p className="truncate text-[11px] text-white/55 sm:text-xs">Modulo atual</p>
+              <strong className="text-xl sm:text-2xl">{modulePercent}%</strong>
             </CardContent>
           </Card>
         </div>
         <Progress value={modulePercent} />
-        <p className="mt-6 text-sm font-bold text-[#8A1DEE]">
-          {current.categoriaTitle} - Modulo {current.moduleNumber} - Aula {current.number}
-        </p>
-        <h1 className="mt-2 break-words text-3xl font-bold md:text-5xl">{detail.title}</h1>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-2">
+      <div className="min-w-0 space-y-5 p-4 sm:p-5">
+        <header className="border-b border-white/10 pb-5">
+          <p className="text-sm font-bold text-[#8A1DEE]">
+          {current.categoriaTitle} - Modulo {current.moduleNumber} - Aula {current.number}
+          </p>
+          <h1 className="mt-2 break-words text-3xl font-bold md:text-5xl">{detail.title}</h1>
+        </header>
+
+        <section className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Objetivo</CardTitle>
@@ -154,9 +163,9 @@ async function LessonArticle({
             <p className="break-words leading-7 text-white/70">{detail.context}</p>
           </CardContent>
         </Card>
-      </section>
+        </section>
 
-      <Card>
+        <Card>
         <CardHeader>
           <CardTitle>Passo a passo</CardTitle>
         </CardHeader>
@@ -195,9 +204,9 @@ async function LessonArticle({
             })}
           </ol>
         </CardContent>
-      </Card>
+        </Card>
 
-      {detail.tipText ? (
+        {detail.tipText ? (
         <Card className={detail.tipKind === "Atencao" ? "border-amber-400/30" : "border-[#8A1DEE]/35"}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -209,9 +218,9 @@ async function LessonArticle({
             <p className="break-words leading-7 text-white/72">{detail.tipText}</p>
           </CardContent>
         </Card>
-      ) : null}
+        ) : null}
 
-      {detail.checklistItems.length ? (
+        {detail.checklistItems.length ? (
         <Card>
           <CardHeader>
             <CardTitle>Checklist de conclusao</CardTitle>
@@ -220,24 +229,25 @@ async function LessonArticle({
             <LessonChecklist items={detail.checklistItems} checkedIds={checked.map((item) => item.checklistItemId)} />
           </CardContent>
         </Card>
-      ) : null}
+        ) : null}
 
-      <LessonActions
-        lessonId={current.id}
-        previousId={previous?.locked ? undefined : previous?.id}
-        nextId={next?.locked ? undefined : next?.id}
-        completed={current.completed}
-      />
+        <LessonActions
+          lessonId={current.id}
+          previousId={previous?.locked ? undefined : previous?.id}
+          nextId={next?.locked ? undefined : next?.id}
+          completed={current.completed}
+        />
+      </div>
     </article>
   );
 }
 
 function LessonShellSkeleton() {
   return (
-    <div className="min-w-0">
-      <div className="h-12 animate-pulse rounded-lg border border-white/10 bg-white/[0.04] xl:hidden" />
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden xl:block">
+      <div className="h-20 shrink-0 animate-pulse border-b border-white/10 bg-white/[0.04] xl:hidden" />
       <div className="hidden animate-pulse border-r border-white/10 bg-white/[0.04] xl:fixed xl:bottom-0 xl:left-[72px] xl:top-[72px] xl:block xl:w-[440px]" />
-      <div className="pt-6 xl:ml-[496px] xl:pt-2">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 xl:ml-[440px] xl:h-full xl:px-8 xl:py-8">
         <LessonArticleSkeleton />
       </div>
     </div>
@@ -246,13 +256,22 @@ function LessonShellSkeleton() {
 
 function LessonArticleSkeleton() {
   return (
-    <article className="min-w-0 space-y-5 rounded-lg border border-white/10 bg-[#151019] p-4 sm:p-5">
-      <div className="h-40 animate-pulse rounded-lg bg-white/[0.04]" />
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="h-28 animate-pulse rounded-lg bg-white/[0.04]" />
-        <div className="h-28 animate-pulse rounded-lg bg-white/[0.04]" />
+    <article className="mx-auto min-w-0 max-w-6xl rounded-lg border border-white/10 bg-[#151019]">
+      <div className="sticky top-0 z-20 border-b border-white/10 bg-[#151019]/96 p-3 sm:p-5">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="h-16 animate-pulse rounded-lg bg-white/[0.04]" />
+          <div className="h-16 animate-pulse rounded-lg bg-white/[0.04]" />
+          <div className="h-16 animate-pulse rounded-lg bg-white/[0.04]" />
+        </div>
       </div>
-      <div className="h-72 animate-pulse rounded-lg bg-white/[0.04]" />
+      <div className="space-y-5 p-4 sm:p-5">
+        <div className="h-32 animate-pulse rounded-lg bg-white/[0.04]" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="h-28 animate-pulse rounded-lg bg-white/[0.04]" />
+          <div className="h-28 animate-pulse rounded-lg bg-white/[0.04]" />
+        </div>
+        <div className="h-72 animate-pulse rounded-lg bg-white/[0.04]" />
+      </div>
     </article>
   );
 }

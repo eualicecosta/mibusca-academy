@@ -54,10 +54,16 @@ function UserIdentityCard({ name, email }: { name: string; email: string }) {
 
 export async function AppShell({
   children,
-  showAdmin = false
+  showAdmin = false,
+  className,
+  mainClassName,
+  headerClassName
 }: {
   children: React.ReactNode;
   showAdmin?: boolean;
+  className?: string;
+  mainClassName?: string;
+  headerClassName?: string;
 }) {
   const user = await currentUser();
   const email = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses[0]?.emailAddress || "";
@@ -65,7 +71,7 @@ export async function AppShell({
   const items = showAdmin ? nav : nav.filter((item) => item.href !== "/admin");
 
   return (
-    <div className="min-h-screen bg-[#09070d] text-[#F5F3F3]">
+    <div className={cn("min-h-screen bg-[#09070d] text-[#F5F3F3]", className)}>
       <aside className="fixed left-0 top-0 z-30 hidden h-screen w-[72px] border-r border-white/10 bg-[#121015] md:flex md:flex-col md:items-center md:gap-5 md:py-5">
         <Link href="/dashboard" className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-white/5 font-bold">
           M
@@ -83,13 +89,13 @@ export async function AppShell({
           ))}
         </nav>
       </aside>
-      <header className="sticky top-0 z-20 flex h-[72px] min-w-0 items-center justify-between gap-4 border-b border-white/10 bg-[#111017]/95 px-4 backdrop-blur md:pl-[104px] md:pr-8">
+      <header className={cn("sticky top-0 z-20 flex h-[72px] min-w-0 items-center justify-between gap-4 border-b border-white/10 bg-[#111017]/95 px-4 backdrop-blur md:pl-[104px] md:pr-8", headerClassName)}>
         <Link href="/dashboard" className="min-w-0 break-words text-lg font-bold">
           Area de Membros
         </Link>
         <UserIdentityCard name={name} email={email} />
       </header>
-      <main className="min-w-0 overflow-x-hidden px-4 py-8 md:pl-[104px] md:pr-8">{children}</main>
+      <main className={cn("min-w-0 overflow-x-hidden px-4 py-8 md:pl-[104px] md:pr-8", mainClassName)}>{children}</main>
     </div>
   );
 }
