@@ -114,7 +114,7 @@ async function LessonArticle({
 
   return (
     <article className="mx-auto min-w-0 max-w-6xl overflow-visible rounded-lg border border-white/10 bg-[#151019] shadow-2xl">
-      <header className="sticky top-0 z-20 rounded-t-lg border-b border-white/10 bg-[#151019]/96 p-3 backdrop-blur sm:p-5">
+      <header className="rounded-t-lg border-b border-white/10 bg-[#151019] p-3 sm:p-5">
         <div className="mb-3 grid min-w-0 grid-cols-3 gap-2 sm:mb-4 sm:gap-4">
           <Card className="bg-white/[0.03]">
             <CardContent className="min-w-0 p-3 sm:p-4">
@@ -257,7 +257,7 @@ function LessonShellSkeleton() {
 function LessonArticleSkeleton() {
   return (
     <article className="mx-auto min-w-0 max-w-6xl rounded-lg border border-white/10 bg-[#151019]">
-      <div className="sticky top-0 z-20 border-b border-white/10 bg-[#151019]/96 p-3 sm:p-5">
+      <div className="border-b border-white/10 bg-[#151019] p-3 sm:p-5">
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <div className="h-16 animate-pulse rounded-lg bg-white/[0.04]" />
           <div className="h-16 animate-pulse rounded-lg bg-white/[0.04]" />
