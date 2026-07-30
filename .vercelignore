@@ -1,0 +1,16 @@
+.env
+.env.*
+.env*.local
+.vercel
+.next
+node_modules
+*.log
+ifood_lms.sqlite3
+ifood_lms_test.sqlite3
+__pycache__
+.chrome-audit-profile
+.chrome-audit-profile-2
+.chrome-audit-proof
+.chrome-perf-proof
+audit-screens
+tsconfig.tsbuildinfo
