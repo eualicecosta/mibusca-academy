@@ -1,5 +1,6 @@
 import { CourseContentEditor } from "@/components/admin/course-content-editor";
 import { AppShell } from "@/components/app-shell";
+import { getR2PublicBaseUrl, storageUploadReady } from "@/lib/assets";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -66,10 +67,8 @@ export default async function AdminContentPage() {
     })
   ]);
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const bucket = process.env.SUPABASE_STORAGE_BUCKET || "course-images";
-  const storageBaseUrl = supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/${bucket}` : null;
-  const storageUploadReady = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const storageBaseUrl = getR2PublicBaseUrl();
+  const canUploadToStorage = storageUploadReady();
 
   return (
     <AppShell showAdmin={profile.role === "ADMIN"}>
@@ -134,7 +133,7 @@ export default async function AdminContentPage() {
             })
           )}
           storageBaseUrl={storageBaseUrl}
-          storageUploadReady={storageUploadReady}
+          storageUploadReady={canUploadToStorage}
         />
       ) : (
         <div className="mx-auto max-w-4xl rounded-lg border border-white/10 bg-[#151019] p-6">

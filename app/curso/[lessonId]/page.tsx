@@ -9,6 +9,7 @@ import { LessonActions } from "@/components/student/lesson-actions";
 import { MobileCourseNav } from "@/components/student/mobile-course-nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { resolveAssetUrl } from "@/lib/assets";
 import { requireApprovedStudent } from "@/lib/auth";
 import { getLessonContentForStudent, getStudentCourse } from "@/lib/course";
 
@@ -16,14 +17,6 @@ export const dynamic = "force-dynamic";
 
 type StudentCourse = Awaited<ReturnType<typeof getStudentCourse>>;
 type FlatLesson = StudentCourse["flatLessons"][number];
-
-function imageUrl(path?: string | null) {
-  if (!path) return null;
-  if (path.startsWith("http")) return path;
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const bucket = process.env.SUPABASE_STORAGE_BUCKET || "course-images";
-  return base ? `${base}/storage/v1/object/public/${bucket}/${path}` : null;
-}
 
 export default async function LessonPage({ params }: { params: Promise<{ lessonId: string }> }) {
   const { lessonId } = await params;
@@ -172,7 +165,7 @@ async function LessonArticle({
         <CardContent>
           <ol className="space-y-5">
             {detail.blocks.map((block) => {
-              const url = imageUrl(block.imagePath);
+              const url = resolveAssetUrl(block.imagePath);
               return (
                 <li key={block.id} className="min-w-0 rounded-lg border border-white/10 bg-white/[0.03] p-4">
                   <div className="flex min-w-0 gap-3">

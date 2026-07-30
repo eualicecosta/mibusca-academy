@@ -925,7 +925,7 @@ export function CourseContentEditor({ course, banners, categorias, allModules, s
 
       {!storageUploadReady ? (
         <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm font-semibold text-red-100">
-          Upload de imagens desativado: falta configurar SUPABASE_SERVICE_ROLE_KEY no ambiente local e na Vercel.
+          Upload de imagens desativado: falta configurar R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME e R2_PUBLIC_BASE_URL no ambiente local e na Vercel.
         </div>
       ) : null}
 

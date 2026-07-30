@@ -4,26 +4,17 @@ import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { uploadCourseImage } from "@/lib/actions";
+import { storageUploadReady } from "@/lib/assets";
 import { requireAdmin } from "@/lib/auth";
-import { getSupabaseAdmin, storageBucket } from "@/lib/supabase";
+import { getR2BucketName, listR2Images } from "@/lib/r2";
 
 export const dynamic = "force-dynamic";
 
+const imageFolders = ["geral", "banners", "categorias", ...Array.from({ length: 30 }, (_, index) => `modulo-${index}`)];
+
 async function listImages() {
   try {
-    const supabase = getSupabaseAdmin();
-    const folders = ["geral", ...Array.from({ length: 10 }, (_, index) => `modulo-${index}`)];
-    const results = await Promise.all(
-      folders.map(async (folder) => {
-        const { data } = await supabase.storage.from(storageBucket).list(folder);
-        return (data || []).map((file) => {
-          const path = `${folder}/${file.name}`;
-          const { data: publicUrl } = supabase.storage.from(storageBucket).getPublicUrl(path);
-          return { path, url: publicUrl.publicUrl, size: file.metadata?.size as number | undefined };
-        });
-      })
-    );
-    return results.flat();
+    return await listR2Images(imageFolders);
   } catch {
     return [];
   }
@@ -32,7 +23,8 @@ async function listImages() {
 export default async function AdminImagesPage() {
   const profile = await requireAdmin();
   const images = await listImages();
-  const folders = ["geral", ...Array.from({ length: 10 }, (_, index) => `modulo-${index}`)];
+  const uploadReady = storageUploadReady();
+  const bucketName = getR2BucketName();
 
   return (
     <AppShell showAdmin={profile.role === "ADMIN"}>
@@ -43,24 +35,33 @@ export default async function AdminImagesPage() {
           </CardHeader>
           <CardContent>
             <form action={uploadCourseImage} className="space-y-4">
-              <label className="grid gap-2 text-sm text-white/65">Pasta
+              <label className="grid gap-2 text-sm text-white/65">
+                Pasta
                 <select name="folder" className="rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-white">
-                  {folders.map((folder) => <option key={folder} value={folder}>{folder}</option>)}
+                  {imageFolders.map((folder) => (
+                    <option key={folder} value={folder}>
+                      {folder}
+                    </option>
+                  ))}
                 </select>
               </label>
-              <label className="grid gap-2 text-sm text-white/65">Arquivo
+              <label className="grid gap-2 text-sm text-white/65">
+                Arquivo
                 <input name="file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-white" />
               </label>
-              <Button type="submit"><Upload className="h-4 w-4" /> Enviar</Button>
+              <Button type="submit" disabled={!uploadReady}>
+                <Upload className="h-4 w-4" /> Enviar
+              </Button>
+              {!uploadReady ? <p className="text-sm text-amber-200/80">Configure as variaveis do Cloudflare R2 para ativar uploads.</p> : null}
             </form>
           </CardContent>
         </Card>
 
         <section className="min-w-0">
           <header className="mb-5">
-            <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Supabase Storage</p>
+            <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Cloudflare R2</p>
             <h1 className="mt-2 break-words text-4xl font-bold">Banco de imagens</h1>
-            <p className="mt-3 break-all text-white/62">Bucket: {storageBucket}</p>
+            <p className="mt-3 break-all text-white/62">Bucket: {bucketName || "nao configurado"}</p>
           </header>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {images.map((image) => (
@@ -81,7 +82,7 @@ export default async function AdminImagesPage() {
             {!images.length ? (
               <Card>
                 <CardContent className="p-5">
-                  <p className="text-white/65">Nenhuma imagem listada. Confira as variáveis do Supabase e o bucket.</p>
+                  <p className="text-white/65">Nenhuma imagem listada. Confira as variaveis do Cloudflare R2 e o bucket.</p>
                 </CardContent>
               </Card>
             ) : null}

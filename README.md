@@ -1,6 +1,6 @@
 # Conhecimento iFood - MiBusca Brasil
 
-Plataforma de ensino fechada usando o stack do blueprint técnico v2:
+Plataforma de ensino fechada usando:
 
 - Next.js 15 App Router
 - React + TypeScript
@@ -11,31 +11,24 @@ Plataforma de ensino fechada usando o stack do blueprint técnico v2:
 - Prisma ORM
 - Supabase PostgreSQL
 - Clerk
-- Supabase Storage
-- Vercel-ready
+- Cloudflare R2 para imagens
+- Vercel
 
-## Fluxo de aprovação
+## Fluxo de aprovacao
 
-O Clerk autentica a identidade do usuário, mas não libera conteúdo.
+O Clerk autentica a identidade do usuario, mas nao libera conteudo sozinho.
 
-Quando um usuário é criado no Clerk, o webhook `/api/webhooks/clerk` cria um `UserProfile` com status `PENDING`.
+Quando um usuario e criado no Clerk, o webhook `/api/webhooks/clerk` cria um `UserProfile` com status `PENDING`.
 
 As rotas do aluno usam `requireApprovedStudent()`, que consulta o banco. Somente `status = ACTIVE` acessa `/dashboard`, `/curso` e aulas. `PENDING` ou `REFUSED` vai para `/aguardando-aprovacao`.
 
 ## Setup local
 
-1. Crie um projeto no Supabase.
+1. Crie um projeto no Supabase para o banco PostgreSQL.
 2. Crie um projeto no Clerk.
-3. Copie `.env.example` para `.env`.
-4. Preencha:
-   - `DATABASE_URL`
-   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-   - `CLERK_SECRET_KEY`
-   - `CLERK_WEBHOOK_SECRET`
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `SUPABASE_STORAGE_BUCKET`
-5. Crie no Supabase Storage o bucket definido em `SUPABASE_STORAGE_BUCKET`, por padrão `course-images`.
+3. Crie um bucket no Cloudflare R2 para as imagens.
+4. Copie `.env.example` para `.env.local`.
+5. Preencha as variaveis de banco, Clerk e R2.
 6. Depois de criar sua conta admin no Clerk, copie o `user_...` para `ADMIN_CLERK_ID`.
 
 ```bash
@@ -52,15 +45,37 @@ Abra:
 http://localhost:3000
 ```
 
+## Variaveis de imagem
+
+O app usa R2 para imagens novas e migradas:
+
+```text
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+R2_PUBLIC_BASE_URL=
+```
+
+`R2_PUBLIC_BASE_URL` deve ser uma URL publica do bucket, como um dominio customizado ou URL publica `r2.dev`.
+
+Durante a migracao, mantenha tambem as variaveis antigas do Supabase Storage:
+
+```text
+NEXT_PUBLIC_SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_STORAGE_BUCKET=course-images
+```
+
 ## Webhook do Clerk
 
-No painel do Clerk, configure o endpoint:
+No painel do Clerk, configure:
 
 ```text
 https://SEU-DOMINIO/api/webhooks/clerk
 ```
 
-Eventos necessários:
+Eventos necessarios:
 
 - `user.created`
 - `user.updated`
@@ -68,9 +83,9 @@ Eventos necessários:
 
 Copie o signing secret para `CLERK_WEBHOOK_SECRET`.
 
-## Conteúdo inicial
+## Conteudo inicial
 
-O seed lê:
+O seed le:
 
 ```text
 data/course_content.md
@@ -78,37 +93,42 @@ data/course_content.md
 
 Ele popula:
 
-- 10 módulos
+- categorias
+- modulos
 - 29 aulas
 - passos como `ContentBlock`
 - checklist como `ChecklistItem`
-- imagens sugeridas como caminho de Storage
+- imagens sugeridas como caminhos de storage
 
 ## Imagens
 
-As imagens ficam no Supabase Storage em pastas:
+As imagens ficam no Cloudflare R2 em pastas:
 
 ```text
 geral/
+banners/
+categorias/
 modulo-0/
 modulo-1/
 ...
 modulo-9/
 ```
 
-O painel `/admin/imagens` envia arquivos para o bucket e lista URLs públicas.
+O painel `/admin/imagens` envia arquivos para o bucket R2 e lista URLs publicas.
 
-## Validação feita
+Para migrar imagens antigas do Supabase Storage para o R2:
 
-- `npm run prisma:generate`: OK
-- `npm run typecheck`: OK
-- `npm run build`: compila, mas o Clerk bloqueia o build sem uma `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` real.
+```bash
+npm run storage:migrate:r2
+```
+
+O script copia os arquivos para o R2 preservando caminhos e atualiza as referencias de imagem no banco para `R2_PUBLIC_BASE_URL`. Nao exclua o bucket antigo do Supabase antes de validar o app publicado.
 
 ## Deploy
 
 No Vercel:
 
-- importe o repositório do GitHub
-- configure as mesmas variáveis do `.env`
-- use o build command padrão `npm run build`
-- depois rode `npm run prisma:push` e `npm run db:seed` apontando para o banco Supabase
+- importe o repositorio do GitHub
+- configure as mesmas variaveis do `.env.local`
+- use `npm run build`
+- rode as migracoes/seed quando necessario apontando para o banco Supabase

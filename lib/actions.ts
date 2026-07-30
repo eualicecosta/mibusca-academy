@@ -4,36 +4,14 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, requireApprovedStudent } from "@/lib/auth";
-import { getSupabaseAdmin, storageBucket } from "@/lib/supabase";
-
-function sanitizeStorageName(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9._-]/g, "-")
-    .replace(/-+/g, "-")
-    .toLowerCase();
-}
+import { sanitizeStorageName, uploadImageToR2 } from "@/lib/r2";
 
 async function uploadImageFile(file: FormDataEntryValue | null, folder: string) {
   if (!(file instanceof File) || file.size === 0) {
     return null;
   }
 
-  const supabase = getSupabaseAdmin();
-  const safeFolder = sanitizeStorageName(folder || "geral");
-  const safeName = sanitizeStorageName(file.name || "imagem");
-  const path = `${safeFolder}/${Date.now()}-${safeName}`;
-  const { error } = await supabase.storage.from(storageBucket).upload(path, file, {
-    upsert: false,
-    contentType: file.type || "application/octet-stream"
-  });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return path;
+  return uploadImageToR2(file, folder);
 }
 
 async function getOrCreateGeneralCategoria(courseId: string) {
@@ -635,7 +613,7 @@ export async function reorderModules(categoriaId: string, orderedIds: string[]) 
 export async function updateCourseSettings(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") || "");
-  const bannerPath = await uploadImageFile(formData.get("bannerFile"), "banner");
+  const bannerPath = await uploadImageFile(formData.get("bannerFile"), "banners");
 
   await prisma.course.update({
     where: { id },
@@ -679,7 +657,7 @@ export async function createModule(formData: FormData) {
       select: { order: true }
     })
   ]);
-  const coverPath = await uploadImageFile(formData.get("coverFile"), "modulos");
+  const coverPath = await uploadImageFile(formData.get("coverFile"), `modulo-${moduleCount}`);
   const order = lastModule ? lastModule.order + 1 : 1;
 
   await prisma.module.create({
@@ -734,7 +712,11 @@ export async function deleteLesson(lessonId: string) {
 export async function updateModule(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id"));
-  const coverPath = await uploadImageFile(formData.get("coverFile"), `categoria-${id}`);
+  const currentModule = await prisma.module.findUnique({
+    where: { id },
+    select: { number: true }
+  });
+  const coverPath = await uploadImageFile(formData.get("coverFile"), `modulo-${currentModule?.number || id}`);
   const requestedOrder = Math.max(1, Number(formData.get("order") || 999));
   const moduleRecord = await prisma.module.update({
     where: { id },
@@ -834,23 +816,14 @@ export async function createLesson(formData: FormData) {
 
 export async function uploadCourseImage(formData: FormData) {
   await requireAdmin();
-  const folder = String(formData.get("folder") || "geral").replace(/[^a-zA-Z0-9-_]/g, "-");
+  const folder = sanitizeStorageName(String(formData.get("folder") || "geral"));
   const file = formData.get("file");
 
   if (!(file instanceof File) || file.size === 0) {
     return;
   }
 
-  const supabase = getSupabaseAdmin();
-  const path = `${folder}/${file.name}`;
-  const { error } = await supabase.storage.from(storageBucket).upload(path, file, {
-    upsert: true,
-    contentType: file.type
-  });
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  await uploadImageToR2(file, folder, { upsert: true });
 
   revalidatePath("/admin/imagens");
 }

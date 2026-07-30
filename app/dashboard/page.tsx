@@ -7,18 +7,11 @@ import { BannerCarousel, type StudentBanner } from "@/components/student/banner-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { requireApprovedStudent } from "@/lib/auth";
+import { resolveAssetUrl } from "@/lib/assets";
 import { firstUnlockedLesson, getStudentCourse } from "@/lib/course";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
-
-function imageUrl(path?: string | null) {
-  if (!path) return null;
-  if (path.startsWith("http")) return path;
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const bucket = process.env.SUPABASE_STORAGE_BUCKET || "course-images";
-  return base ? `${base}/storage/v1/object/public/${bucket}/${path}` : null;
-}
 
 export default async function DashboardPage() {
   const profile = await requireApprovedStudent();
@@ -53,7 +46,7 @@ async function DashboardContent({ profileId }: { profileId: string }) {
   const categoryIds = new Set(data.categorias.map((categoria) => categoria.id));
   const banners: StudentBanner[] = bannerRecords
     .map((banner) => {
-      const resolvedImageUrl = imageUrl(banner.imageUrl);
+      const resolvedImageUrl = resolveAssetUrl(banner.imageUrl);
       if (!resolvedImageUrl) return null;
 
       let href: string | null = null;
@@ -79,7 +72,7 @@ async function DashboardContent({ profileId }: { profileId: string }) {
     })
     .filter((banner): banner is StudentBanner => Boolean(banner));
 
-  const fallbackBannerUrl = imageUrl(course?.bannerUrl);
+  const fallbackBannerUrl = resolveAssetUrl(course?.bannerUrl);
   const fallbackBanners: StudentBanner[] = fallbackBannerUrl
     ? [
         {
@@ -148,7 +141,7 @@ async function DashboardContent({ profileId }: { profileId: string }) {
                 categoria.modules.map((module) => {
                   const targetLesson = module.lessons.find((lesson) => !lesson.locked) || module.lessons[0];
                   const href = !module.locked && targetLesson ? `/curso/${targetLesson.id}` : null;
-                  const coverUrl = imageUrl(module.coverImagePath);
+                  const coverUrl = resolveAssetUrl(module.coverImagePath);
                   const showModuleText = !module.hideText;
                   const card = (
                     <div className="group relative h-[292px] w-[220px] shrink-0 snap-start overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60">

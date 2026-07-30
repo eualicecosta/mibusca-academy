@@ -14,6 +14,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { resolveAssetUrl } from "@/lib/assets";
 
 type LandingModule = {
   number: string;
@@ -73,17 +74,6 @@ const fallbackCategories: LandingCategory[] = [
     ]
   }
 ];
-
-function assetUrl(path?: string | null) {
-  if (!path) return null;
-  if (path.startsWith("http")) return path;
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!supabaseUrl) return null;
-
-  const bucket = process.env.SUPABASE_STORAGE_BUCKET || "course-images";
-  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
-}
 
 async function getLandingCourse(): Promise<LandingCourse> {
   try {
@@ -145,7 +135,7 @@ function flatModules(categories: LandingCategory[]) {
 
 export default async function HomePage() {
   const course = await getLandingCourse();
-  const bannerUrl = assetUrl(course.bannerUrl);
+  const bannerUrl = resolveAssetUrl(course.bannerUrl);
   const modules = flatModules(course.categorias);
   const lessonCount = countLessons(course.categorias);
 
