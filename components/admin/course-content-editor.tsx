@@ -4,9 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable } from "@dnd-kit/sortable";
+import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { BookOpen, CheckCircle2, Edit3, Eye, EyeOff, GripVertical, Lock, MoreHorizontal, Plus, Save, Trash2, Upload } from "lucide-react";
+import { Activity, BookOpen, CheckCircle2, Clock, Edit3, Eye, EyeOff, GripVertical, Lock, MoreHorizontal, Plus, Save, Trash2, Upload, UserCheck } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,6 +102,11 @@ type CourseContentEditorProps = {
   dashboardBlocks: DashboardBlockEditor[];
   categorias: CategoriaEditor[];
   allModules: ModuleEditor[];
+  metrics: {
+    onlineUsers: number;
+    pendingApprovals: number;
+    activeStudents: number;
+  };
   storageBaseUrl: string | null;
   storageUploadReady: boolean;
 };
@@ -191,8 +196,8 @@ function BannerCard({ banner, storageBaseUrl }: { banner: BannerEditor; storageB
   const showText = !imageUrl && (banner.title || banner.subtitle);
 
   return (
-    <div className="group relative h-[170px] w-[360px] shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60 sm:w-[420px]">
-      {imageUrl ? <Image src={imageUrl} alt={banner.title || "Banner"} fill sizes="420px" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(138,29,238,.55),transparent_38%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
+    <div className="group relative h-[190px] w-full shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60 sm:h-[250px]">
+      {imageUrl ? <Image src={imageUrl} alt={banner.title || "Banner"} fill sizes="(min-width: 1280px) 860px, 100vw" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(138,29,238,.55),transparent_38%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
       {showText ? <div className="absolute inset-0 bg-gradient-to-r from-black/78 via-black/35 to-transparent" /> : null}
       {!imageUrl ? <div className="absolute left-4 top-4 rounded-full bg-black/65 px-3 py-1 text-xs font-bold uppercase text-white/75">
         {banner.status === "ACTIVE" ? "Ativo" : "Inativo"}
@@ -454,24 +459,6 @@ function NewBannerDialog({
   );
 }
 
-function CategoriaCard({ categoria, storageBaseUrl }: { categoria: CategoriaEditor; storageBaseUrl: string | null }) {
-  const coverUrl = assetUrl(categoria.coverImagePath, storageBaseUrl);
-  const showText = !coverUrl;
-  return (
-    <div className="group relative h-[220px] w-[280px] shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60">
-      {coverUrl ? <Image src={coverUrl} alt={categoria.title} fill sizes="280px" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(138,29,238,.55),transparent_35%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
-      {showText ? <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" /> : null}
-      {showText ? (
-        <div className="absolute inset-x-0 bottom-0 p-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-[#8A1DEE]">{categoria.status}</p>
-          <h3 className="mt-2 line-clamp-2 break-words text-xl font-black leading-tight text-white">{categoria.title}</h3>
-          <p className="mt-2 text-xs text-white/62">{categoria.modules.length} modulos</p>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function ModuleCard({ module, storageBaseUrl }: { module: ModuleEditor; storageBaseUrl: string | null }) {
   const coverUrl = assetUrl(module.coverImagePath, storageBaseUrl);
   const showText = !coverUrl && !module.hideText;
@@ -501,7 +488,7 @@ function SortableCard({ id, children }: { id: string; children: React.ReactNode 
   const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
-    <div ref={setNodeRef} style={style} className={isDragging ? "opacity-70" : undefined}>
+    <div ref={setNodeRef} style={style} className={isDragging ? "w-full opacity-70" : "w-full"}>
       <div className="relative">
         <button type="button" aria-label="Arrastar" className="absolute left-3 top-3 z-20 flex h-8 w-8 items-center justify-center text-white/75 hover:text-white" {...attributes} {...listeners}>
           <GripVertical className="h-5 w-5" />
@@ -833,11 +820,35 @@ function SortableDashboardBlock({
       ) : null}
       {item.categoria ? (
         <>
-          <CategoriaCard categoria={item.categoria} storageBaseUrl={storageBaseUrl} />
+          <CategoryDashboardCard categoria={item.categoria} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />
           <CategoriaMenu categoria={item.categoria} allModules={allModules} storageUploadReady={storageUploadReady} />
         </>
       ) : null}
     </SortableCard>
+  );
+}
+
+function CategoryDashboardCard({
+  categoria,
+  storageBaseUrl,
+  storageUploadReady
+}: {
+  categoria: CategoriaEditor;
+  storageBaseUrl: string | null;
+  storageUploadReady: boolean;
+}) {
+  return (
+    <div className="w-full overflow-hidden rounded-lg border border-white/10 bg-[#151019] p-5 shadow-xl transition hover:border-[#8A1DEE]/50">
+      <div className="mb-4 flex min-w-0 flex-wrap items-end justify-between gap-4 pl-8">
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wide text-[#8A1DEE]">{categoria.status}</p>
+          <h3 className="mt-1 break-words text-2xl font-bold text-white">{categoria.title}</h3>
+          {categoria.description ? <p className="mt-1 max-w-2xl break-words text-sm text-white/55">{categoria.description}</p> : null}
+        </div>
+        <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/60">{categoria.modules.length} modulos</span>
+      </div>
+      <ModuleShelf categoria={categoria} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />
+    </div>
   );
 }
 
@@ -885,8 +896,8 @@ function DashboardBlockShelf({
 
   return (
     <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-      <SortableContext items={items.map((item) => item.block.id)} strategy={horizontalListSortingStrategy}>
-        <div className="module-shelf flex snap-x gap-4 overflow-x-auto pb-5 data-[pending=true]:opacity-80" data-pending={pending}>
+      <SortableContext items={items.map((item) => item.block.id)} strategy={verticalListSortingStrategy}>
+        <div className="grid gap-6 data-[pending=true]:opacity-80" data-pending={pending}>
           {items.map((item) => (
             <SortableDashboardBlock key={item.block.id} item={item} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
           ))}
@@ -961,76 +972,127 @@ function NewCategoryDialog({ courseId, storageUploadReady }: { courseId: string;
   );
 }
 
-export function CourseContentEditor({ course, banners, dashboardBlocks, categorias, allModules, storageBaseUrl, storageUploadReady }: CourseContentEditorProps) {
+function AdminMetricCard({
+  title,
+  value,
+  description,
+  icon,
+  href
+}: {
+  title: string;
+  value: string | number;
+  description: string;
+  icon: React.ReactNode;
+  href?: string;
+}) {
+  const content = (
+    <div className="rounded-lg border border-white/10 bg-[#151019] p-5 transition hover:border-[#8A1DEE]/50">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="break-words text-sm font-semibold text-white/58">{title}</p>
+          <strong className="mt-2 block text-3xl leading-none text-white">{value}</strong>
+          <p className="mt-3 break-words text-xs leading-5 text-white/45">{description}</p>
+        </div>
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#8A1DEE]/15 text-[#A855F7]">
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
+
+  return href ? <Link href={href}>{content}</Link> : content;
+}
+
+function AdminInfoSidebar({ metrics }: { metrics: CourseContentEditorProps["metrics"] }) {
+  return (
+    <aside className="xl:sticky xl:top-24 xl:self-start">
+      <div className="grid gap-4 rounded-lg border border-white/10 bg-white/[0.02] p-4">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Painel rapido</p>
+          <h2 className="mt-1 text-xl font-bold">Estado da plataforma</h2>
+        </div>
+        <AdminMetricCard
+          title="Usuarios online agora"
+          value={metrics.onlineUsers}
+          description="Alunos e admins ativos vistos nos ultimos 5 minutos."
+          icon={<Activity className="h-5 w-5" />}
+        />
+        <AdminMetricCard
+          title="Aprovacoes pendentes"
+          value={metrics.pendingApprovals}
+          description="Cadastros aguardando liberacao manual."
+          icon={<Clock className="h-5 w-5" />}
+          href="/admin/aprovacoes"
+        />
+        <AdminMetricCard
+          title="Alunos ativos"
+          value={metrics.activeStudents}
+          description="Membros com acesso liberado atualmente."
+          icon={<UserCheck className="h-5 w-5" />}
+          href="/admin/membros"
+        />
+      </div>
+    </aside>
+  );
+}
+
+export function CourseContentEditor({ course, banners, dashboardBlocks, categorias, allModules, metrics, storageBaseUrl, storageUploadReady }: CourseContentEditorProps) {
   const totalLessons = allModules.reduce((sum, module) => sum + module.lessonCount, 0);
   const publishedCategorias = categorias.filter((categoria) => categoria.status === "PUBLISHED").length;
   const activeBanners = banners.filter((banner) => banner.status === "ACTIVE").length;
 
   return (
-    <div className="mx-auto min-w-0 max-w-6xl space-y-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Editor de conteudo</p>
-          <h1 className="mt-2 break-words text-4xl font-bold">Categorias e modulos</h1>
-          <p className="mt-3 break-words text-white/62">Curso &gt; Categoria &gt; Modulo &gt; Aula. Categorias organizam modulos, modulos organizam aulas.</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <NewBannerDialog courseId={course.id} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
-          <NewCategoryDialog courseId={course.id} storageUploadReady={storageUploadReady} />
-        </div>
-      </header>
+    <div className="mx-auto grid min-w-0 max-w-[1500px] gap-8 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_360px]">
+      <main className="min-w-0 space-y-8">
+        <header className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Editor de conteudo</p>
+            <h1 className="mt-2 break-words text-4xl font-bold">Categorias e modulos</h1>
+            <p className="mt-3 break-words text-white/62">Curso &gt; Categoria &gt; Modulo &gt; Aula. Categorias organizam modulos, modulos organizam aulas.</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <NewBannerDialog courseId={course.id} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
+            <NewCategoryDialog courseId={course.id} storageUploadReady={storageUploadReady} />
+          </div>
+        </header>
 
-      {!storageUploadReady ? (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm font-semibold text-red-100">
-          Upload de imagens desativado: falta configurar R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME e R2_PUBLIC_BASE_URL no ambiente local e na Vercel.
-        </div>
-      ) : null}
+        {!storageUploadReady ? (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm font-semibold text-red-100">
+            Upload de imagens desativado: falta configurar R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME e R2_PUBLIC_BASE_URL no ambiente local e na Vercel.
+          </div>
+        ) : null}
 
-      <section className="min-w-0 space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <section className="grid min-w-0 gap-5 md:grid-cols-2">
+          <div className="rounded-lg border border-white/10 bg-[#151019] p-5">
+            <div className="flex items-center gap-3">
+              <BookOpen className="h-5 w-5 text-[#8A1DEE]" />
+              <div>
+                <h2 className="font-bold">Categorias publicadas</h2>
+                <p className="text-sm text-white/55">{publishedCategorias} categorias visiveis</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-[#151019] p-5">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-5 w-5 text-[#8A1DEE]" />
+              <div>
+                <h2 className="font-bold">Destaques ativos</h2>
+                <p className="text-sm text-white/55">{activeBanners} banners visiveis e {totalLessons} aulas cadastradas</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="min-w-0 space-y-4">
           <div>
             <h2 className="text-2xl font-bold">Organizacao da area de membros</h2>
-            <p className="mt-1 text-sm text-white/55">Arraste banners e categorias para escolher a ordem em que aparecem para o aluno.</p>
+            <p className="mt-1 text-sm text-white/55">Arraste banners e categorias para escolher a ordem exata em que aparecem para o aluno.</p>
           </div>
-        </div>
-        <DashboardBlockShelf courseId={course.id} blocks={dashboardBlocks} banners={banners} categorias={categorias} storageBaseUrl={storageBaseUrl} allModules={allModules} storageUploadReady={storageUploadReady} />
-      </section>
+          <DashboardBlockShelf courseId={course.id} blocks={dashboardBlocks} banners={banners} categorias={categorias} storageBaseUrl={storageBaseUrl} allModules={allModules} storageUploadReady={storageUploadReady} />
+        </section>
+      </main>
 
-      <section className="grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,.55fr)]">
-        <div className="rounded-lg border border-white/10 bg-[#151019] p-5">
-          <div className="flex items-center gap-3">
-            <BookOpen className="h-5 w-5 text-[#8A1DEE]" />
-            <div>
-              <h2 className="font-bold">Categorias publicadas</h2>
-              <p className="text-sm text-white/55">{publishedCategorias} categorias visiveis</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-lg border border-white/10 bg-[#151019] p-5">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-5 w-5 text-[#8A1DEE]" />
-            <div>
-              <h2 className="font-bold">Destaques ativos</h2>
-              <p className="text-sm text-white/55">{activeBanners} banners visiveis e {totalLessons} aulas cadastradas</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-8">
-        {categorias.map((categoria) => (
-          <div key={categoria.id} className="min-w-0">
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-bold">{categoria.title}</h2>
-                {categoria.description ? <p className="mt-1 text-sm text-white/55">{categoria.description}</p> : null}
-              </div>
-              <span className="text-sm text-white/45">{categoria.modules.length} modulos</span>
-            </div>
-            <ModuleShelf categoria={categoria} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />
-          </div>
-        ))}
-      </section>
+      <AdminInfoSidebar metrics={metrics} />
     </div>
   );
 }

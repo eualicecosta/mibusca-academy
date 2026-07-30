@@ -24,9 +24,18 @@ export async function getCurrentProfile() {
         clerkId: userId,
         email,
         name: clerkUser.fullName || clerkUser.firstName || email,
-        status: "PENDING"
+        status: "PENDING",
+        lastSeenAt: new Date()
       }
     });
+  } else {
+    const lastSeen = profile.lastSeenAt?.getTime() || 0;
+    if (Date.now() - lastSeen > 60_000) {
+      profile = await prisma.userProfile.update({
+        where: { id: profile.id },
+        data: { lastSeenAt: new Date() }
+      });
+    }
   }
 
   return profile;

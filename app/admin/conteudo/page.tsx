@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminContentPage() {
   const profile = await requireAdmin();
-  const [course, banners] = await Promise.all([
+  const onlineSince = new Date(Date.now() - 5 * 60 * 1000);
+  const [course, banners, onlineUsers, pendingApprovals, activeStudents] = await Promise.all([
     prisma.course.findFirst({
       orderBy: { createdAt: "asc" },
       select: {
@@ -82,6 +83,21 @@ export default async function AdminContentPage() {
         targetId: true,
         targetUrl: true
       }
+    }),
+    prisma.userProfile.count({
+      where: {
+        status: "ACTIVE",
+        lastSeenAt: { gte: onlineSince }
+      }
+    }),
+    prisma.userProfile.count({
+      where: { status: "PENDING" }
+    }),
+    prisma.userProfile.count({
+      where: {
+        role: "STUDENT",
+        status: "ACTIVE"
+      }
     })
   ]);
 
@@ -151,6 +167,11 @@ export default async function AdminContentPage() {
               };
             })
           )}
+          metrics={{
+            onlineUsers,
+            pendingApprovals,
+            activeStudents
+          }}
           storageBaseUrl={storageBaseUrl}
           storageUploadReady={canUploadToStorage}
         />
