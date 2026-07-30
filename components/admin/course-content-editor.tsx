@@ -6,7 +6,7 @@ import { useEffect, useState, useTransition } from "react";
 import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Activity, BookOpen, CheckCircle2, Clock, Edit3, Eye, EyeOff, GripVertical, Lock, MoreHorizontal, Plus, Save, Trash2, Upload, UserCheck } from "lucide-react";
+import { BookOpen, CheckCircle2, Edit3, Eye, EyeOff, GripVertical, Lock, MoreHorizontal, Plus, Save, Trash2, Upload } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,11 +102,6 @@ type CourseContentEditorProps = {
   dashboardBlocks: DashboardBlockEditor[];
   categorias: CategoriaEditor[];
   allModules: ModuleEditor[];
-  metrics: {
-    onlineUsers: number;
-    pendingApprovals: number;
-    activeStudents: number;
-  };
   storageBaseUrl: string | null;
   storageUploadReady: boolean;
 };
@@ -972,77 +967,13 @@ function NewCategoryDialog({ courseId, storageUploadReady }: { courseId: string;
   );
 }
 
-function AdminMetricCard({
-  title,
-  value,
-  description,
-  icon,
-  href
-}: {
-  title: string;
-  value: string | number;
-  description: string;
-  icon: React.ReactNode;
-  href?: string;
-}) {
-  const content = (
-    <div className="rounded-lg border border-white/10 bg-[#151019] p-5 transition hover:border-[#8A1DEE]/50">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="break-words text-sm font-semibold text-white/58">{title}</p>
-          <strong className="mt-2 block text-3xl leading-none text-white">{value}</strong>
-          <p className="mt-3 break-words text-xs leading-5 text-white/45">{description}</p>
-        </div>
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[#8A1DEE]/15 text-[#A855F7]">
-          {icon}
-        </div>
-      </div>
-    </div>
-  );
-
-  return href ? <Link href={href}>{content}</Link> : content;
-}
-
-function AdminInfoSidebar({ metrics }: { metrics: CourseContentEditorProps["metrics"] }) {
-  return (
-    <aside className="w-full min-w-0 xl:sticky xl:top-24 xl:w-[340px] xl:self-start">
-      <div className="grid max-h-none gap-4 overflow-visible rounded-lg border border-white/10 bg-white/[0.02] p-4 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Painel rapido</p>
-          <h2 className="mt-1 text-xl font-bold">Estado da plataforma</h2>
-        </div>
-        <AdminMetricCard
-          title="Usuarios online agora"
-          value={metrics.onlineUsers}
-          description="Alunos e admins ativos vistos nos ultimos 5 minutos."
-          icon={<Activity className="h-5 w-5" />}
-        />
-        <AdminMetricCard
-          title="Aprovacoes pendentes"
-          value={metrics.pendingApprovals}
-          description="Cadastros aguardando liberacao manual."
-          icon={<Clock className="h-5 w-5" />}
-          href="/admin/aprovacoes"
-        />
-        <AdminMetricCard
-          title="Alunos ativos"
-          value={metrics.activeStudents}
-          description="Membros com acesso liberado atualmente."
-          icon={<UserCheck className="h-5 w-5" />}
-          href="/admin/membros"
-        />
-      </div>
-    </aside>
-  );
-}
-
-export function CourseContentEditor({ course, banners, dashboardBlocks, categorias, allModules, metrics, storageBaseUrl, storageUploadReady }: CourseContentEditorProps) {
+export function CourseContentEditor({ course, banners, dashboardBlocks, categorias, allModules, storageBaseUrl, storageUploadReady }: CourseContentEditorProps) {
   const totalLessons = allModules.reduce((sum, module) => sum + module.lessonCount, 0);
   const publishedCategorias = categorias.filter((categoria) => categoria.status === "PUBLISHED").length;
   const activeBanners = banners.filter((banner) => banner.status === "ACTIVE").length;
 
   return (
-    <div className="mx-auto grid w-full min-w-0 max-w-[1500px] items-start gap-8 xl:grid-cols-[minmax(0,1fr)_340px]">
+    <div className="mx-auto w-full min-w-0 max-w-7xl">
       <main className="min-w-0 max-w-full space-y-8 overflow-hidden">
         <header className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -1091,8 +1022,6 @@ export function CourseContentEditor({ course, banners, dashboardBlocks, categori
           <DashboardBlockShelf courseId={course.id} blocks={dashboardBlocks} banners={banners} categorias={categorias} storageBaseUrl={storageBaseUrl} allModules={allModules} storageUploadReady={storageUploadReady} />
         </section>
       </main>
-
-      <AdminInfoSidebar metrics={metrics} />
     </div>
   );
 }
