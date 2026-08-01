@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState, useTransition } from "react";
-import { closestCenter, DndContext, type DragEndEvent } from "@dnd-kit/core";
+import { createPortal } from "react-dom";
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
+import { closestCenter, DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove, horizontalListSortingStrategy, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { BookOpen, CheckCircle2, Edit3, Eye, EyeOff, GripVertical, Lock, MoreHorizontal, Plus, Save, Trash2, Upload } from "lucide-react";
@@ -188,22 +189,129 @@ function ConfirmActionButton({
 function BannerCard({ banner, storageBaseUrl }: { banner: BannerEditor; storageBaseUrl: string | null }) {
   const firstImage = banner.images[0]?.imageUrl || banner.imageUrl;
   const imageUrl = assetUrl(firstImage, storageBaseUrl);
-  const showText = !imageUrl && (banner.title || banner.subtitle);
+  // Split overlay only when real title/subtitle exist; image-only fills the full width.
+  const hasText = Boolean(banner.title?.trim() || banner.subtitle?.trim());
 
   return (
-    <div className="group relative h-[190px] w-full max-w-full shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60 sm:h-[250px]">
-      {imageUrl ? <Image src={imageUrl} alt={banner.title || "Banner"} fill sizes="(min-width: 1280px) 860px, 100vw" className="object-contain transition duration-300 group-hover:scale-[1.01]" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(138,29,238,.55),transparent_38%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
-      {showText ? <div className="absolute inset-0 bg-gradient-to-r from-black/78 via-black/35 to-transparent" /> : null}
-      {!imageUrl ? <div className="absolute left-4 top-4 rounded-full bg-black/65 px-3 py-1 text-xs font-bold uppercase text-white/75">
-        {banner.status === "ACTIVE" ? "Ativo" : "Inativo"}
-      </div> : null}
-      {showText ? (
-        <div className="absolute inset-x-0 bottom-0 max-w-[82%] p-4">
+    <div className="group relative h-[190px] w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60 sm:h-[250px]">
+      {imageUrl ? (
+        <Image
+          src={imageUrl}
+          alt={banner.title || "Banner"}
+          fill
+          sizes="100vw"
+          className="object-cover transition duration-300 group-hover:scale-[1.01]"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(138,29,238,.55),transparent_38%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />
+      )}
+      {hasText ? <div className="absolute inset-0 bg-gradient-to-r from-black/78 via-black/35 to-transparent" /> : null}
+      {!imageUrl ? (
+        <div className="absolute left-4 top-4 rounded-full bg-black/65 px-3 py-1 text-xs font-bold uppercase text-white/75">
+          {banner.status === "ACTIVE" ? "Ativo" : "Inativo"}
+        </div>
+      ) : null}
+      {hasText ? (
+        <div className="absolute inset-x-0 bottom-0 max-w-[min(100%,28rem)] p-4">
           {banner.title ? <h3 className="line-clamp-2 break-words text-xl font-black leading-tight text-white">{banner.title}</h3> : null}
           {banner.subtitle ? <p className="mt-2 line-clamp-2 break-words text-sm text-white/68">{banner.subtitle}</p> : null}
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Dropdown menu rendered in a portal so overflow carousels cannot clip it. */
+function FloatingOptionsMenu({
+  open,
+  onOpenChange,
+  children,
+  panelClassName
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: React.ReactNode;
+  panelClassName?: string;
+}) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const panelWidth = 224;
+    const gap = 8;
+    const spaceRight = window.innerWidth - rect.right;
+    const openLeft = spaceRight < panelWidth + 12;
+    const left = openLeft ? Math.max(8, rect.right - panelWidth) : Math.min(rect.left, window.innerWidth - panelWidth - 8);
+    const top = Math.min(rect.bottom + gap, window.innerHeight - 12);
+    setCoords({ top, left });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    function onPointerDown(event: MouseEvent) {
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      onOpenChange(false);
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onOpenChange(false);
+    }
+
+    function onReposition() {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      const panelWidth = 224;
+      const gap = 8;
+      const spaceRight = window.innerWidth - rect.right;
+      const openLeft = spaceRight < panelWidth + 12;
+      const left = openLeft ? Math.max(8, rect.right - panelWidth) : Math.min(rect.left, window.innerWidth - panelWidth - 8);
+      const top = Math.min(rect.bottom + gap, window.innerHeight - 12);
+      setCoords({ top, left });
+    }
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
+    };
+  }, [open, onOpenChange]);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label="Abrir opcoes"
+        aria-expanded={open}
+        className="flex h-8 w-8 items-center justify-center rounded-md bg-black/35 text-white transition hover:bg-black/55 hover:text-[#8A1DEE]"
+        onClick={() => onOpenChange(!open)}
+      >
+        <MoreHorizontal className="h-6 w-6" />
+      </button>
+      {open && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={panelRef}
+              className={panelClassName || "w-56 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl"}
+              style={{ position: "fixed", top: coords.top, left: coords.left, zIndex: 80 }}
+              role="menu"
+            >
+              {children}
+            </div>,
+            document.body
+          )
+        : null}
+    </>
   );
 }
 
@@ -381,23 +489,21 @@ function BannerMenu({
 
   return (
     <div className="absolute right-3 top-3 z-30">
-      <button type="button" aria-label="Abrir opcoes" className="flex h-8 w-8 items-center justify-center text-white transition hover:text-[#8A1DEE]" onClick={() => setOpen((value) => !value)}>
-        <MoreHorizontal className="h-6 w-6" />
-      </button>
-      {open ? (
-        <div className="absolute right-0 top-10 w-52 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl">
-          <BannerSettingsDialog banner={banner} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
-          <button
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8"
-            type="button"
-            onClick={() => void updateBannerStatus(banner.id, banner.status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}
-          >
-            {banner.status === "ACTIVE" ? <EyeOff className="h-4 w-4 text-[#8A1DEE]" /> : <Eye className="h-4 w-4 text-[#8A1DEE]" />}
-            {banner.status === "ACTIVE" ? "Desativar" : "Ativar"}
-          </button>
-          <DeleteBannerDialog banner={banner} />
-        </div>
-      ) : null}
+      <FloatingOptionsMenu open={open} onOpenChange={setOpen} panelClassName="w-52 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl">
+        <BannerSettingsDialog banner={banner} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
+        <button
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8"
+          type="button"
+          onClick={() => {
+            void updateBannerStatus(banner.id, banner.status === "ACTIVE" ? "INACTIVE" : "ACTIVE");
+            setOpen(false);
+          }}
+        >
+          {banner.status === "ACTIVE" ? <EyeOff className="h-4 w-4 text-[#8A1DEE]" /> : <Eye className="h-4 w-4 text-[#8A1DEE]" />}
+          {banner.status === "ACTIVE" ? "Desativar" : "Ativar"}
+        </button>
+        <DeleteBannerDialog banner={banner} />
+      </FloatingOptionsMenu>
     </div>
   );
 }
@@ -454,13 +560,18 @@ function NewBannerDialog({
   );
 }
 
+const MODULE_CARD_WIDTH_PX = 260;
+
 function ModuleCard({ module, storageBaseUrl }: { module: ModuleEditor; storageBaseUrl: string | null }) {
   const coverUrl = assetUrl(module.coverImagePath, storageBaseUrl);
   const showText = !coverUrl && !module.hideText;
 
   return (
-    <div className="group relative h-[292px] w-[220px] shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] text-left shadow-xl transition hover:border-[#8A1DEE]/60">
-      {coverUrl ? <Image src={coverUrl} alt={module.title || "Modulo"} fill sizes="220px" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(138,29,238,.55),transparent_35%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
+    <div
+      className="module-carousel-card group relative h-[292px] overflow-hidden rounded-lg border border-white/10 bg-[#151019] text-left shadow-xl transition hover:border-[#8A1DEE]/60"
+      style={{ width: MODULE_CARD_WIDTH_PX, minWidth: MODULE_CARD_WIDTH_PX, maxWidth: MODULE_CARD_WIDTH_PX, flex: "0 0 auto" }}
+    >
+      {coverUrl ? <Image src={coverUrl} alt={module.title || "Modulo"} fill sizes="260px" className="object-cover transition duration-300 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(138,29,238,.55),transparent_35%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />}
       {showText ? <div className="absolute inset-0 bg-gradient-to-t from-black via-black/58 to-black/10" /> : null}
       {showText && module.status !== "PUBLISHED" ? (
         <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white/75">
@@ -480,13 +591,23 @@ function ModuleCard({ module, storageBaseUrl }: { module: ModuleEditor; storageB
 
 function SortableCard({ id, children, fullWidth = false }: { id: string; children: React.ReactNode; fullWidth?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = { transform: CSS.Transform.toString(transform), transition };
-  const widthClass = fullWidth ? "w-full max-w-full" : "shrink-0";
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    ...(fullWidth
+      ? { width: "100%", maxWidth: "100%" }
+      : {
+          width: MODULE_CARD_WIDTH_PX,
+          minWidth: MODULE_CARD_WIDTH_PX,
+          maxWidth: MODULE_CARD_WIDTH_PX,
+          flex: "0 0 auto"
+        })
+  };
 
   return (
-    <div ref={setNodeRef} style={style} className={`${widthClass} ${isDragging ? "opacity-70" : ""}`}>
+    <div ref={setNodeRef} style={style} className={`module-sortable-item ${isDragging ? "opacity-70 z-20" : ""}`}>
       <div className="relative">
-        <button type="button" aria-label="Arrastar" className="absolute left-3 top-3 z-20 flex h-8 w-8 items-center justify-center text-white/75 hover:text-white" {...attributes} {...listeners}>
+        <button type="button" aria-label="Arrastar" className="absolute left-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-md bg-black/35 text-white/80 hover:bg-black/55 hover:text-white" {...attributes} {...listeners}>
           <GripVertical className="h-5 w-5" />
         </button>
         {children}
@@ -672,17 +793,12 @@ function CategoriaMenu({ categoria, allModules, storageUploadReady }: { categori
 
   return (
     <div className="absolute right-3 top-3 z-30">
-      <button type="button" aria-label="Abrir opcoes" className="flex h-8 w-8 items-center justify-center text-white transition hover:text-[#8A1DEE]" onClick={() => setOpen((value) => !value)}>
-        <MoreHorizontal className="h-6 w-6" />
-      </button>
-      {open ? (
-        <div className="absolute right-0 top-10 w-56 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl">
-          <CategoriaSettingsDialog categoria={categoria} storageUploadReady={storageUploadReady} />
-          <AddModuleDialog categoria={categoria} allModules={allModules} storageUploadReady={storageUploadReady} />
-          <RemoveModuleDialog categoria={categoria} />
-          <DeleteCategoriaDialog categoria={categoria} />
-        </div>
-      ) : null}
+      <FloatingOptionsMenu open={open} onOpenChange={setOpen}>
+        <CategoriaSettingsDialog categoria={categoria} storageUploadReady={storageUploadReady} />
+        <AddModuleDialog categoria={categoria} allModules={allModules} storageUploadReady={storageUploadReady} />
+        <RemoveModuleDialog categoria={categoria} />
+        <DeleteCategoriaDialog categoria={categoria} />
+      </FloatingOptionsMenu>
     </div>
   );
 }
@@ -739,18 +855,17 @@ function ModuleMenu({ module, storageBaseUrl, storageUploadReady }: { module: Mo
 
   return (
     <div className="absolute right-3 top-3 z-30">
-      <button type="button" aria-label="Abrir opcoes" className="flex h-8 w-8 items-center justify-center text-white transition hover:text-[#8A1DEE]" onClick={() => setOpen((value) => !value)}>
-        <MoreHorizontal className="h-6 w-6" />
-      </button>
-      {open ? (
-        <div className="absolute right-0 top-10 w-48 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl">
-          <Link href={`/admin/conteudo/${module.id}`} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8">
-            <BookOpen className="h-4 w-4 text-[#8A1DEE]" />
-            Editar conteudo
-          </Link>
-          <ModuleSettingsDialog module={module} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />
-        </div>
-      ) : null}
+      <FloatingOptionsMenu open={open} onOpenChange={setOpen} panelClassName="w-48 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl">
+        <Link
+          href={`/admin/conteudo/${module.id}`}
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8"
+          onClick={() => setOpen(false)}
+        >
+          <BookOpen className="h-4 w-4 text-[#8A1DEE]" />
+          Editar conteudo
+        </Link>
+        <ModuleSettingsDialog module={module} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />
+      </FloatingOptionsMenu>
     </div>
   );
 }
@@ -907,55 +1022,39 @@ function ModuleShelf({ categoria, storageBaseUrl, storageUploadReady }: { catego
   const [items, setItems] = useState(categoria.modules);
   const [pending, startTransition] = useTransition();
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const [hasOverflow, setHasOverflow] = useState(false);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 }
+    })
+  );
 
   useEffect(() => {
     setItems(categoria.modules);
   }, [categoria.modules]);
-
-  useEffect(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-
-    const measureOverflow = () => {
-      setHasOverflow(scroller.scrollWidth > scroller.clientWidth + 1);
-    };
-
-    measureOverflow();
-    const observer = new ResizeObserver(measureOverflow);
-    observer.observe(scroller);
-    window.addEventListener("resize", measureOverflow);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measureOverflow);
-    };
-  }, [items]);
 
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
     const oldIndex = items.findIndex((item) => item.id === active.id);
     const newIndex = items.findIndex((item) => item.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
     const next = arrayMove(items, oldIndex, newIndex);
     setItems(next);
     startTransition(() => void reorderModules(categoria.id, next.map((item) => item.id)));
   }
 
   return (
-    <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} autoScroll={{ threshold: { x: 0.15, y: 0.15 } }}>
       <SortableContext items={items.map((item) => item.id)} strategy={horizontalListSortingStrategy}>
-        <div
-          ref={scrollerRef}
-          className="module-carousel-viewport data-[pending=true]:opacity-80"
-          data-pending={pending}
-          data-has-overflow={hasOverflow ? "true" : "false"}
-        >
-          <div className="module-carousel-track snap-x">
+        <div ref={scrollerRef} className="module-carousel-viewport data-[pending=true]:opacity-80" data-pending={pending}>
+          <div className="module-carousel-track">
             {items.length ? (
               items.map((module) => <SortableModule key={module.id} module={module} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />)
             ) : (
-              <div className="flex h-[180px] w-full min-w-[16rem] items-center justify-center rounded-lg border border-dashed border-white/15 text-sm text-white/50">
+              <div
+                className="flex h-[180px] items-center justify-center rounded-lg border border-dashed border-white/15 text-sm text-white/50"
+                style={{ width: MODULE_CARD_WIDTH_PX, minWidth: MODULE_CARD_WIDTH_PX }}
+              >
                 Categoria vazia
               </div>
             )}

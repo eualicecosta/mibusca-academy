@@ -248,37 +248,54 @@ a {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  /* X-scroll only; menus use portals so overflow-y can stay hidden. */
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: #53009f rgba(245, 243, 243, 0.08);
-  padding-bottom: 0.75rem;
+  scrollbar-color: #8a1dee rgba(245, 243, 243, 0.12);
+  padding-bottom: 0.85rem;
 }
 
 .module-carousel-viewport::-webkit-scrollbar {
-  height: 8px;
+  height: 10px;
+  display: block;
 }
 
 .module-carousel-viewport::-webkit-scrollbar-track {
   border-radius: 999px;
-  background: rgba(245, 243, 243, 0.08);
+  background: rgba(245, 243, 243, 0.1);
 }
 
 .module-carousel-viewport::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: #53009f;
+  background: #8a1dee;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 .module-carousel-track {
   display: flex;
+  flex-wrap: nowrap;
   width: max-content;
   min-width: 100%;
   flex-direction: row;
   align-items: stretch;
+  justify-content: flex-start;
   gap: 1rem;
+  padding-right: 0.25rem;
   padding-bottom: 0.15rem;
+  box-sizing: border-box;
+}
+
+/* Fixed-size module cards: never shrink to fit the row. */
+.module-carousel-track > .module-sortable-item,
+.module-carousel-card {
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
