@@ -579,57 +579,72 @@ export async function updateCategoria(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
-export async function deleteCategoria(formData: FormData) {
+export async function deleteCategoria(formData: FormData): Promise<{ ok: true } | { ok: false; error: string }> {
   await requireAdmin();
-  const id = String(formData.get("id") || "");
-  const mode = String(formData.get("mode") || "move");
+  const id = String(formData.get("id") || "").trim();
+  const mode = String(formData.get("mode") || "move").trim();
+
+  if (!id) {
+    return { ok: false, error: "Categoria não encontrada." };
+  }
+
   const categoria = await prisma.categoria.findUnique({
     where: { id },
     select: {
       id: true,
       title: true,
       courseId: true,
-      modules: { select: { id: true } }
+      modules: { select: { id: true }, orderBy: { order: "asc" } }
     }
   });
 
   if (!categoria) {
-    return;
+    return { ok: false, error: "Categoria não encontrada." };
   }
 
-  if (mode === "delete") {
-    await prisma.module.deleteMany({ where: { categoriaId: id } });
-    await prisma.categoria.delete({ where: { id } });
-  } else {
-    const generalId = await getOrCreateGeneralCategoria(categoria.courseId);
-    if (generalId === id) {
-      return;
-    }
-    const lastModule = await prisma.module.findFirst({
-      where: { categoriaId: generalId },
-      orderBy: { order: "desc" },
-      select: { order: true }
-    });
-    let nextOrder = lastModule ? lastModule.order + 1 : 1;
-    if (categoria.modules.length) {
-      await prisma.$transaction(
-        categoria.modules.map((module) =>
-          prisma.module.update({
-            where: { id: module.id },
+  try {
+    if (mode === "delete") {
+      // Cascade removes lessons, blocks, checklists and progress via Prisma relations.
+      await prisma.$transaction(async (tx) => {
+        await tx.module.deleteMany({ where: { categoriaId: id } });
+        await tx.categoria.delete({ where: { id } });
+      });
+    } else {
+      const generalId = await getOrCreateGeneralCategoria(categoria.courseId);
+      if (generalId === id) {
+        return { ok: false, error: "Não é possível mover a própria categoria Geral." };
+      }
+
+      await prisma.$transaction(async (tx) => {
+        const lastModule = await tx.module.findFirst({
+          where: { categoriaId: generalId },
+          orderBy: { order: "desc" },
+          select: { order: true }
+        });
+        let nextOrder = lastModule ? lastModule.order + 1 : 1;
+
+        for (const courseModule of categoria.modules) {
+          await tx.module.update({
+            where: { id: courseModule.id },
             data: { categoriaId: generalId, order: nextOrder++ }
-          })
-        )
-      );
-    }
-    await prisma.categoria.delete({ where: { id } });
-    await normalizeModuleOrders(generalId);
-  }
+          });
+        }
 
-  await normalizeCategoriaOrders(categoria.courseId);
-  await normalizeDashboardBlockOrders(categoria.courseId);
-  revalidateTag("course-structure");
-  revalidatePath("/admin/conteudo");
-  revalidatePath("/dashboard");
+        await tx.categoria.delete({ where: { id } });
+      });
+
+      await normalizeModuleOrders(generalId);
+    }
+
+    await normalizeCategoriaOrders(categoria.courseId);
+    await normalizeDashboardBlockOrders(categoria.courseId);
+    revalidateTag("course-structure");
+    revalidatePath("/admin/conteudo");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Não foi possível excluir a categoria. Tente novamente." };
+  }
 }
 
 export async function moveModuleToCategoria(formData: FormData) {

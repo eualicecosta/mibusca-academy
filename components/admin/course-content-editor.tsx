@@ -186,8 +186,9 @@ function ConfirmActionButton({
 }
 
 function BannerStatusPill({ status }: { status: BannerEditor["status"] }) {
+  // Sit to the right of the drag handle (handle occupies left-3 top-3).
   return (
-    <div className="absolute left-3 top-3 z-10 rounded-full bg-black/65 px-3 py-1 text-xs font-bold uppercase text-white/75">
+    <div className="absolute left-14 top-3 z-10 rounded-full bg-black/65 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white/75">
       {status === "ACTIVE" ? "Ativo" : "Inativo"}
     </div>
   );
@@ -673,9 +674,18 @@ function SortableCard({ id, children, fullWidth = false }: { id: string; childre
   return (
     <div ref={setNodeRef} style={style} className={`module-sortable-item ${isDragging ? "opacity-70 z-20" : ""}`}>
       <div className="relative min-w-0">
-        <button type="button" aria-label="Arrastar" className="absolute left-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-md bg-black/35 text-white/80 hover:bg-black/55 hover:text-white" {...attributes} {...listeners}>
-          <GripVertical className="h-5 w-5" />
-        </button>
+        {/* Dedicated toolbar strip: drag left, actions stay top-right inside children */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex h-12 items-center px-3">
+          <button
+            type="button"
+            aria-label="Arrastar"
+            className="pointer-events-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-black/45 text-white/85 ring-1 ring-white/10 hover:bg-black/60 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A1DEE]/50"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-5 w-5" />
+          </button>
+        </div>
         {children}
       </div>
     </div>
@@ -849,6 +859,33 @@ function CategoriaMenu({ categoria, allModules, storageUploadReady }: { categori
   const [addOpen, setAddOpen] = useState(false);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePending, startDelete] = useTransition();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [confirmHardDelete, setConfirmHardDelete] = useState(false);
+
+  function runDelete(mode: "move" | "delete") {
+    setDeleteError(null);
+    if (mode === "delete" && !confirmHardDelete) {
+      setConfirmHardDelete(true);
+      return;
+    }
+    startDelete(async () => {
+      const formData = new FormData();
+      formData.set("id", categoria.id);
+      formData.set("mode", mode);
+      try {
+        const result = await deleteCategoria(formData);
+        if (!result.ok) {
+          setDeleteError(result.error);
+          return;
+        }
+        setDeleteOpen(false);
+        setConfirmHardDelete(false);
+      } catch {
+        setDeleteError("Falha ao excluir a categoria.");
+      }
+    });
+  }
 
   return (
     <div className="absolute right-3 top-3 z-30">
@@ -868,7 +905,12 @@ function CategoriaMenu({ categoria, allModules, storageUploadReady }: { categori
         <button
           type="button"
           className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-red-100 hover:bg-red-500/10"
-          onClick={() => { setMenuOpen(false); setDeleteOpen(true); }}
+          onClick={() => {
+            setMenuOpen(false);
+            setConfirmHardDelete(false);
+            setDeleteError(null);
+            setDeleteOpen(true);
+          }}
         >
           <Trash2 className="h-4 w-4 text-red-300" />
           Excluir categoria
@@ -879,33 +921,39 @@ function CategoriaMenu({ categoria, allModules, storageUploadReady }: { categori
       <AddModuleDialog categoria={categoria} allModules={allModules} storageUploadReady={storageUploadReady} open={addOpen} onOpenChange={setAddOpen} />
       <RemoveModuleDialog categoria={categoria} open={removeOpen} onOpenChange={setRemoveOpen} />
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(next) => {
+          setDeleteOpen(next);
+          if (!next) {
+            setConfirmHardDelete(false);
+            setDeleteError(null);
+          }
+        }}
+      >
         <AlertDialogContent className="max-w-2xl">
           <AlertDialogTitle>Excluir categoria</AlertDialogTitle>
           <AlertDialogDescription>
-            Escolha o que fazer com os módulos dentro de {categoria.title}. Mover para Geral preserva aulas e progresso. Excluir definitivamente remove módulos, aulas e progresso associado.
+            Escolha o que fazer com os módulos dentro de {categoria.title}. Mover para Geral preserva aulas e progresso.
+            Excluir tudo remove módulos, aulas e progresso associado.
           </AlertDialogDescription>
+          {confirmHardDelete ? (
+            <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-100">
+              Confirma exclusão definitiva de todos os módulos, aulas e progresso desta categoria?
+            </p>
+          ) : null}
+          {deleteError ? <p className="text-sm text-red-200">{deleteError}</p> : null}
           <div className="flex flex-wrap gap-3">
-            <form action={deleteCategoria}>
-              <input type="hidden" name="id" value={categoria.id} />
-              <input type="hidden" name="mode" value="move" />
-              <AlertDialogAction asChild>
-                <Button type="submit" variant="secondary">
-                  Mover módulos para Geral
-                </Button>
-              </AlertDialogAction>
-            </form>
-            <form action={deleteCategoria}>
-              <input type="hidden" name="id" value={categoria.id} />
-              <input type="hidden" name="mode" value="delete" />
-              <AlertDialogAction asChild>
-                <Button type="submit" variant="destructive">
-                  Excluir tudo
-                </Button>
-              </AlertDialogAction>
-            </form>
-            <AlertDialogCancel className="inline-flex min-h-10 items-center justify-center rounded-lg border border-white/10 bg-white/8 px-4 py-2 text-sm font-semibold text-[#F5F3F3] hover:bg-white/12">
-              Cancelar
+            <Button type="button" variant="secondary" disabled={deletePending} onClick={() => runDelete("move")}>
+              {deletePending ? "Processando..." : "Mover módulos para Geral"}
+            </Button>
+            <Button type="button" variant="destructive" disabled={deletePending} onClick={() => runDelete("delete")}>
+              {deletePending ? "Processando..." : confirmHardDelete ? "Confirmar exclusão total" : "Excluir tudo"}
+            </Button>
+            <AlertDialogCancel asChild>
+              <Button type="button" variant="outline" disabled={deletePending}>
+                Cancelar
+              </Button>
             </AlertDialogCancel>
           </div>
         </AlertDialogContent>
@@ -1116,14 +1164,17 @@ function CategoryDashboardCard({
   storageUploadReady: boolean;
 }) {
   return (
-    <div className="w-full min-w-0 max-w-full overflow-hidden rounded-lg border border-white/10 bg-[#151019] p-5 shadow-xl transition hover:border-[#8A1DEE]/50">
-      <div className="mb-4 flex min-w-0 flex-wrap items-end justify-between gap-4 pl-8">
+    <div className="w-full min-w-0 max-w-full overflow-hidden rounded-lg border border-white/10 bg-[#151019] p-5 pt-14 shadow-xl transition hover:border-[#8A1DEE]/50">
+      {/* pt-14 reserves space for drag handle (left) + ⋮ menu (right) so they never overlap content */}
+      <div className="mb-4 flex min-w-0 flex-wrap items-end justify-between gap-4 pr-12">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wide text-[#8A1DEE]">{categoria.status}</p>
           <h3 className="mt-1 break-words text-2xl font-bold text-white">{categoria.title}</h3>
           {categoria.description ? <p className="mt-1 max-w-2xl break-words text-sm text-white/55">{categoria.description}</p> : null}
         </div>
-        <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/60">{categoria.modules.length} modulos</span>
+        <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/60">
+          {categoria.modules.length} módulos
+        </span>
       </div>
       <div className="min-w-0 max-w-full">
         <ModuleShelf categoria={categoria} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />
