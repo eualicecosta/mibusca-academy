@@ -20,24 +20,25 @@ export type StudentBannerBlock = {
 };
 
 function BannerFrame({ banner, image, active }: { banner: StudentBannerBlock; image: StudentBannerImage | null; active: boolean }) {
-  const showText = !image && (banner.title || banner.subtitle);
+  // Any image → only image (no title/subtitle overlay). No image → text only.
+  const showText = !image && Boolean(banner.title?.trim() || banner.subtitle?.trim());
   const content = (
-    <div className="relative h-full w-full overflow-hidden rounded-lg border border-white/10 bg-[#151019]">
+    <div className="relative h-full w-full min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019]">
       {image ? (
         <Image
           src={image.imageUrl}
-          alt={banner.title || "Banner da area de membros"}
+          alt={banner.title || "Banner da área de membros"}
           fill
           priority={active}
           sizes="(min-width: 1024px) 1120px, 100vw"
-          className="object-cover"
+          className="object-cover object-center"
         />
       ) : (
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(138,29,238,.62),transparent_36%),linear-gradient(145deg,#09050e,#260748_55%,#050306)]" />
       )}
       {showText ? <div className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/38 to-transparent" /> : null}
       {showText ? (
-        <div className="absolute inset-x-0 bottom-0 max-w-3xl p-5 sm:p-8">
+        <div className="absolute inset-x-0 bottom-0 w-full max-w-full p-5 sm:p-8">
           {banner.title ? <h1 className="break-words text-3xl font-bold leading-tight text-white sm:text-5xl">{banner.title}</h1> : null}
           {banner.subtitle ? <p className="mt-3 max-w-2xl break-words text-base leading-7 text-white/72 sm:text-lg">{banner.subtitle}</p> : null}
         </div>

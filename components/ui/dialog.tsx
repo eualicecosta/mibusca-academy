@@ -17,7 +17,7 @@ const DialogOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-50 bg-black/70 backdrop-blur-sm", className)}
+    className={cn("fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm", className)}
     {...props}
   />
 ));
@@ -26,15 +26,26 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, onPointerDownOutside, onInteractOutside, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 grid w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-white/10 bg-[#151019] p-4 text-[#F5F3F3] shadow-2xl outline-none",
+        "fixed left-1/2 top-1/2 z-[100] grid w-[calc(100vw-2rem)] max-h-[min(92dvh,900px)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-lg border border-white/10 bg-[#151019] p-4 text-[#F5F3F3] shadow-2xl outline-none",
         className
       )}
+      onPointerDownOutside={(event) => {
+        // File inputs / selects can fire outside events in some browsers — keep dialog stable.
+        const target = event.target as HTMLElement | null;
+        if (target?.closest?.("input, textarea, select, label, button, [role='listbox']")) {
+          event.preventDefault();
+        }
+        onPointerDownOutside?.(event);
+      }}
+      onInteractOutside={(event) => {
+        onInteractOutside?.(event);
+      }}
       {...props}
     >
       {children}

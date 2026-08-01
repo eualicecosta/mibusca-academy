@@ -201,54 +201,30 @@ function BannerCard({ banner, storageBaseUrl }: { banner: BannerEditor; storageB
   const subtitle = banner.subtitle?.trim() || "";
   const hasText = Boolean(title || subtitle);
 
-  // Image-only: full width, natural aspect ratio — no empty left column, no crop.
-  if (imageUrl && !hasText) {
+  // Rule: any image → show ONLY the image (title/subtitle stay in DB, not rendered).
+  if (imageUrl) {
     return (
       <div className="group relative w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60">
         <BannerStatusPill status={banner.status} />
-        {/* width/height only set the intrinsic ratio; CSS forces full-width fluid height */}
         <Image
           src={imageUrl}
-          alt={banner.title || "Banner"}
+          alt={title || "Banner"}
           width={1600}
           height={500}
           sizes="100vw"
           className="block h-auto w-full max-w-full object-cover"
           style={{ width: "100%", height: "auto" }}
-          priority={false}
         />
       </div>
     );
   }
 
-  // Text + image: real split layout (no fake empty column over the photo).
-  if (imageUrl && hasText) {
-    return (
-      <div className="group grid w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
-        <div className="relative flex min-w-0 flex-col justify-center gap-2 bg-[#0c0812] p-5 sm:p-6">
-          <BannerStatusPill status={banner.status} />
-          {title ? <h3 className="break-words text-xl font-black leading-tight text-white sm:text-2xl">{title}</h3> : null}
-          {subtitle ? <p className="break-words text-sm leading-relaxed text-white/68">{subtitle}</p> : null}
-        </div>
-        <div className="relative min-h-[190px] min-w-0 sm:min-h-[250px]">
-          <Image
-            src={imageUrl}
-            alt={title || "Banner"}
-            fill
-            sizes="(min-width: 768px) 55vw, 100vw"
-            className="object-cover object-center"
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // Text-only / empty placeholder
+  // No image → text only (full width).
   return (
     <div className="group relative flex min-h-[190px] w-full max-w-full min-w-0 flex-col justify-end overflow-hidden rounded-lg border border-white/10 bg-[#151019] p-5 shadow-xl transition hover:border-[#8A1DEE]/60 sm:min-h-[250px]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(138,29,238,.55),transparent_38%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />
       <BannerStatusPill status={banner.status} />
-      <div className="relative z-[1] max-w-xl">
+      <div className="relative z-[1] w-full max-w-full">
         {title ? <h3 className="break-words text-xl font-black leading-tight text-white sm:text-2xl">{title}</h3> : null}
         {subtitle ? <p className="mt-2 break-words text-sm text-white/68">{subtitle}</p> : null}
         {!hasText ? <p className="text-sm text-white/50">Banner sem imagem ou texto</p> : null}
@@ -342,7 +318,7 @@ function FloatingOptionsMenu({
             <div
               ref={panelRef}
               className={panelClassName || "w-56 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl"}
-              style={{ position: "fixed", top: coords.top, left: coords.left, zIndex: 80 }}
+              style={{ position: "fixed", top: coords.top, left: coords.left, zIndex: 60 }}
               role="menu"
             >
               {children}
@@ -353,6 +329,9 @@ function FloatingOptionsMenu({
     </>
   );
 }
+
+const menuItemClass =
+  "flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8";
 
 function BannerDestinationFields({
   banner,
@@ -409,28 +388,45 @@ function BannerSettingsDialog({
   storageBaseUrl,
   categorias,
   allModules,
-  storageUploadReady
+  storageUploadReady,
+  open,
+  onOpenChange
 }: {
   banner: BannerEditor;
   storageBaseUrl: string | null;
   categorias: CategoriaEditor[];
   allModules: ModuleEditor[];
   storageUploadReady: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8" type="button">
-          <Edit3 className="h-4 w-4 text-[#8A1DEE]" />
-          Editar banner
-        </button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92dvh] max-w-3xl overflow-y-auto">
         <DialogTitle>Editar banner</DialogTitle>
-        <form action={updateBanner} className="grid gap-4">
+        <p className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/60">
+          Quando houver imagem cadastrada, o aluno verá somente a imagem. Os textos serão exibidos apenas quando o banner não possuir imagens.
+        </p>
+        <form
+          className="grid gap-4"
+          action={(formData) => {
+            setError(null);
+            startTransition(async () => {
+              try {
+                await updateBanner(formData);
+                onOpenChange(false);
+              } catch {
+                setError("Não foi possível salvar o banner. Tente novamente.");
+              }
+            });
+          }}
+        >
           <input type="hidden" name="id" value={banner.id} />
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_160px]">
-            <Field label="Titulo opcional">
+            <Field label="Título opcional">
               <TextInput name="title" defaultValue={banner.title || ""} />
             </Field>
             <Field label="Status">
@@ -440,12 +436,12 @@ function BannerSettingsDialog({
               </SelectField>
             </Field>
           </div>
-          <Field label="Subtitulo opcional">
+          <Field label="Subtítulo opcional">
             <TextArea name="subtitle" defaultValue={banner.subtitle || ""} rows={2} />
           </Field>
           <div className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
             <h3 className="text-sm font-bold text-white">Imagens do bloco</h3>
-            <p className="mt-1 text-sm text-white/55">Use de 1 a 3 imagens. Quando houver imagem, o aluno ve somente a imagem, sem texto sobreposto.</p>
+            <p className="mt-1 text-sm text-white/55">Use de 1 a 3 imagens. Com imagem, o aluno vê somente a imagem.</p>
             {banner.images.length ? (
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {banner.images.map((image) => {
@@ -474,40 +470,20 @@ function BannerSettingsDialog({
             </div>
           </div>
           <BannerDestinationFields banner={banner} categorias={categorias} allModules={allModules} />
-          <Button type="submit" className="w-fit">
-            <Save className="h-4 w-4" />
-            Salvar banner
-          </Button>
+          {error ? <p className="text-sm text-red-200">{error}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" className="w-fit" disabled={pending}>
+              {pending ? "Salvando..." : null}
+              {!pending ? <Save className="h-4 w-4" /> : null}
+              {pending ? "Aguarde" : "Salvar banner"}
+            </Button>
+            <Button type="button" variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function DeleteBannerDialog({ banner }: { banner: BannerEditor }) {
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-red-100 hover:bg-red-500/10" type="button">
-          <Trash2 className="h-4 w-4 text-red-300" />
-          Excluir banner
-        </button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogTitle>Excluir banner</AlertDialogTitle>
-        <AlertDialogDescription>Este banner sera removido da area de membros. A imagem enviada no storage nao sera apagada automaticamente.</AlertDialogDescription>
-        <div className="flex flex-wrap gap-3">
-          <AlertDialogAction asChild>
-            <Button type="button" variant="destructive" onClick={() => void deleteBanner(banner.id)}>
-              Excluir definitivamente
-            </Button>
-          </AlertDialogAction>
-          <AlertDialogCancel className="inline-flex min-h-10 items-center justify-center rounded-lg border border-white/10 bg-white/8 px-4 py-2 text-sm font-semibold text-[#F5F3F3] hover:bg-white/12">
-            Cancelar
-          </AlertDialogCancel>
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }
 
@@ -524,25 +500,76 @@ function BannerMenu({
   allModules: ModuleEditor[];
   storageUploadReady: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <div className="absolute right-3 top-3 z-30">
-      <FloatingOptionsMenu open={open} onOpenChange={setOpen} panelClassName="w-52 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl">
-        <BannerSettingsDialog banner={banner} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
+      <FloatingOptionsMenu open={menuOpen} onOpenChange={setMenuOpen} panelClassName="w-52 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl">
         <button
-          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8"
+          type="button"
+          className={menuItemClass}
+          onClick={() => {
+            setMenuOpen(false);
+            setEditOpen(true);
+          }}
+        >
+          <Edit3 className="h-4 w-4 text-[#8A1DEE]" />
+          Editar banner
+        </button>
+        <button
+          className={menuItemClass}
           type="button"
           onClick={() => {
             void updateBannerStatus(banner.id, banner.status === "ACTIVE" ? "INACTIVE" : "ACTIVE");
-            setOpen(false);
+            setMenuOpen(false);
           }}
         >
           {banner.status === "ACTIVE" ? <EyeOff className="h-4 w-4 text-[#8A1DEE]" /> : <Eye className="h-4 w-4 text-[#8A1DEE]" />}
           {banner.status === "ACTIVE" ? "Desativar" : "Ativar"}
         </button>
-        <DeleteBannerDialog banner={banner} />
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-red-100 hover:bg-red-500/10"
+          onClick={() => {
+            setMenuOpen(false);
+            setDeleteOpen(true);
+          }}
+        >
+          <Trash2 className="h-4 w-4 text-red-300" />
+          Excluir banner
+        </button>
       </FloatingOptionsMenu>
+
+      <BannerSettingsDialog
+        banner={banner}
+        storageBaseUrl={storageBaseUrl}
+        categorias={categorias}
+        allModules={allModules}
+        storageUploadReady={storageUploadReady}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Excluir banner</AlertDialogTitle>
+          <AlertDialogDescription>
+            Este banner será removido da área de membros. A imagem enviada no storage não será apagada automaticamente.
+          </AlertDialogDescription>
+          <div className="flex flex-wrap gap-3">
+            <AlertDialogAction asChild>
+              <Button type="button" variant="destructive" onClick={() => void deleteBanner(banner.id)}>
+                Excluir definitivamente
+              </Button>
+            </AlertDialogAction>
+            <AlertDialogCancel className="inline-flex min-h-10 items-center justify-center rounded-lg border border-white/10 bg-white/8 px-4 py-2 text-sm font-semibold text-[#F5F3F3] hover:bg-white/12">
+              Cancelar
+            </AlertDialogCancel>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -656,28 +683,48 @@ function SortableCard({ id, children, fullWidth = false }: { id: string; childre
   );
 }
 
-function CategoriaSettingsDialog({ categoria, storageUploadReady }: { categoria: CategoriaEditor; storageUploadReady: boolean }) {
+function CategoriaSettingsDialog({
+  categoria,
+  storageUploadReady,
+  open,
+  onOpenChange
+}: {
+  categoria: CategoriaEditor;
+  storageUploadReady: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8" type="button">
-          <Edit3 className="h-4 w-4 text-[#8A1DEE]" />
-          Editar categoria
-        </button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92dvh] max-w-3xl overflow-y-auto">
         <DialogTitle>Editar categoria</DialogTitle>
-        <form action={updateCategoria} className="grid gap-4">
+        <form
+          className="grid gap-4"
+          action={(formData) => {
+            setError(null);
+            startTransition(async () => {
+              try {
+                await updateCategoria(formData);
+                onOpenChange(false);
+              } catch {
+                setError("Não foi possível salvar a categoria.");
+              }
+            });
+          }}
+        >
           <input type="hidden" name="id" value={categoria.id} />
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_120px]">
-            <Field label="Titulo">
+            <Field label="Título">
               <TextInput name="title" defaultValue={categoria.title} />
             </Field>
             <Field label="Ordem">
               <TextInput name="order" type="number" defaultValue={categoria.order} />
             </Field>
           </div>
-          <Field label="Descricao">
+          <Field label="Descrição">
             <TextArea name="description" defaultValue={categoria.description || ""} rows={3} />
           </Field>
           <Field label="Status">
@@ -690,9 +737,10 @@ function CategoriaSettingsDialog({ categoria, storageUploadReady }: { categoria:
           <Field label="Capa da categoria">
             <FileInput name="coverFile" disabled={!storageUploadReady} />
           </Field>
-          <Button type="submit" className="w-fit">
+          {error ? <p className="text-sm text-red-200">{error}</p> : null}
+          <Button type="submit" className="w-fit" disabled={pending}>
             <Save className="h-4 w-4" />
-            Salvar categoria
+            {pending ? "Salvando..." : "Salvar categoria"}
           </Button>
         </form>
       </DialogContent>
@@ -700,50 +748,58 @@ function CategoriaSettingsDialog({ categoria, storageUploadReady }: { categoria:
   );
 }
 
-function AddModuleDialog({ categoria, allModules, storageUploadReady }: { categoria: CategoriaEditor; allModules: ModuleEditor[]; storageUploadReady: boolean }) {
+function AddModuleDialog({
+  categoria,
+  allModules,
+  storageUploadReady,
+  open,
+  onOpenChange
+}: {
+  categoria: CategoriaEditor;
+  allModules: ModuleEditor[];
+  storageUploadReady: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const movableModules = allModules.filter((module) => module.categoriaId !== categoria.id);
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8" type="button">
-          <Plus className="h-4 w-4 text-[#8A1DEE]" />
-          Adicionar modulo
-        </button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92dvh] max-w-3xl overflow-y-auto">
-        <DialogTitle>Adicionar modulo a {categoria.title}</DialogTitle>
+        <DialogTitle>Adicionar módulo a {categoria.title}</DialogTitle>
         <form action={createModule} className="grid gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4">
           <input type="hidden" name="categoriaId" value={categoria.id} />
-          <Field label="Titulo do novo modulo">
+          <Field label="Título do novo módulo">
             <TextInput name="title" />
           </Field>
           <Field label="Objetivo">
             <TextArea name="objective" rows={2} />
           </Field>
           <ToggleField name="hideText" label="Ocultar texto" />
-          <Field label="Capa do modulo">
+          <Field label="Capa do módulo">
             <FileInput name="coverFile" disabled={!storageUploadReady} />
           </Field>
           <Button type="submit" className="w-fit">
             <Save className="h-4 w-4" />
-            Criar modulo
+            Criar módulo
           </Button>
         </form>
 
         <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.03] p-4">
-          <h3 className="font-bold">Mover modulo existente</h3>
+          <h3 className="font-bold">Mover módulo existente</h3>
           {movableModules.length ? (
             movableModules.map((module) => (
               <form key={module.id} action={moveModuleToCategoria} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-black/20 p-3">
                 <input type="hidden" name="moduleId" value={module.id} />
                 <input type="hidden" name="categoriaId" value={categoria.id} />
-                <span className="break-words text-sm font-bold">{module.title || `Modulo ${module.number}`}</span>
-                <Button type="submit" size="sm">Mover para cá</Button>
+                <span className="break-words text-sm font-bold">{module.title || `Módulo ${module.number}`}</span>
+                <Button type="submit" size="sm">
+                  Mover para cá
+                </Button>
               </form>
             ))
           ) : (
-            <p className="text-sm text-white/55">Nao ha modulos em outras categorias.</p>
+            <p className="text-sm text-white/55">Não há módulos em outras categorias.</p>
           )}
         </div>
       </DialogContent>
@@ -751,38 +807,36 @@ function AddModuleDialog({ categoria, allModules, storageUploadReady }: { catego
   );
 }
 
-function RemoveModuleDialog({ categoria }: { categoria: CategoriaEditor }) {
+function RemoveModuleDialog({ categoria, open, onOpenChange }: { categoria: CategoriaEditor; open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8" type="button">
-          <EyeOff className="h-4 w-4 text-[#8A1DEE]" />
-          Remover modulo
-        </button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92dvh] max-w-3xl overflow-y-auto">
-        <DialogTitle>Remover modulo de {categoria.title}</DialogTitle>
+        <DialogTitle>Remover módulo de {categoria.title}</DialogTitle>
         <div className="space-y-3">
           {categoria.modules.length ? (
             categoria.modules.map((module) => (
               <div key={module.id} className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
-                <p className="break-words font-bold">{module.title || `Modulo ${module.number}`}</p>
+                <p className="break-words font-bold">{module.title || `Módulo ${module.number}`}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <form action={removeModuleFromCategoria}>
                     <input type="hidden" name="moduleId" value={module.id} />
                     <input type="hidden" name="mode" value="move" />
-                    <Button type="submit" size="sm" variant="secondary">Mover para Geral</Button>
+                    <Button type="submit" size="sm" variant="secondary">
+                      Mover para Geral
+                    </Button>
                   </form>
                   <form action={removeModuleFromCategoria}>
                     <input type="hidden" name="moduleId" value={module.id} />
                     <input type="hidden" name="mode" value="delete" />
-                    <Button type="submit" size="sm" variant="destructive">Excluir definitivamente</Button>
+                    <Button type="submit" size="sm" variant="destructive">
+                      Excluir definitivamente
+                    </Button>
                   </form>
                 </div>
               </div>
             ))
           ) : (
-            <p className="text-sm text-white/55">Esta categoria ainda nao tem modulos.</p>
+            <p className="text-sm text-white/55">Esta categoria ainda não tem módulos.</p>
           )}
         </div>
       </DialogContent>
@@ -790,82 +844,132 @@ function RemoveModuleDialog({ categoria }: { categoria: CategoriaEditor }) {
   );
 }
 
-function DeleteCategoriaDialog({ categoria }: { categoria: CategoriaEditor }) {
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-red-100 hover:bg-red-500/10" type="button">
-          <Trash2 className="h-4 w-4 text-red-300" />
-          Excluir categoria
-        </button>
-      </AlertDialogTrigger>
-      <AlertDialogContent className="max-w-2xl">
-        <AlertDialogTitle>Excluir categoria</AlertDialogTitle>
-        <AlertDialogDescription>
-          Escolha o que fazer com os modulos dentro de {categoria.title}. Mover para Geral preserva aulas e progresso. Excluir definitivamente remove modulos, aulas e progresso associado.
-        </AlertDialogDescription>
-        <div className="flex flex-wrap gap-3">
-          <form action={deleteCategoria}>
-            <input type="hidden" name="id" value={categoria.id} />
-            <input type="hidden" name="mode" value="move" />
-            <AlertDialogAction asChild>
-              <Button type="submit" variant="secondary">Mover modulos para Geral</Button>
-            </AlertDialogAction>
-          </form>
-          <form action={deleteCategoria}>
-            <input type="hidden" name="id" value={categoria.id} />
-            <input type="hidden" name="mode" value="delete" />
-            <AlertDialogAction asChild>
-              <Button type="submit" variant="destructive">Excluir tudo</Button>
-            </AlertDialogAction>
-          </form>
-          <AlertDialogCancel className="inline-flex min-h-10 items-center justify-center rounded-lg border border-white/10 bg-white/8 px-4 py-2 text-sm font-semibold text-[#F5F3F3] hover:bg-white/12">
-            Cancelar
-          </AlertDialogCancel>
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
-
 function CategoriaMenu({ categoria, allModules, storageUploadReady }: { categoria: CategoriaEditor; allModules: ModuleEditor[]; storageUploadReady: boolean }) {
-  const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [removeOpen, setRemoveOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <div className="absolute right-3 top-3 z-30">
-      <FloatingOptionsMenu open={open} onOpenChange={setOpen}>
-        <CategoriaSettingsDialog categoria={categoria} storageUploadReady={storageUploadReady} />
-        <AddModuleDialog categoria={categoria} allModules={allModules} storageUploadReady={storageUploadReady} />
-        <RemoveModuleDialog categoria={categoria} />
-        <DeleteCategoriaDialog categoria={categoria} />
+      <FloatingOptionsMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <button type="button" className={menuItemClass} onClick={() => { setMenuOpen(false); setEditOpen(true); }}>
+          <Edit3 className="h-4 w-4 text-[#8A1DEE]" />
+          Editar categoria
+        </button>
+        <button type="button" className={menuItemClass} onClick={() => { setMenuOpen(false); setAddOpen(true); }}>
+          <Plus className="h-4 w-4 text-[#8A1DEE]" />
+          Adicionar módulo
+        </button>
+        <button type="button" className={menuItemClass} onClick={() => { setMenuOpen(false); setRemoveOpen(true); }}>
+          <EyeOff className="h-4 w-4 text-[#8A1DEE]" />
+          Remover módulo
+        </button>
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-red-100 hover:bg-red-500/10"
+          onClick={() => { setMenuOpen(false); setDeleteOpen(true); }}
+        >
+          <Trash2 className="h-4 w-4 text-red-300" />
+          Excluir categoria
+        </button>
       </FloatingOptionsMenu>
+
+      <CategoriaSettingsDialog categoria={categoria} storageUploadReady={storageUploadReady} open={editOpen} onOpenChange={setEditOpen} />
+      <AddModuleDialog categoria={categoria} allModules={allModules} storageUploadReady={storageUploadReady} open={addOpen} onOpenChange={setAddOpen} />
+      <RemoveModuleDialog categoria={categoria} open={removeOpen} onOpenChange={setRemoveOpen} />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogTitle>Excluir categoria</AlertDialogTitle>
+          <AlertDialogDescription>
+            Escolha o que fazer com os módulos dentro de {categoria.title}. Mover para Geral preserva aulas e progresso. Excluir definitivamente remove módulos, aulas e progresso associado.
+          </AlertDialogDescription>
+          <div className="flex flex-wrap gap-3">
+            <form action={deleteCategoria}>
+              <input type="hidden" name="id" value={categoria.id} />
+              <input type="hidden" name="mode" value="move" />
+              <AlertDialogAction asChild>
+                <Button type="submit" variant="secondary">
+                  Mover módulos para Geral
+                </Button>
+              </AlertDialogAction>
+            </form>
+            <form action={deleteCategoria}>
+              <input type="hidden" name="id" value={categoria.id} />
+              <input type="hidden" name="mode" value="delete" />
+              <AlertDialogAction asChild>
+                <Button type="submit" variant="destructive">
+                  Excluir tudo
+                </Button>
+              </AlertDialogAction>
+            </form>
+            <AlertDialogCancel className="inline-flex min-h-10 items-center justify-center rounded-lg border border-white/10 bg-white/8 px-4 py-2 text-sm font-semibold text-[#F5F3F3] hover:bg-white/12">
+              Cancelar
+            </AlertDialogCancel>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-function ModuleSettingsDialog({ module, storageBaseUrl, storageUploadReady }: { module: ModuleEditor; storageBaseUrl: string | null; storageUploadReady: boolean }) {
+function ModuleSettingsDialog({
+  module,
+  storageBaseUrl,
+  storageUploadReady,
+  open,
+  onOpenChange
+}: {
+  module: ModuleEditor;
+  storageBaseUrl: string | null;
+  storageUploadReady: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8" type="button">
-          <Edit3 className="h-4 w-4 text-[#8A1DEE]" />
-          Editar modulo
-        </button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92dvh] max-w-4xl overflow-y-auto">
-        <DialogTitle>Editar modulo</DialogTitle>
+        <DialogTitle>Editar módulo</DialogTitle>
         <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
           <div className="space-y-3">
             <ModuleCard module={module} storageBaseUrl={storageBaseUrl} />
             <div className="flex flex-wrap gap-2">
-              <ConfirmActionButton label={module.status === "PUBLISHED" ? "Ocultar" : "Publicar"} icon={module.status === "PUBLISHED" ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />} action={() => updateModuleStatus(module.id, module.status === "PUBLISHED" ? "HIDDEN" : "PUBLISHED")} />
-              <ConfirmActionButton label="Excluir" icon={<Trash2 className="h-4 w-4" />} variant="destructive" confirmText="Excluir este modulo e todas as aulas/progressos associados?" action={() => deleteModule(module.id)} />
+              <ConfirmActionButton
+                label={module.status === "PUBLISHED" ? "Ocultar" : "Publicar"}
+                icon={module.status === "PUBLISHED" ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                action={() => updateModuleStatus(module.id, module.status === "PUBLISHED" ? "HIDDEN" : "PUBLISHED")}
+              />
+              <ConfirmActionButton
+                label="Excluir"
+                icon={<Trash2 className="h-4 w-4" />}
+                variant="destructive"
+                confirmText="Excluir este módulo e todas as aulas/progressos associados?"
+                action={() => deleteModule(module.id)}
+              />
             </div>
           </div>
-          <form action={updateModule} className="grid min-w-0 gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4">
+          <form
+            className="grid min-w-0 gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4"
+            action={(formData) => {
+              setError(null);
+              startTransition(async () => {
+                try {
+                  await updateModule(formData);
+                  onOpenChange(false);
+                } catch {
+                  setError("Não foi possível salvar o módulo. Tente novamente.");
+                }
+              });
+            }}
+          >
             <input type="hidden" name="id" value={module.id} />
             <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_120px]">
-              <Field label="Titulo">
+              <Field label="Título">
                 <TextInput name="title" defaultValue={module.title} />
               </Field>
               <Field label="Ordem">
@@ -876,13 +980,19 @@ function ModuleSettingsDialog({ module, storageBaseUrl, storageUploadReady }: { 
               <TextArea name="objective" defaultValue={module.objective || ""} rows={3} />
             </Field>
             <ToggleField name="hideText" defaultChecked={module.hideText} label="Ocultar texto" />
-            <Field label="Capa do modulo">
+            <Field label="Capa do módulo">
               <FileInput name="coverFile" disabled={!storageUploadReady} />
             </Field>
-            <Button type="submit" className="w-fit">
-              <Save className="h-4 w-4" />
-              Salvar modulo
-            </Button>
+            {error ? <p className="text-sm text-red-200">{error}</p> : null}
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" className="w-fit" disabled={pending}>
+                <Save className="h-4 w-4" />
+                {pending ? "Salvando..." : "Salvar módulo"}
+              </Button>
+              <Button type="button" variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+            </div>
           </form>
         </div>
       </DialogContent>
@@ -891,21 +1001,39 @@ function ModuleSettingsDialog({ module, storageBaseUrl, storageUploadReady }: { 
 }
 
 function ModuleMenu({ module, storageBaseUrl, storageUploadReady }: { module: ModuleEditor; storageBaseUrl: string | null; storageUploadReady: boolean }) {
-  const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   return (
     <div className="absolute right-3 top-3 z-30">
-      <FloatingOptionsMenu open={open} onOpenChange={setOpen} panelClassName="w-48 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl">
+      <FloatingOptionsMenu open={menuOpen} onOpenChange={setMenuOpen} panelClassName="w-48 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl">
         <Link
           href={`/admin/conteudo/${module.id}`}
-          className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-bold text-white/86 hover:bg-white/8"
-          onClick={() => setOpen(false)}
+          className={menuItemClass}
+          onClick={() => setMenuOpen(false)}
         >
           <BookOpen className="h-4 w-4 text-[#8A1DEE]" />
-          Editar conteudo
+          Editar conteúdo
         </Link>
-        <ModuleSettingsDialog module={module} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />
+        <button
+          type="button"
+          className={menuItemClass}
+          onClick={() => {
+            setMenuOpen(false);
+            setEditOpen(true);
+          }}
+        >
+          <Edit3 className="h-4 w-4 text-[#8A1DEE]" />
+          Editar módulo
+        </button>
       </FloatingOptionsMenu>
+      <ModuleSettingsDialog
+        module={module}
+        storageBaseUrl={storageBaseUrl}
+        storageUploadReady={storageUploadReady}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
     </div>
   );
 }
