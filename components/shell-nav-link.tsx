@@ -2,22 +2,33 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
+import { BookOpen, Home, ShieldCheck, UserRound, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const ICONS = {
+  home: Home,
+  course: BookOpen,
+  profile: UserRound,
+  admin: ShieldCheck
+} satisfies Record<string, LucideIcon>;
+
+export type ShellNavIcon = keyof typeof ICONS;
 
 export function ShellNavLink({
   href,
   label,
-  icon: Icon,
+  icon,
   prefetch = true
 }: {
   href: string;
   label: string;
-  icon: LucideIcon;
+  /** Icon key resolved on the client — never pass component functions from Server Components. */
+  icon: ShellNavIcon;
   prefetch?: boolean;
 }) {
   const pathname = usePathname();
   const active = href === "/dashboard" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+  const Icon = ICONS[icon];
 
   return (
     <Link

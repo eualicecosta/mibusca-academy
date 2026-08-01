@@ -1,14 +1,13 @@
 import Link from "next/link";
-import { BookOpen, Home, ShieldCheck, UserRound } from "lucide-react";
 import { AccountMenu } from "@/components/account-menu";
-import { ShellNavLink } from "@/components/shell-nav-link";
+import { ShellNavLink, type ShellNavIcon } from "@/components/shell-nav-link";
 import { cn } from "@/lib/utils";
 
-const nav = [
-  { href: "/dashboard", label: "Dashboard", icon: Home, prefetch: true },
-  { href: "/curso", label: "Curso", icon: BookOpen, prefetch: true },
-  { href: "/perfil", label: "Perfil", icon: UserRound, prefetch: true },
-  { href: "/admin", label: "Admin", icon: ShieldCheck, prefetch: true }
+const nav: Array<{ href: string; label: string; icon: ShellNavIcon; prefetch?: boolean }> = [
+  { href: "/dashboard", label: "Dashboard", icon: "home", prefetch: true },
+  { href: "/curso", label: "Curso", icon: "course", prefetch: true },
+  { href: "/perfil", label: "Perfil", icon: "profile", prefetch: true },
+  { href: "/admin", label: "Admin", icon: "admin", prefetch: true }
 ];
 
 export function AppShell({
