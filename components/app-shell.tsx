@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { currentUser } from "@clerk/nextjs/server";
 import { BookOpen, Home, ShieldCheck, UserRound } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -52,28 +51,32 @@ function UserIdentityCard({ name, email }: { name: string; email: string }) {
   );
 }
 
-export async function AppShell({
+export function AppShell({
   children,
   showAdmin = false,
+  userName,
+  userEmail,
   className,
   mainClassName,
   headerClassName
 }: {
   children: React.ReactNode;
   showAdmin?: boolean;
+  /** Prefer values already loaded from UserProfile — avoids Clerk currentUser() API on every navigation. */
+  userName: string;
+  userEmail: string;
   className?: string;
   mainClassName?: string;
   headerClassName?: string;
 }) {
-  const user = await currentUser();
-  const email = user?.primaryEmailAddress?.emailAddress || user?.emailAddresses[0]?.emailAddress || "";
-  const name = user?.fullName || user?.firstName || email.split("@")[0] || "Usuario";
+  const email = userEmail || "";
+  const name = userName || email.split("@")[0] || "Usuario";
   const items = showAdmin ? nav : nav.filter((item) => item.href !== "/admin");
 
   return (
     <div className={cn("min-h-screen bg-[#09070d] text-[#F5F3F3]", className)}>
       <aside className="fixed left-0 top-0 z-30 hidden h-screen w-[72px] border-r border-white/10 bg-[#121015] md:flex md:flex-col md:items-center md:gap-5 md:py-5">
-        <Link href="/dashboard" className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-white/5 font-bold">
+        <Link href="/dashboard" className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/10 bg-white/5 font-bold" prefetch>
           M
         </Link>
         <nav className="flex flex-col gap-3">
@@ -82,6 +85,7 @@ export async function AppShell({
               key={item.href}
               href={item.href}
               aria-label={item.label}
+              prefetch
               className={cn("flex h-11 w-11 items-center justify-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white")}
             >
               <item.icon className="h-5 w-5" />
@@ -90,7 +94,7 @@ export async function AppShell({
         </nav>
       </aside>
       <header className={cn("sticky top-0 z-20 flex h-[72px] min-w-0 items-center justify-between gap-4 border-b border-white/10 bg-[#111017]/95 px-4 backdrop-blur md:pl-[104px] md:pr-8", headerClassName)}>
-        <Link href="/dashboard" className="min-w-0 break-words text-lg font-bold">
+        <Link href="/dashboard" className="min-w-0 break-words text-lg font-bold" prefetch>
           Area de Membros
         </Link>
         <UserIdentityCard name={name} email={email} />

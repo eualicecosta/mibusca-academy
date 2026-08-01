@@ -26,7 +26,7 @@ export default async function AdminPage() {
   ];
 
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"}>
+    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
       <div className="mx-auto max-w-6xl space-y-8">
         <header>
           <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Painel administrativo</p>

@@ -74,7 +74,7 @@ export default async function AdminModuleContentPage({ params }: { params: Promi
   const completedCount = courseModule.lessons.reduce((sum, lesson) => sum + lesson.progress.length, 0);
 
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"}>
+    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
       <div className="mx-auto min-w-0 max-w-6xl space-y-8">
         <header className="space-y-4">
           <Link href="/admin/conteudo" className="inline-flex items-center gap-2 text-sm font-bold text-white/65 hover:text-white">

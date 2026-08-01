@@ -89,7 +89,7 @@ export default async function AdminContentPage() {
   const canUploadToStorage = storageUploadReady();
 
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"}>
+    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
       {course ? (
         <CourseContentEditor
           course={{

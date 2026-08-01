@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const profile = await requireApprovedStudent();
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"}>
+    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
       <Suspense fallback={<DashboardSkeleton />}>
         <DashboardContent profileId={profile.id} />
       </Suspense>

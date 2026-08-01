@@ -25,6 +25,8 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
   return (
     <AppShell
       showAdmin={profile.role === "ADMIN"}
+      userName={profile.name}
+      userEmail={profile.email}
       className="h-dvh overflow-hidden"
       headerClassName="z-40 shrink-0"
       mainClassName="h-[calc(100dvh-72px)] min-h-0 overflow-hidden px-0 py-0 md:pl-[72px] md:pr-0"

@@ -16,7 +16,7 @@ export default async function ApprovalsPage() {
   });
 
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"}>
+    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
       <div className="mx-auto min-w-0 max-w-6xl space-y-6">
         <header>
           <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Aprovacoes</p>

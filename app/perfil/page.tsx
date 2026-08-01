@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function ProfilePage() {
   const profile = await requireProfile();
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"}>
+    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
       <div className="mx-auto grid min-w-0 max-w-6xl gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <Card>
           <CardHeader>
