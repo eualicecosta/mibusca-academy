@@ -1,39 +1,31 @@
-import { UserProfile } from "@clerk/nextjs";
 import { AppShell } from "@/components/app-shell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AccountSettings } from "@/components/profile/account-settings";
 import { requireProfile } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
   const profile = await requireProfile();
+
   return (
     <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
-      <div className="mx-auto grid min-w-0 max-w-6xl gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Informações do perfil</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mx-auto mb-5 flex h-28 w-28 items-center justify-center rounded-full bg-[#53009F] text-4xl font-bold">
-              {profile.name.slice(0, 2).toUpperCase()}
-            </div>
-            <div className="space-y-3 rounded-lg bg-white/[0.04] p-4 text-sm">
-              <p className="grid gap-1 sm:grid-cols-[90px_minmax(0,1fr)]"><span className="text-white/55">Nome</span><strong className="min-w-0 break-words sm:text-right">{profile.name}</strong></p>
-              <p className="grid gap-1 sm:grid-cols-[90px_minmax(0,1fr)]"><span className="text-white/55">E-mail</span><strong className="min-w-0 break-all sm:text-right">{profile.email}</strong></p>
-              <p className="grid gap-1 sm:grid-cols-[90px_minmax(0,1fr)]"><span className="text-white/55">Status</span><strong className="min-w-0 break-words sm:text-right">{profile.status}</strong></p>
-              <p className="grid gap-1 sm:grid-cols-[90px_minmax(0,1fr)]"><span className="text-white/55">Cadastro</span><strong className="min-w-0 break-words sm:text-right">{profile.createdAt.toLocaleDateString("pt-BR")}</strong></p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Conta e senha</CardTitle>
-          </CardHeader>
-          <CardContent className="min-w-0 overflow-hidden">
-            <UserProfile routing="hash" />
-          </CardContent>
-        </Card>
+      <div className="mx-auto min-w-0 max-w-5xl space-y-6">
+        <header>
+          <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Conta</p>
+          <h1 className="mt-2 text-4xl font-bold">Meu perfil</h1>
+          <p className="mt-3 text-white/62">Gerencie nome, foto e senha com o visual do MiBusca. A identidade continua na Clerk.</p>
+        </header>
+        <AccountSettings
+          profile={{
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            role: profile.role,
+            status: profile.status,
+            createdAt: profile.createdAt.toISOString(),
+            imageUrl: profile.imageUrl
+          }}
+        />
       </div>
     </AppShell>
   );

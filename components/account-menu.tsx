@@ -18,10 +18,12 @@ function initialsFromName(name: string, email: string) {
 export function AccountMenu({
   name,
   email,
+  imageUrl,
   showAdmin = false
 }: {
   name: string;
   email: string;
+  imageUrl?: string | null;
   showAdmin?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -70,7 +72,12 @@ export function AccountMenu({
         onClick={() => setOpen((value) => !value)}
       >
         <Avatar className="h-10 w-10 border border-white/15 bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)]">
-          <AvatarFallback className="bg-transparent text-sm font-semibold">{initials}</AvatarFallback>
+          {imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <AvatarFallback className="bg-transparent text-sm font-semibold">{initials}</AvatarFallback>
+          )}
         </Avatar>
         <span className="hidden min-w-0 text-left md:block">
           <span className="block max-w-[160px] truncate text-sm font-semibold leading-5 text-[var(--foreground)]">{name}</span>
