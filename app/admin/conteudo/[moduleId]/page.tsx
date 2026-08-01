@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BookOpen, CheckCircle2, Plus, Save } from "lucide-react";
 import { LessonActionsAdmin } from "@/components/admin/content-actions";
-import { AppShell } from "@/components/app-shell";
+import { AdminShell } from "@/components/admin-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createLesson, updateLesson } from "@/lib/actions";
@@ -74,16 +74,16 @@ export default async function AdminModuleContentPage({ params }: { params: Promi
   const completedCount = courseModule.lessons.reduce((sum, lesson) => sum + lesson.progress.length, 0);
 
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
+    <AdminShell userName={profile.name} userEmail={profile.email}>
       <div className="mx-auto min-w-0 max-w-6xl space-y-8">
         <header className="space-y-4">
           <Link href="/admin/conteudo" className="inline-flex items-center gap-2 text-sm font-bold text-white/65 hover:text-white">
             <ArrowLeft className="h-4 w-4" />
-            Voltar para categorias
+            Voltar para curso
           </Link>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Editor de conteudo</p>
+              <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Curso</p>
               <h1 className="mt-2 break-words text-4xl font-bold">{courseModule.title || `Modulo ${courseModule.number}`}</h1>
               {courseModule.objective ? <p className="mt-3 max-w-3xl break-words text-white/62">{courseModule.objective}</p> : null}
             </div>
@@ -198,6 +198,6 @@ export default async function AdminModuleContentPage({ params }: { params: Promi
           ))}
         </section>
       </div>
-    </AppShell>
+    </AdminShell>
   );
 }

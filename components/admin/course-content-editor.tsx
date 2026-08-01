@@ -1008,7 +1008,7 @@ export function CourseContentEditor({ course, banners, dashboardBlocks, categori
       <div className="min-w-0 max-w-full space-y-8">
         <header className="flex min-w-0 flex-wrap items-end justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Editor de conteudo</p>
+            <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Curso</p>
             <h1 className="mt-2 break-words text-4xl font-bold">Categorias e modulos</h1>
             <p className="mt-3 break-words text-white/62">Curso &gt; Categoria &gt; Modulo &gt; Aula. Categorias organizam modulos, modulos organizam aulas.</p>
           </div>

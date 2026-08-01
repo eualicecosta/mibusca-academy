@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { CourseContentEditor } from "@/components/admin/course-content-editor";
-import { AppShell } from "@/components/app-shell";
+import { AdminShell } from "@/components/admin-shell";
 import { getR2PublicBaseUrl, storageUploadReady } from "@/lib/assets";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -17,11 +18,16 @@ export default async function AdminContentPage() {
   }
 
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
+    <AdminShell userName={profile.name} userEmail={profile.email}>
+      <div className="mb-4 flex justify-end">
+        <Link href="/admin/imagens" className="text-sm font-semibold text-[#B76CFF] underline-offset-4 hover:underline">
+          Banco de imagens (acesso interno)
+        </Link>
+      </div>
       <Suspense fallback={<ContentEditorSkeleton />}>
         <AdminContentData />
       </Suspense>
-    </AppShell>
+    </AdminShell>
   );
 }
 

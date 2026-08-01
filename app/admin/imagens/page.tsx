@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { Upload } from "lucide-react";
 import Image from "next/image";
-import { AppShell } from "@/components/app-shell";
+import { AdminShell } from "@/components/admin-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { uploadCourseImage } from "@/lib/actions";
@@ -26,7 +26,7 @@ export default async function AdminImagesPage() {
   const bucketName = getR2BucketName();
 
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
+    <AdminShell userName={profile.name} userEmail={profile.email}>
       <div className="mx-auto grid min-w-0 max-w-6xl gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
         <Card>
           <CardHeader>
@@ -67,7 +67,7 @@ export default async function AdminImagesPage() {
           </Suspense>
         </section>
       </div>
-    </AppShell>
+    </AdminShell>
   );
 }
 
