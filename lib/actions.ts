@@ -189,17 +189,21 @@ async function bannerImageEntries(formData: FormData, folder: string) {
   return [...uploaded, ...typed].filter((value): value is string => Boolean(value)).slice(0, 3);
 }
 
-export async function updateUserApproval(userId: string, status: "PENDING" | "ACTIVE" | "REFUSED") {
+export async function updateUserApproval(userId: string, status: "PENDING" | "ACTIVE" | "REFUSED" | "PAUSED" | "CANCELLED" | "BLOCKED") {
   await requireAdmin();
   await prisma.userProfile.update({
     where: { id: userId },
     data: {
       status,
-      approvedAt: status === "ACTIVE" ? new Date() : null
+      approvedAt: status === "ACTIVE" ? new Date() : undefined,
+      blockedAt: status === "BLOCKED" ? new Date() : status === "ACTIVE" ? null : undefined,
+      commercialStage:
+        status === "ACTIVE" ? "SALE_COMPLETED" : status === "REFUSED" || status === "CANCELLED" ? "SALE_LOST" : undefined
     }
   });
   revalidatePath("/admin");
   revalidatePath("/admin/aprovacoes");
+  revalidatePath("/admin/clientes");
   revalidatePath("/admin/membros");
 }
 
@@ -224,6 +228,7 @@ export async function updateMemberProfile(formData: FormData) {
   });
 
   revalidatePath("/admin");
+  revalidatePath("/admin/clientes");
   revalidatePath("/admin/membros");
 }
 

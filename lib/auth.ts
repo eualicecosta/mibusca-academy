@@ -173,6 +173,13 @@ export async function requireApprovedStudent() {
   if (profile.role === "ADMIN") {
     redirect("/admin");
   }
+  if (profile.role === "SELLER") {
+    // Sellers have no student area access in this version.
+    redirect("/sign-in");
+  }
+  if (profile.status === "BLOCKED" || profile.status === "CANCELLED" || profile.status === "REFUSED") {
+    redirect("/aguardando-aprovacao");
+  }
   if (profile.status !== "ACTIVE") {
     redirect("/aguardando-aprovacao");
   }
@@ -182,7 +189,11 @@ export async function requireApprovedStudent() {
 export async function requireAdmin() {
   const profile = await requireProfile();
   if (profile.role !== "ADMIN") {
-    redirect("/dashboard");
+    // Sellers and clients never access admin surfaces.
+    redirect(profile.role === "SELLER" ? "/sign-in" : "/dashboard");
+  }
+  if (profile.status === "BLOCKED") {
+    redirect("/sign-in");
   }
   return profile;
 }

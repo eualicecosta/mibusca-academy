@@ -11,12 +11,35 @@ datasource db {
 enum UserRole {
   STUDENT
   ADMIN
+  SELLER
 }
 
+/// Access control for the members area (not commercial pipeline stage).
 enum ApprovalStatus {
   PENDING
   ACTIVE
   REFUSED
+  PAUSED
+  CANCELLED
+  BLOCKED
+}
+
+/// Commercial pipeline for leads/clients (independent from access status).
+enum CommercialStage {
+  NEW_LEAD
+  CONTACT_MADE
+  AWAITING_PAYMENT
+  PAYMENT_CONFIRMED
+  AWAITING_REGISTRATION
+  AWAITING_APPROVAL
+  SALE_COMPLETED
+  SALE_LOST
+}
+
+enum TeamInviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
 }
 
 enum ContentStatus {
@@ -57,16 +80,43 @@ model UserProfile {
   whatsapp   String?
   role       UserRole       @default(STUDENT)
   status     ApprovalStatus @default(PENDING)
+  /// Commercial pipeline stage (leads/sales). Independent from access `status`.
+  commercialStage CommercialStage @default(NEW_LEAD)
+  /// Amount paid in centavos (BRL). Avoid floating point money.
+  paidAmountCents Int @default(0)
   approvedAt DateTime?
+  blockedAt  DateTime?
+  blockReason String?
+  adminNotes String?
   lastSeenAt DateTime?
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
 
   lessonProgress      LessonProgress[]
   checklistCompletion ChecklistCompletion[]
+  teamInvitesSent     TeamInvite[]          @relation("TeamInvitesSent")
 
   @@index([role, status])
   @@index([status, lastSeenAt])
+  @@index([commercialStage, status])
+  @@index([role, commercialStage])
+}
+
+model TeamInvite {
+  id                String           @id @default(cuid())
+  email             String
+  role              UserRole
+  status            TeamInviteStatus @default(PENDING)
+  clerkInvitationId String?          @unique
+  invitedById       String?
+  acceptedAt        DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  invitedBy UserProfile? @relation("TeamInvitesSent", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@index([email, status])
+  @@index([role, status])
 }
 
 model Course {
