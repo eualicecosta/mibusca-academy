@@ -11,7 +11,10 @@ async function uploadImageFile(file: FormDataEntryValue | null, folder: string) 
     return null;
   }
 
-  return uploadImageToR2(file, folder);
+  const path = await uploadImageToR2(file, folder);
+  // Any successful R2 write can appear in /admin/imagens listing.
+  revalidateTag("r2-images");
+  return path;
 }
 
 async function getOrCreateGeneralCategoria(courseId: string) {
