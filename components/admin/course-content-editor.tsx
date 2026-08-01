@@ -186,37 +186,73 @@ function ConfirmActionButton({
   );
 }
 
+function BannerStatusPill({ status }: { status: BannerEditor["status"] }) {
+  return (
+    <div className="absolute left-3 top-3 z-10 rounded-full bg-black/65 px-3 py-1 text-xs font-bold uppercase text-white/75">
+      {status === "ACTIVE" ? "Ativo" : "Inativo"}
+    </div>
+  );
+}
+
 function BannerCard({ banner, storageBaseUrl }: { banner: BannerEditor; storageBaseUrl: string | null }) {
   const firstImage = banner.images[0]?.imageUrl || banner.imageUrl;
   const imageUrl = assetUrl(firstImage, storageBaseUrl);
-  // Split overlay only when real title/subtitle exist; image-only fills the full width.
-  const hasText = Boolean(banner.title?.trim() || banner.subtitle?.trim());
+  const title = banner.title?.trim() || "";
+  const subtitle = banner.subtitle?.trim() || "";
+  const hasText = Boolean(title || subtitle);
 
-  return (
-    <div className="group relative h-[190px] w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60 sm:h-[250px]">
-      {imageUrl ? (
+  // Image-only: full width, natural aspect ratio — no empty left column, no crop.
+  if (imageUrl && !hasText) {
+    return (
+      <div className="group relative w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60">
+        <BannerStatusPill status={banner.status} />
+        {/* width/height only set the intrinsic ratio; CSS forces full-width fluid height */}
         <Image
           src={imageUrl}
           alt={banner.title || "Banner"}
-          fill
+          width={1600}
+          height={500}
           sizes="100vw"
-          className="object-cover transition duration-300 group-hover:scale-[1.01]"
+          className="block h-auto w-full max-w-full object-cover"
+          style={{ width: "100%", height: "auto" }}
+          priority={false}
         />
-      ) : (
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(138,29,238,.55),transparent_38%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />
-      )}
-      {hasText ? <div className="absolute inset-0 bg-gradient-to-r from-black/78 via-black/35 to-transparent" /> : null}
-      {!imageUrl ? (
-        <div className="absolute left-4 top-4 rounded-full bg-black/65 px-3 py-1 text-xs font-bold uppercase text-white/75">
-          {banner.status === "ACTIVE" ? "Ativo" : "Inativo"}
+      </div>
+    );
+  }
+
+  // Text + image: real split layout (no fake empty column over the photo).
+  if (imageUrl && hasText) {
+    return (
+      <div className="group grid w-full max-w-full min-w-0 overflow-hidden rounded-lg border border-white/10 bg-[#151019] shadow-xl transition hover:border-[#8A1DEE]/60 md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)]">
+        <div className="relative flex min-w-0 flex-col justify-center gap-2 bg-[#0c0812] p-5 sm:p-6">
+          <BannerStatusPill status={banner.status} />
+          {title ? <h3 className="break-words text-xl font-black leading-tight text-white sm:text-2xl">{title}</h3> : null}
+          {subtitle ? <p className="break-words text-sm leading-relaxed text-white/68">{subtitle}</p> : null}
         </div>
-      ) : null}
-      {hasText ? (
-        <div className="absolute inset-x-0 bottom-0 max-w-[min(100%,28rem)] p-4">
-          {banner.title ? <h3 className="line-clamp-2 break-words text-xl font-black leading-tight text-white">{banner.title}</h3> : null}
-          {banner.subtitle ? <p className="mt-2 line-clamp-2 break-words text-sm text-white/68">{banner.subtitle}</p> : null}
+        <div className="relative min-h-[190px] min-w-0 sm:min-h-[250px]">
+          <Image
+            src={imageUrl}
+            alt={title || "Banner"}
+            fill
+            sizes="(min-width: 768px) 55vw, 100vw"
+            className="object-cover object-center"
+          />
         </div>
-      ) : null}
+      </div>
+    );
+  }
+
+  // Text-only / empty placeholder
+  return (
+    <div className="group relative flex min-h-[190px] w-full max-w-full min-w-0 flex-col justify-end overflow-hidden rounded-lg border border-white/10 bg-[#151019] p-5 shadow-xl transition hover:border-[#8A1DEE]/60 sm:min-h-[250px]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_28%_20%,rgba(138,29,238,.55),transparent_38%),linear-gradient(145deg,#08050d,#1a1023_55%,#050306)]" />
+      <BannerStatusPill status={banner.status} />
+      <div className="relative z-[1] max-w-xl">
+        {title ? <h3 className="break-words text-xl font-black leading-tight text-white sm:text-2xl">{title}</h3> : null}
+        {subtitle ? <p className="mt-2 break-words text-sm text-white/68">{subtitle}</p> : null}
+        {!hasText ? <p className="text-sm text-white/50">Banner sem imagem ou texto</p> : null}
+      </div>
     </div>
   );
 }
@@ -237,16 +273,31 @@ function FloatingOptionsMenu({
   const panelRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
 
-  useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
+  function placeMenu() {
+    if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const panelWidth = 224;
+    const panelWidth = panelRef.current?.offsetWidth || 224;
+    const panelHeight = panelRef.current?.offsetHeight || 220;
     const gap = 8;
     const spaceRight = window.innerWidth - rect.right;
     const openLeft = spaceRight < panelWidth + 12;
-    const left = openLeft ? Math.max(8, rect.right - panelWidth) : Math.min(rect.left, window.innerWidth - panelWidth - 8);
-    const top = Math.min(rect.bottom + gap, window.innerHeight - 12);
+    const left = openLeft
+      ? Math.max(8, rect.right - panelWidth)
+      : Math.min(rect.left, window.innerWidth - panelWidth - 8);
+    const spaceBelow = window.innerHeight - rect.bottom - gap;
+    const top =
+      spaceBelow < panelHeight && rect.top > panelHeight + gap
+        ? Math.max(8, rect.top - panelHeight - gap)
+        : Math.min(rect.bottom + gap, Math.max(8, window.innerHeight - panelHeight - 8));
     setCoords({ top, left });
+  }
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    placeMenu();
+    // Second pass after portal paints so real panel size is known.
+    const id = window.requestAnimationFrame(() => placeMenu());
+    return () => window.cancelAnimationFrame(id);
   }, [open]);
 
   useEffect(() => {
@@ -262,27 +313,15 @@ function FloatingOptionsMenu({
       if (event.key === "Escape") onOpenChange(false);
     }
 
-    function onReposition() {
-      if (!triggerRef.current) return;
-      const rect = triggerRef.current.getBoundingClientRect();
-      const panelWidth = 224;
-      const gap = 8;
-      const spaceRight = window.innerWidth - rect.right;
-      const openLeft = spaceRight < panelWidth + 12;
-      const left = openLeft ? Math.max(8, rect.right - panelWidth) : Math.min(rect.left, window.innerWidth - panelWidth - 8);
-      const top = Math.min(rect.bottom + gap, window.innerHeight - 12);
-      setCoords({ top, left });
-    }
-
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
-    window.addEventListener("resize", onReposition);
-    window.addEventListener("scroll", onReposition, true);
+    window.addEventListener("resize", placeMenu);
+    window.addEventListener("scroll", placeMenu, true);
     return () => {
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("resize", onReposition);
-      window.removeEventListener("scroll", onReposition, true);
+      window.removeEventListener("resize", placeMenu);
+      window.removeEventListener("scroll", placeMenu, true);
     };
   }, [open, onOpenChange]);
 
@@ -591,11 +630,12 @@ function ModuleCard({ module, storageBaseUrl }: { module: ModuleEditor; storageB
 
 function SortableCard({ id, children, fullWidth = false }: { id: string; children: React.ReactNode; fullWidth?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  // Translate-only so drag never resizes the card (scale would change perceived width).
   const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
     ...(fullWidth
-      ? { width: "100%", maxWidth: "100%" }
+      ? { width: "100%", maxWidth: "100%", minWidth: 0 }
       : {
           width: MODULE_CARD_WIDTH_PX,
           minWidth: MODULE_CARD_WIDTH_PX,
@@ -606,7 +646,7 @@ function SortableCard({ id, children, fullWidth = false }: { id: string; childre
 
   return (
     <div ref={setNodeRef} style={style} className={`module-sortable-item ${isDragging ? "opacity-70 z-20" : ""}`}>
-      <div className="relative">
+      <div className="relative min-w-0">
         <button type="button" aria-label="Arrastar" className="absolute left-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-md bg-black/35 text-white/80 hover:bg-black/55 hover:text-white" {...attributes} {...listeners}>
           <GripVertical className="h-5 w-5" />
         </button>
@@ -949,7 +989,7 @@ function CategoryDashboardCard({
   storageUploadReady: boolean;
 }) {
   return (
-    <div className="w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-[#151019] p-5 shadow-xl transition hover:border-[#8A1DEE]/50">
+    <div className="w-full min-w-0 max-w-full overflow-hidden rounded-lg border border-white/10 bg-[#151019] p-5 shadow-xl transition hover:border-[#8A1DEE]/50">
       <div className="mb-4 flex min-w-0 flex-wrap items-end justify-between gap-4 pl-8">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wide text-[#8A1DEE]">{categoria.status}</p>
@@ -958,7 +998,9 @@ function CategoryDashboardCard({
         </div>
         <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-bold text-white/60">{categoria.modules.length} modulos</span>
       </div>
-      <ModuleShelf categoria={categoria} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />
+      <div className="min-w-0 max-w-full">
+        <ModuleShelf categoria={categoria} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />
+      </div>
     </div>
   );
 }
@@ -1044,7 +1086,12 @@ function ModuleShelf({ categoria, storageBaseUrl, storageUploadReady }: { catego
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd} autoScroll={{ threshold: { x: 0.15, y: 0.15 } }}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={onDragEnd}
+      autoScroll={{ threshold: { x: 0.12, y: 0.2 }, acceleration: 12 }}
+    >
       <SortableContext items={items.map((item) => item.id)} strategy={horizontalListSortingStrategy}>
         <div ref={scrollerRef} className="module-carousel-viewport data-[pending=true]:opacity-80" data-pending={pending}>
           <div className="module-carousel-track">
@@ -1052,12 +1099,14 @@ function ModuleShelf({ categoria, storageBaseUrl, storageUploadReady }: { catego
               items.map((module) => <SortableModule key={module.id} module={module} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />)
             ) : (
               <div
-                className="flex h-[180px] items-center justify-center rounded-lg border border-dashed border-white/15 text-sm text-white/50"
-                style={{ width: MODULE_CARD_WIDTH_PX, minWidth: MODULE_CARD_WIDTH_PX }}
+                className="module-carousel-card flex h-[180px] items-center justify-center rounded-lg border border-dashed border-white/15 text-sm text-white/50"
+                style={{ width: MODULE_CARD_WIDTH_PX, minWidth: MODULE_CARD_WIDTH_PX, maxWidth: MODULE_CARD_WIDTH_PX, flex: "0 0 auto" }}
               >
                 Categoria vazia
               </div>
             )}
+            {/* Spacer so the last card can fully enter the viewport when scrolling */}
+            {items.length > 0 ? <div className="module-carousel-end-spacer" aria-hidden /> : null}
           </div>
         </div>
       </SortableContext>

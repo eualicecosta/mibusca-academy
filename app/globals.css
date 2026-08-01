@@ -245,35 +245,44 @@ a {
 }
 
 .module-carousel-viewport {
+  display: block;
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  /* X-scroll only; menus use portals so overflow-y can stay hidden. */
+  /* Horizontal scroll only — menus open via portal, so y can stay clipped. */
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: #8a1dee rgba(245, 243, 243, 0.12);
-  padding-bottom: 0.85rem;
+  scrollbar-gutter: stable both-edges;
+  /* Always paint a clear scrollbar (Windows overlay otherwise hides it). */
+  scrollbar-width: auto;
+  scrollbar-color: #8a1dee rgba(245, 243, 243, 0.18);
+  padding-bottom: 1rem;
+  scroll-padding-inline: 0.5rem;
 }
 
 .module-carousel-viewport::-webkit-scrollbar {
-  height: 10px;
-  display: block;
+  height: 12px;
+  display: block !important;
+  background: transparent;
 }
 
 .module-carousel-viewport::-webkit-scrollbar-track {
   border-radius: 999px;
-  background: rgba(245, 243, 243, 0.1);
+  background: rgba(245, 243, 243, 0.14);
+  margin-inline: 2px;
 }
 
 .module-carousel-viewport::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: #8a1dee;
-  border: 2px solid transparent;
-  background-clip: content-box;
+  border: 2px solid rgba(245, 243, 243, 0.08);
+  min-width: 48px;
+}
+
+.module-carousel-viewport::-webkit-scrollbar-thumb:hover {
+  background: #a855f7;
 }
 
 .module-carousel-track {
@@ -285,17 +294,27 @@ a {
   align-items: stretch;
   justify-content: flex-start;
   gap: 1rem;
-  padding-right: 0.25rem;
-  padding-bottom: 0.15rem;
+  padding-bottom: 0.25rem;
   box-sizing: border-box;
 }
 
-/* Fixed-size module cards: never shrink to fit the row. */
+/* Fixed-size module cards: never shrink/grow to fill leftover space. */
 .module-carousel-track > .module-sortable-item,
 .module-carousel-card {
   flex: 0 0 auto !important;
   flex-shrink: 0 !important;
   flex-grow: 0 !important;
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
+}
+
+.module-carousel-end-spacer {
+  flex: 0 0 12px;
+  width: 12px;
+  min-width: 12px;
+  height: 1px;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
