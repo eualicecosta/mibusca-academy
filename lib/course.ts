@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
@@ -5,6 +6,17 @@ export type CourseCategoria = Awaited<ReturnType<typeof getStudentCourse>>["cate
 export type CourseModule = Awaited<ReturnType<typeof getStudentCourse>>["modules"][number];
 export type CourseLesson = CourseModule["lessons"][number];
 
+const isDev = process.env.NODE_ENV === "development";
+
+function perfLog(label: string, startedAt: number) {
+  if (!isDev) return;
+  console.info(`[perf] ${label} ${Math.round(performance.now() - startedAt)}ms`);
+}
+
+/**
+ * Shared published course tree for student navigation.
+ * Omits lesson body fields (blocks/checklist/objective) — those load per lesson.
+ */
 async function queryCourseStructure() {
   return prisma.course.findFirst({
     where: { slug: "conhecimento-ifood", status: "PUBLISHED" },
@@ -24,7 +36,6 @@ async function queryCourseStructure() {
           description: true,
           coverImagePath: true,
           order: true,
-          status: true,
           modules: {
             where: { status: "PUBLISHED" },
             orderBy: { order: "asc" },
@@ -32,11 +43,9 @@ async function queryCourseStructure() {
               id: true,
               number: true,
               title: true,
-              objective: true,
               coverImagePath: true,
               hideText: true,
               order: true,
-              status: true,
               lessons: {
                 where: { status: "PUBLISHED" },
                 orderBy: { order: "asc" },
@@ -44,9 +53,7 @@ async function queryCourseStructure() {
                   id: true,
                   number: true,
                   title: true,
-                  objective: true,
-                  order: true,
-                  status: true
+                  order: true
                 }
               }
             }
@@ -59,22 +66,30 @@ async function queryCourseStructure() {
 
 const getCachedCourseStructure = unstable_cache(
   queryCourseStructure,
-  ["course-structure"],
+  ["course-structure-nav-v2"],
   { revalidate: 300, tags: ["course-structure"] }
 );
 
 async function getCourseStructure() {
+  const startedAt = isDev ? performance.now() : 0;
   try {
-    return await getCachedCourseStructure();
+    const result = await getCachedCourseStructure();
+    perfLog("getCourseStructure", startedAt);
+    return result;
   } catch (error) {
     if (error instanceof Error && error.message.includes("incrementalCache missing")) {
-      return queryCourseStructure();
+      const result = await queryCourseStructure();
+      perfLog("getCourseStructure.direct", startedAt);
+      return result;
     }
     throw error;
   }
 }
 
-export async function getStudentCourse(userId: string) {
+async function loadStudentCourse(userId: string) {
+  const totalStartedAt = isDev ? performance.now() : 0;
+  const progressStartedAt = isDev ? performance.now() : 0;
+
   const [course, completedProgress] = await Promise.all([
     getCourseStructure(),
     prisma.lessonProgress.findMany({
@@ -83,7 +98,10 @@ export async function getStudentCourse(userId: string) {
     })
   ]);
 
+  perfLog("getStudentCourse.progress", progressStartedAt);
+
   if (!course) {
+    perfLog("getStudentCourse.total", totalStartedAt);
     return { course: null, categorias: [], modules: [], flatLessons: [], totalLessons: 0, completedLessons: 0, percent: 0 };
   }
 
@@ -103,6 +121,7 @@ export async function getStudentCourse(userId: string) {
       };
     });
 
+    // Locks computed once per module/lesson for sidebar, navigation, and guards.
     const modulesWithLocks = modules.map((module, index) => {
       const previousModulesComplete = modules.slice(0, index).every((item) => item.complete || item.lessonCount === 0);
       let previousLessonsComplete = true;
@@ -132,6 +151,8 @@ export async function getStudentCourse(userId: string) {
   const totalLessons = flatLessons.length;
   const completedLessons = flatLessons.filter((lesson) => lesson.completed).length;
 
+  perfLog("getStudentCourse.total", totalStartedAt);
+
   return {
     course,
     categorias,
@@ -143,28 +164,12 @@ export async function getStudentCourse(userId: string) {
   };
 }
 
-export async function getLessonForStudent(userId: string, lessonId: string) {
-  const structure = await getStudentCourse(userId);
-  const currentIndex = structure.flatLessons.findIndex((lesson) => lesson.id === lessonId);
-  const current = currentIndex >= 0 ? structure.flatLessons[currentIndex] : null;
+/** Request-scoped dedupe when the same user course payload is needed more than once. */
+export const getStudentCourse = cache(loadStudentCourse);
 
-  if (!current) {
-    return { ...structure, current: null, previous: null, next: null, checklist: [], checkedItemIds: new Set<string>() };
-  }
+async function loadLessonContentForStudent(userId: string, lessonId: string) {
+  const totalStartedAt = isDev ? performance.now() : 0;
 
-  const { lesson, checked } = await getLessonContentForStudent(userId, current.id);
-
-  return {
-    ...structure,
-    current: lesson ? { ...current, detail: lesson } : null,
-    previous: currentIndex > 0 ? structure.flatLessons[currentIndex - 1] : null,
-    next: currentIndex < structure.flatLessons.length - 1 ? structure.flatLessons[currentIndex + 1] : null,
-    checklist: lesson?.checklistItems || [],
-    checkedItemIds: new Set(checked.map((item) => item.checklistItemId))
-  };
-}
-
-export async function getLessonContentForStudent(userId: string, lessonId: string) {
   const [lesson, checked] = await Promise.all([
     prisma.lesson.findUnique({
       where: { id: lessonId },
@@ -208,7 +213,32 @@ export async function getLessonContentForStudent(userId: string, lessonId: strin
     })
   ]);
 
+  perfLog("getLessonContentForStudent.total", totalStartedAt);
   return { lesson, checked };
+}
+
+/** Request-scoped dedupe for lesson body + checklist completions. */
+export const getLessonContentForStudent = cache(loadLessonContentForStudent);
+
+export async function getLessonForStudent(userId: string, lessonId: string) {
+  const structure = await getStudentCourse(userId);
+  const currentIndex = structure.flatLessons.findIndex((lesson) => lesson.id === lessonId);
+  const current = currentIndex >= 0 ? structure.flatLessons[currentIndex] : null;
+
+  if (!current) {
+    return { ...structure, current: null, previous: null, next: null, checklist: [], checkedItemIds: new Set<string>() };
+  }
+
+  const { lesson, checked } = await getLessonContentForStudent(userId, current.id);
+
+  return {
+    ...structure,
+    current: lesson ? { ...current, detail: lesson } : null,
+    previous: currentIndex > 0 ? structure.flatLessons[currentIndex - 1] : null,
+    next: currentIndex < structure.flatLessons.length - 1 ? structure.flatLessons[currentIndex + 1] : null,
+    checklist: lesson?.checklistItems || [],
+    checkedItemIds: new Set(checked.map((item) => item.checklistItemId))
+  };
 }
 
 export function firstUnlockedLesson<T extends { id: string; completed: boolean; locked: boolean }>(flatLessons: T[]) {

@@ -71,7 +71,7 @@ export function CourseSidebar({
                           return lesson.locked ? (
                             <div key={lesson.id}>{body}</div>
                           ) : (
-                            <Link key={lesson.id} href={`/curso/${lesson.id}`}>
+                            <Link key={lesson.id} href={`/curso/${lesson.id}`} prefetch={false}>
                               {body}
                             </Link>
                           );

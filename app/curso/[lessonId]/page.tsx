@@ -17,10 +17,16 @@ export const dynamic = "force-dynamic";
 
 type StudentCourse = Awaited<ReturnType<typeof getStudentCourse>>;
 type FlatLesson = StudentCourse["flatLessons"][number];
+type LessonContent = Awaited<ReturnType<typeof getLessonContentForStudent>>;
 
 export default async function LessonPage({ params }: { params: Promise<{ lessonId: string }> }) {
+  const pageStartedAt = process.env.NODE_ENV === "development" ? performance.now() : 0;
   const { lessonId } = await params;
   const profile = await requireApprovedStudent();
+
+  if (process.env.NODE_ENV === "development") {
+    console.info(`[perf] lessonPage.auth ${Math.round(performance.now() - pageStartedAt)}ms`);
+  }
 
   return (
     <AppShell
@@ -39,6 +45,11 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
 }
 
 async function LessonShell({ userId, lessonId }: { userId: string; lessonId: string }) {
+  const shellStartedAt = process.env.NODE_ENV === "development" ? performance.now() : 0;
+
+  // Start lesson body fetch in parallel with course structure + lock computation.
+  // Content is only rendered after the lock check below.
+  const contentPromise = getLessonContentForStudent(userId, lessonId);
   const data = await getStudentCourse(userId);
   const currentIndex = data.flatLessons.findIndex((lesson) => lesson.id === lessonId);
   const current = currentIndex >= 0 ? data.flatLessons[currentIndex] : null;
@@ -53,6 +64,10 @@ async function LessonShell({ userId, lessonId }: { userId: string; lessonId: str
   const previous = currentIndex > 0 ? data.flatLessons[currentIndex - 1] : null;
   const next = currentIndex < data.flatLessons.length - 1 ? data.flatLessons[currentIndex + 1] : null;
   const moduleProgress = data.modules.find((module) => module.id === current.moduleId);
+
+  if (process.env.NODE_ENV === "development") {
+    console.info(`[perf] lessonPage.shell ${Math.round(performance.now() - shellStartedAt)}ms`);
+  }
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden xl:block">
@@ -70,7 +85,7 @@ async function LessonShell({ userId, lessonId }: { userId: string; lessonId: str
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-5 scrollbar-thin xl:ml-[440px] xl:h-full xl:px-8 xl:py-8">
         <Suspense fallback={<LessonArticleSkeleton />}>
           <LessonArticle
-            userId={userId}
+            contentPromise={contentPromise}
             current={current}
             previous={previous}
             next={next}
@@ -85,7 +100,7 @@ async function LessonShell({ userId, lessonId }: { userId: string; lessonId: str
 }
 
 async function LessonArticle({
-  userId,
+  contentPromise,
   current,
   previous,
   next,
@@ -93,7 +108,7 @@ async function LessonArticle({
   completedLessons,
   modulePercent
 }: {
-  userId: string;
+  contentPromise: Promise<LessonContent>;
   current: FlatLesson;
   previous: FlatLesson | null;
   next: FlatLesson | null;
@@ -101,10 +116,15 @@ async function LessonArticle({
   completedLessons: number;
   modulePercent: number;
 }) {
-  const { lesson: detail, checked } = await getLessonContentForStudent(userId, current.id);
+  const articleStartedAt = process.env.NODE_ENV === "development" ? performance.now() : 0;
+  const { lesson: detail, checked } = await contentPromise;
 
   if (!detail) {
     notFound();
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    console.info(`[perf] lessonPage.article ${Math.round(performance.now() - articleStartedAt)}ms`);
   }
 
   return (
@@ -239,7 +259,7 @@ async function LessonArticle({
 
 function LessonShellSkeleton() {
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden xl:block">
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden xl:block" aria-busy="true" aria-label="Carregando aula">
       <div className="h-20 shrink-0 animate-pulse border-b border-white/10 bg-white/[0.04] xl:hidden" />
       <div className="hidden animate-pulse border-r border-white/10 bg-white/[0.04] xl:fixed xl:bottom-0 xl:left-[72px] xl:top-[72px] xl:block xl:w-[440px]" />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 xl:ml-[440px] xl:h-full xl:px-8 xl:py-8">
@@ -251,7 +271,7 @@ function LessonShellSkeleton() {
 
 function LessonArticleSkeleton() {
   return (
-    <article className="mx-auto min-w-0 max-w-6xl rounded-lg border border-white/10 bg-[#151019]">
+    <article className="mx-auto min-w-0 max-w-6xl rounded-lg border border-white/10 bg-[#151019]" aria-hidden>
       <div className="border-b border-white/10 bg-[#151019] p-3 sm:p-5">
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <div className="h-16 animate-pulse rounded-lg bg-white/[0.04]" />

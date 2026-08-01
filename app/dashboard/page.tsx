@@ -145,7 +145,7 @@ async function DashboardContent({ profileId }: { profileId: string }) {
           </CardHeader>
           <CardContent>
             {nextLesson ? (
-              <Link href={`/curso/${nextLesson.id}`} className="flex min-w-0 items-center justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-5 hover:bg-white/[0.06]">
+              <Link href={`/curso/${nextLesson.id}`} prefetch className="flex min-w-0 items-center justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-5 hover:bg-white/[0.06]">
                 <div className="min-w-0">
                   <p className="text-sm text-[#8A1DEE]">Modulo {nextLesson.moduleNumber}</p>
                   <h2 className="mt-1 break-words text-xl font-bold">{nextLesson.title}</h2>
@@ -241,7 +241,7 @@ function CategorySection({ categoria }: { categoria: Awaited<ReturnType<typeof g
                   );
 
                   return href ? (
-                    <Link key={module.id} href={href} aria-label={`Abrir ${module.title || `Modulo ${module.number}`}`}>
+                    <Link key={module.id} href={href} prefetch aria-label={`Abrir ${module.title || `Modulo ${module.number}`}`}>
                       {card}
                     </Link>
                   ) : (

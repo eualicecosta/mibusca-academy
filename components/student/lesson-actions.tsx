@@ -56,6 +56,7 @@ export function LessonActions({
         {nextId ? (
           <Link
             href={`/curso/${nextId}`}
+            prefetch
             className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#53009F] to-[#8A1DEE] px-4 py-2 text-center text-sm font-semibold text-white"
           >
             Proxima aula
