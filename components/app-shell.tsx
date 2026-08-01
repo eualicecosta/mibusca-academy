@@ -32,7 +32,10 @@ export function AppShell({
   userEmail,
   className,
   mainClassName,
-  headerClassName
+  headerClassName,
+  isRolePreview = false,
+  supportHref,
+  previewBanner
 }: {
   children: React.ReactNode;
   showAdmin?: boolean;
@@ -44,11 +47,15 @@ export function AppShell({
   className?: string;
   mainClassName?: string;
   headerClassName?: string;
+  isRolePreview?: boolean;
+  supportHref?: string | null;
+  previewBanner?: React.ReactNode;
 }) {
   const email = userEmail || "";
   const name = userName || email.split("@")[0] || "Usuario";
   const base = variant === "seller" ? sellerNav : studentNav;
-  const items = showAdmin ? [...base, ...adminExtra] : base;
+  // Never show admin nav while role-preview is active.
+  const items = showAdmin && !isRolePreview ? [...base, ...adminExtra] : base;
 
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -149,8 +156,15 @@ export function AppShell({
             <p className="hidden truncate text-xs text-[var(--muted-foreground)] sm:block">MiBusca Academy</p>
           </div>
         </div>
-        <AccountMenu name={name} email={email} showAdmin={showAdmin} />
+        <AccountMenu
+          name={name}
+          email={email}
+          showAdmin={showAdmin}
+          isRolePreview={isRolePreview}
+          supportHref={supportHref}
+        />
       </header>
+      {previewBanner}
       <main
         className={cn(
           "min-w-0 max-w-full overflow-x-hidden px-4 py-8 pb-24 transition-[padding] duration-200 md:pr-8 md:pb-8",

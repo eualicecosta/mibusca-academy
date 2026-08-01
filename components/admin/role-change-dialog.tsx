@@ -5,6 +5,7 @@ import type { UserRole } from "@prisma/client";
 import { Loader2, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ThemeSelect } from "@/components/ui/theme-select";
 import { ROLE_LABELS } from "@/lib/admin-labels";
 import { updateUserRole } from "@/lib/role-actions";
 
@@ -60,16 +61,16 @@ export function RoleChangeDialog({
           <input type="hidden" name="userId" value={userId} />
           <label className="grid gap-1 text-xs font-semibold text-white/60">
             Nova função
-            <select
+            <ThemeSelect
               name="role"
               value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-              className="min-h-11 rounded-lg border border-white/10 bg-black/25 px-3 text-sm text-white"
-            >
-              <option value="STUDENT">Cliente</option>
-              <option value="SELLER">Vendedor</option>
-              <option value="ADMIN">Administrador</option>
-            </select>
+              onChange={(v) => setRole(v as UserRole)}
+              options={[
+                { value: "STUDENT", label: "Cliente" },
+                { value: "SELLER", label: "Vendedor" },
+                { value: "ADMIN", label: "Administrador" }
+              ]}
+            />
           </label>
           {error ? <p className="text-sm text-red-200">{error}</p> : null}
           <div className="flex flex-wrap gap-2">

@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ThemeSelect } from "@/components/ui/theme-select";
 import { ACCESS_STATUS_LABELS, COMMERCIAL_STAGE_LABELS, ROLE_LABELS } from "@/lib/admin-labels";
 import { approveUserWithRole, refuseUser } from "@/lib/role-actions";
 
@@ -123,17 +124,17 @@ function ApprovalCard({ item }: { item: ApprovalItem }) {
             <input type="hidden" name="userId" value={item.id} />
             <label className="grid gap-1 text-xs font-semibold text-white/60">
               Função (obrigatória)
-              <select
+              <ThemeSelect
                 name="role"
-                required
                 value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                className="min-h-11 rounded-lg border border-white/10 bg-black/25 px-3 text-sm text-white"
-              >
-                <option value="STUDENT">Cliente</option>
-                <option value="SELLER">Vendedor</option>
-                <option value="ADMIN">Administrador</option>
-              </select>
+                onChange={(v) => setRole(v as UserRole)}
+                required
+                options={[
+                  { value: "STUDENT", label: "Cliente" },
+                  { value: "SELLER", label: "Vendedor" },
+                  { value: "ADMIN", label: "Administrador" }
+                ]}
+              />
             </label>
             {error ? <p className="text-sm text-red-200">{error}</p> : null}
             <div className="flex flex-wrap gap-2">

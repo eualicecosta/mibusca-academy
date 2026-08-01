@@ -6,7 +6,9 @@ import {
   LockKeyhole,
   ShieldCheck
 } from "lucide-react";
+import { SupportButton } from "@/components/support-button";
 import { prisma } from "@/lib/prisma";
+import { getSupportSettings } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +55,7 @@ async function getLandingStats() {
  * Clean gradient hero + short copy only.
  */
 export default async function HomePage() {
-  const stats = await getLandingStats();
+  const [stats, support] = await Promise.all([getLandingStats(), getSupportSettings()]);
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-[#07040c] text-[#F5F3F3]">
@@ -171,7 +173,7 @@ export default async function HomePage() {
           <p className="mt-3 max-w-xl text-sm leading-7 text-white/65 sm:text-base">
             Solicite o cadastro e aguarde a aprovação. Depois do liberar, o conteúdo aparece na sua área de membros.
           </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Link
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#53009F] px-6 text-sm font-bold transition hover:bg-[#8A1DEE]"
               href="/sign-up"
@@ -185,9 +187,15 @@ export default async function HomePage() {
             >
               Já tenho acesso
             </Link>
+            <SupportButton settings={support} />
           </div>
         </div>
       </section>
+
+      <footer className="border-t border-white/10 px-4 py-8 text-center text-sm text-white/50 sm:px-6">
+        <p className="mb-3">MiBusca Academy</p>
+        <SupportButton variant="footer" settings={support} />
+      </footer>
 
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-[#07040c]/95 p-3 backdrop-blur sm:hidden">
         <Link className="flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#53009F] px-4 font-bold" href="/sign-up">
@@ -196,6 +204,7 @@ export default async function HomePage() {
         </Link>
       </div>
       <div className="h-20 sm:hidden" aria-hidden />
+      <SupportButton variant="float" settings={support} className="!bottom-24 sm:!bottom-6" />
     </main>
   );
 }

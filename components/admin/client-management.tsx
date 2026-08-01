@@ -18,6 +18,7 @@ import { ActionMenu, ActionMenuItem } from "@/components/admin/action-menu";
 import { RoleChangeDialog } from "@/components/admin/role-change-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ThemeSelect } from "@/components/ui/theme-select";
 import { ACCESS_STATUS_LABELS, COMMERCIAL_STAGE_LABELS, formatBRLFromCents } from "@/lib/admin-labels";
 import {
   archiveClient,
@@ -225,15 +226,12 @@ function EditClientDialog({
               <input value={client.email} readOnly className={`${fieldClass()} opacity-70`} />
             </label>
             <label className={labelClass()}>
-              Vendedor responsavel
-              <select name="sellerId" defaultValue={client.sellerId || ""} className={fieldClass()}>
-                <option value="">Sem vendedor</option>
-                {sellers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+              Vendedor responsável
+              <ThemeSelect
+                name="sellerId"
+                defaultValue={client.sellerId || ""}
+                options={[{ value: "", label: "Sem vendedor" }, ...sellers.map((s) => ({ value: s.id, label: s.name }))]}
+              />
             </label>
             <label className={labelClass()}>
               Valor pago (R$)
@@ -241,26 +239,22 @@ function EditClientDialog({
             </label>
             <label className={labelClass()}>
               Etapa comercial
-              <select name="commercialStage" defaultValue={client.commercialStage} className={fieldClass()}>
-                {Object.entries(COMMERCIAL_STAGE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <ThemeSelect
+                name="commercialStage"
+                defaultValue={client.commercialStage}
+                options={Object.entries(COMMERCIAL_STAGE_LABELS).map(([value, label]) => ({ value, label }))}
+              />
             </label>
             <label className={labelClass()}>
               Status de acesso
-              <select name="status" defaultValue={client.status} className={fieldClass()}>
-                {Object.entries(ACCESS_STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              <ThemeSelect
+                name="status"
+                defaultValue={client.status}
+                options={Object.entries(ACCESS_STATUS_LABELS).map(([value, label]) => ({ value, label }))}
+              />
             </label>
             <label className={`${labelClass()} md:col-span-2`}>
-              Observacao administrativa
+              Observação administrativa
               <textarea name="adminNotes" defaultValue={client.adminNotes || ""} rows={3} className={`${fieldClass()} py-2`} />
             </label>
             <label className={labelClass()}>
@@ -269,7 +263,7 @@ function EditClientDialog({
             </label>
             <div className="grid gap-1 text-xs text-white/50">
               <p>Cadastro: {new Date(client.createdAt).toLocaleString("pt-BR")}</p>
-              <p>Ultima alteracao: {new Date(client.updatedAt).toLocaleString("pt-BR")}</p>
+              <p>Última alteração: {new Date(client.updatedAt).toLocaleString("pt-BR")}</p>
               <p>Valor atual: {formatBRLFromCents(client.paidAmountCents)}</p>
             </div>
           </div>
@@ -279,7 +273,7 @@ function EditClientDialog({
           <div className="flex flex-wrap gap-2">
             <Button type="submit" disabled={pending}>
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Salvar alteracoes
+              Salvar alterações
             </Button>
             <Button type="button" variant="secondary" disabled={pending} onClick={requestClose}>
               Cancelar
@@ -382,15 +376,12 @@ function MarkPaidDialog({
             <input name="paidAmount" defaultValue={defaultPaid === "0,00" ? "" : defaultPaid} required className={fieldClass()} />
           </label>
           <label className={labelClass()}>
-            Vendedor responsavel
-            <select name="sellerId" defaultValue={client.sellerId || ""} className={fieldClass()}>
-              <option value="">Sem vendedor</option>
-              {sellers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+            Vendedor responsável
+            <ThemeSelect
+              name="sellerId"
+              defaultValue={client.sellerId || ""}
+              options={[{ value: "", label: "Sem vendedor" }, ...sellers.map((s) => ({ value: s.id, label: s.name }))]}
+            />
           </label>
           <label className={labelClass()}>
             Data da venda

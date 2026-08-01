@@ -10,6 +10,7 @@ import {
   ClipboardList,
   LayoutDashboard,
   Menu,
+  Settings,
   Users,
   UserCog,
   X
@@ -24,7 +25,8 @@ const adminNav = [
   { href: "/admin/aprovacoes", label: "Aprovações pendentes", icon: ClipboardList },
   { href: "/admin/clientes", label: "Clientes ativos", icon: Users },
   { href: "/admin/equipe", label: "Membros do time", icon: UserCog },
-  { href: "/admin/conteudo", label: "Curso", icon: BookOpen }
+  { href: "/admin/conteudo", label: "Curso", icon: BookOpen },
+  { href: "/admin/configuracoes", label: "Configurações", icon: Settings }
 ];
 
 function NavItems({ onNavigate, collapsed = false }: { onNavigate?: () => void; collapsed?: boolean }) {
@@ -66,12 +68,14 @@ export function AdminShell({
   children,
   userName,
   userEmail,
-  userImageUrl
+  userImageUrl,
+  supportHref
 }: {
   children: React.ReactNode;
   userName: string;
   userEmail: string;
   userImageUrl?: string | null;
+  supportHref?: string | null;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   /** Desktop: false = expanded full labels, true = hidden (content full width). */
@@ -190,7 +194,7 @@ export function AdminShell({
             <p className="hidden truncate text-xs text-[var(--muted-foreground)] sm:block">Gestão de leads, clientes e time</p>
           </div>
         </div>
-        <AccountMenu name={userName} email={userEmail} imageUrl={userImageUrl} showAdmin />
+        <AccountMenu name={userName} email={userEmail} imageUrl={userImageUrl} showAdmin supportHref={supportHref} />
       </header>
 
       <main

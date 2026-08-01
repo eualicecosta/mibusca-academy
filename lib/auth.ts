@@ -184,14 +184,50 @@ export function homePathForProfile(profile: { role: "STUDENT" | "ADMIN" | "SELLE
   return "/dashboard";
 }
 
+export type SessionProfile = NonNullable<Awaited<ReturnType<typeof getCurrentProfile>>> & {
+  actualRole: "STUDENT" | "ADMIN" | "SELLER";
+  effectiveRole: "STUDENT" | "ADMIN" | "SELLER";
+  isRolePreview: boolean;
+};
+
+/** Profile with optional admin preview overlay (does not change DB role). */
+export async function getSessionProfile(): Promise<SessionProfile | null> {
+  const profile = await getCurrentProfile();
+  if (!profile) return null;
+
+  const { getRolePreviewCookie, resolveEffectiveRole } = await import("@/lib/role-preview");
+  const preview = await getRolePreviewCookie();
+  const effectiveRole = resolveEffectiveRole(profile.role, preview, profile.id);
+  const isRolePreview = profile.role === "ADMIN" && effectiveRole !== "ADMIN" && Boolean(preview);
+
+  return {
+    ...profile,
+    actualRole: profile.role,
+    effectiveRole,
+    isRolePreview
+  };
+}
+
+export async function requireSessionProfile() {
+  const profile = await getSessionProfile();
+  if (!profile) redirect("/sign-in");
+  return profile;
+}
+
 export async function requireApprovedStudent() {
-  const profile = await requireProfile();
-  if (profile.role === "ADMIN") {
+  const profile = await requireSessionProfile();
+
+  // Real or preview student path.
+  if (profile.effectiveRole === "ADMIN" && !profile.isRolePreview) {
     redirect("/admin");
   }
-  if (profile.role === "SELLER") {
+  if (profile.effectiveRole === "SELLER") {
     redirect(profile.status === "ACTIVE" ? "/vendedor" : "/aguardando-aprovacao");
   }
+  if (profile.effectiveRole === "ADMIN") {
+    redirect("/admin");
+  }
+
   if (profile.status === "BLOCKED" || profile.status === "CANCELLED" || profile.status === "REFUSED") {
     redirect("/aguardando-aprovacao");
   }
@@ -201,6 +237,7 @@ export async function requireApprovedStudent() {
   return profile;
 }
 
+/** Real ADMIN only — ignores preview mode for mutations and admin routes. */
 export async function requireAdmin() {
   const profile = await requireProfile();
   if (profile.role !== "ADMIN" || profile.status !== "ACTIVE") {
@@ -209,17 +246,32 @@ export async function requireAdmin() {
   return profile;
 }
 
+/** Blocks admin UI when viewing as client/seller. */
+export async function requireAdminUI() {
+  const profile = await requireSessionProfile();
+  if (profile.actualRole !== "ADMIN" || profile.status !== "ACTIVE") {
+    redirect(homePathForProfile({ role: profile.actualRole, status: profile.status }));
+  }
+  if (profile.isRolePreview) {
+    redirect(profile.effectiveRole === "SELLER" ? "/vendedor" : "/dashboard");
+  }
+  return profile;
+}
+
 export async function requireSeller() {
-  const profile = await requireProfile();
-  if (profile.role !== "SELLER" || profile.status !== "ACTIVE") {
-    redirect(homePathForProfile(profile));
+  const profile = await requireSessionProfile();
+  if (profile.effectiveRole !== "SELLER" || profile.status !== "ACTIVE") {
+    if (profile.actualRole === "ADMIN" && !profile.isRolePreview) {
+      redirect("/admin");
+    }
+    redirect(homePathForProfile({ role: profile.effectiveRole, status: profile.status }));
   }
   return profile;
 }
 
 /** For shared pages like /perfil — any authenticated profile with status check. */
 export async function requireActiveAccount() {
-  const profile = await requireProfile();
+  const profile = await requireSessionProfile();
   if (profile.status !== "ACTIVE") {
     redirect("/aguardando-aprovacao");
   }

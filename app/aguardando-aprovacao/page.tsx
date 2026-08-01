@@ -1,8 +1,10 @@
 import { SignOutButton } from "@clerk/nextjs";
 import { redirect } from "next/navigation";
 import { Clock, PauseCircle, ShieldAlert, ShieldX } from "lucide-react";
+import { SupportButton } from "@/components/support-button";
 import { homePathForProfile, requireProfile } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { getSupportSettings } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
 
@@ -12,41 +14,48 @@ export default async function ApprovalPage() {
     redirect(homePathForProfile(profile));
   }
 
+  const support = await getSupportSettings();
   const status = profile.status;
+
   const copy =
     status === "REFUSED"
       ? {
           icon: ShieldAlert,
           kicker: "Cadastro recusado",
-          title: "Seu acesso não foi liberado",
-          body: "Fale com a administração da MiBusca Brasil para revisar seu cadastro."
+          title: "Seu cadastro não foi aprovado",
+          body: "Seu cadastro não foi aprovado neste momento. Entre em contato com o suporte caso precise de mais informações.",
+          statusKey: "REFUSED"
         }
       : status === "BLOCKED"
         ? {
             icon: ShieldX,
             kicker: "Acesso bloqueado",
-            title: "Sua conta está bloqueada",
-            body: "Entre em contato com a administração para entender o motivo e solicitar reativação."
+            title: "Seu acesso está bloqueado",
+            body: "Não foi possível liberar o acesso à plataforma. Entre em contato com o suporte para obter mais informações.",
+            statusKey: "BLOCKED"
           }
         : status === "PAUSED"
           ? {
               icon: PauseCircle,
               kicker: "Acesso pausado",
               title: "Seu acesso está temporariamente pausado",
-              body: "Seu progresso e dados foram preservados. Quando o acesso for reativado, você volta a usar a plataforma."
+              body: "Seu progresso e seus dados continuam preservados. Entre em contato com o suporte para verificar a situação do seu acesso.",
+              statusKey: "PAUSED"
             }
           : status === "CANCELLED"
             ? {
                 icon: ShieldAlert,
-                kicker: "Cadastro cancelado",
-                title: "Este cadastro foi cancelado",
-                body: "Se acredita que isso foi um engano, fale com a equipe MiBusca Brasil."
+                kicker: "Acesso cancelado",
+                title: "Seu acesso foi cancelado",
+                body: "Seu acesso à plataforma não está mais ativo. Entre em contato com o suporte caso precise de atendimento.",
+                statusKey: "CANCELLED"
               }
             : {
                 icon: Clock,
                 kicker: "Aguardando aprovação",
-                title: "Seu cadastro foi recebido",
-                body: "Assim que a equipe aprovar seu acesso e definir sua função, a área correspondente será liberada automaticamente."
+                title: "Seu cadastro está em análise",
+                body: "Recebemos seu cadastro e ele está aguardando a aprovação da nossa equipe. Você será avisado assim que o acesso for liberado.",
+                statusKey: "PENDING"
               };
 
   const Icon = copy.icon;
@@ -60,7 +69,8 @@ export default async function ApprovalPage() {
         <p className="mt-6 text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">{copy.kicker}</p>
         <h1 className="mt-3 break-words text-3xl font-bold text-[#F5F3F3]">{copy.title}</h1>
         <p className="mt-4 break-words leading-7 text-[#F5F3F3]/68">{copy.body}</p>
-        <div className="mt-8">
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+          <SupportButton variant="primary" statusKey={copy.statusKey} settings={support} />
           <SignOutButton>
             <Button variant="secondary">Sair da conta</Button>
           </SignOutButton>

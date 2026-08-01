@@ -3,23 +3,39 @@ import Image from "next/image";
 import { Suspense } from "react";
 import { ArrowRight, BookOpen, CheckCircle2, Lock } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { RolePreviewBanner } from "@/components/role-preview-banner";
+import { SupportButton } from "@/components/support-button";
 import { BannerCarousel, type StudentBannerBlock } from "@/components/student/banner-carousel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { requireApprovedStudent } from "@/lib/auth";
 import { resolveAssetUrl } from "@/lib/assets";
 import { firstUnlockedLesson, getStudentCourse } from "@/lib/course";
+import { buildWhatsAppUrl, getSupportSettings } from "@/lib/support";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const profile = await requireApprovedStudent();
+  const support = await getSupportSettings();
+  const supportHref =
+    support.supportEnabled && support.supportWhatsApp
+      ? buildWhatsAppUrl(support.supportWhatsApp, support.supportDefaultMessage)
+      : null;
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
+    <AppShell
+      showAdmin={profile.actualRole === "ADMIN"}
+      isRolePreview={profile.isRolePreview}
+      userName={profile.name}
+      userEmail={profile.email}
+      supportHref={supportHref}
+      previewBanner={profile.isRolePreview ? <RolePreviewBanner asRole="STUDENT" /> : null}
+    >
       <Suspense fallback={<DashboardSkeleton />}>
         <DashboardContent profileId={profile.id} />
       </Suspense>
+      {!profile.isRolePreview ? <SupportButton variant="float" settings={support} /> : null}
     </AppShell>
   );
 }

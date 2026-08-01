@@ -162,6 +162,20 @@ model AdminAuditLog {
   @@index([entityType, entityId])
 }
 
+/// Singleton-style platform settings (support channel, etc.).
+model SystemSettings {
+  id                    String   @id @default("default")
+  supportName           String   @default("Suporte MiBusca Academy")
+  supportWhatsApp       String   @default("")
+  supportDefaultMessage String   @default("Olá! Preciso de ajuda com meu acesso ao MiBusca Academy.")
+  supportEmail          String?
+  supportBusinessHours  String?
+  supportEnabled        Boolean  @default(true)
+  updatedById           String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
 model TeamInvite {
   id                String           @id @default(cuid())
   email             String

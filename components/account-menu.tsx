@@ -3,8 +3,9 @@
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { SignOutButton } from "@clerk/nextjs";
-import { Loader2, LogOut, ShieldCheck, UserRound } from "lucide-react";
+import { Eye, Loader2, LogOut, MessageCircle, Shield, ShieldCheck, UserRound, Users } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { clearViewAsRoleAndGo, setViewAsRoleAndGo } from "@/lib/preview-actions";
 import { cn } from "@/lib/utils";
 
 function initialsFromName(name: string, email: string) {
@@ -19,15 +20,21 @@ export function AccountMenu({
   name,
   email,
   imageUrl,
-  showAdmin = false
+  showAdmin = false,
+  isRolePreview = false,
+  supportHref
 }: {
   name: string;
   email: string;
   imageUrl?: string | null;
+  /** True only when actualRole is ADMIN (not preview). */
   showAdmin?: boolean;
+  isRolePreview?: boolean;
+  supportHref?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [signingOut, startSignOut] = useTransition();
+  const [previewPending, startPreview] = useTransition();
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
   const initials = initialsFromName(name, email);
@@ -54,6 +61,8 @@ export function AccountMenu({
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
+
+  const canPreview = showAdmin || isRolePreview;
 
   return (
     <div ref={rootRef} className="relative flex min-w-0 items-center justify-end">
@@ -92,19 +101,23 @@ export function AccountMenu({
         <div
           id={menuId}
           role="menu"
-          aria-label="Opcoes da conta"
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-64 origin-top-right animate-menu-in rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] p-2 shadow-2xl shadow-black/40"
+          aria-label="Opções da conta"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-72 origin-top-right animate-menu-in rounded-2xl border border-[var(--border)] bg-[var(--surface-elevated)] p-2 shadow-2xl shadow-black/40"
         >
           <div className="mb-2 border-b border-[var(--border)] px-3 pb-3 pt-2">
             <p className="truncate text-sm font-semibold text-[var(--foreground)]">{name}</p>
             <p className="truncate text-xs text-[var(--muted-foreground)]">{email}</p>
-            {showAdmin ? (
+            {showAdmin && !isRolePreview ? (
               <p className="mt-2 inline-flex rounded-full bg-[var(--primary)]/20 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[var(--secondary)]">
                 Administrador
               </p>
+            ) : isRolePreview ? (
+              <p className="mt-2 inline-flex rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-amber-100">
+                Modo de teste
+              </p>
             ) : (
               <p className="mt-2 inline-flex rounded-full bg-white/8 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[var(--muted-foreground)]">
-                Aluno
+                Conta
               </p>
             )}
           </div>
@@ -112,23 +125,95 @@ export function AccountMenu({
           <Link
             role="menuitem"
             href="/perfil"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--foreground)] transition hover:bg-white/[0.06] focus-visible:bg-white/[0.06] focus-visible:outline-none"
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--foreground)] transition hover:bg-white/[0.06]"
             onClick={() => setOpen(false)}
           >
             <UserRound className="h-4 w-4 text-[var(--secondary)]" />
             Meu perfil
           </Link>
 
-          {showAdmin ? (
+          {showAdmin && !isRolePreview ? (
             <Link
               role="menuitem"
               href="/admin"
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--foreground)] transition hover:bg-white/[0.06] focus-visible:bg-white/[0.06] focus-visible:outline-none"
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--foreground)] transition hover:bg-white/[0.06]"
               onClick={() => setOpen(false)}
             >
               <ShieldCheck className="h-4 w-4 text-[var(--secondary)]" />
               Painel administrativo
             </Link>
+          ) : null}
+
+          {supportHref ? (
+            <a
+              role="menuitem"
+              href={supportHref}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--foreground)] transition hover:bg-white/[0.06]"
+              onClick={() => setOpen(false)}
+            >
+              <MessageCircle className="h-4 w-4 text-[#25D366]" />
+              Falar com o suporte
+            </a>
+          ) : null}
+
+          {canPreview ? (
+            <>
+              <div className="my-1 border-t border-[var(--border)]" />
+              <p className="px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white/40">Testar visualização como</p>
+              {!isRolePreview || true ? (
+                <>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={previewPending}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition hover:bg-white/[0.06] disabled:opacity-50"
+                    onClick={() =>
+                      startPreview(() => {
+                        setOpen(false);
+                        void setViewAsRoleAndGo("STUDENT");
+                      })
+                    }
+                  >
+                    <Users className="h-4 w-4 text-[var(--secondary)]" />
+                    Visualizar como cliente
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={previewPending}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-[var(--foreground)] transition hover:bg-white/[0.06] disabled:opacity-50"
+                    onClick={() =>
+                      startPreview(() => {
+                        setOpen(false);
+                        void setViewAsRoleAndGo("SELLER");
+                      })
+                    }
+                  >
+                    <Eye className="h-4 w-4 text-[var(--secondary)]" />
+                    Visualizar como vendedor
+                  </button>
+                </>
+              ) : null}
+              {isRolePreview ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={previewPending}
+                  className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-amber-100 transition hover:bg-amber-500/10 disabled:opacity-50"
+                  onClick={() =>
+                    startPreview(() => {
+                      setOpen(false);
+                      void clearViewAsRoleAndGo();
+                    })
+                  }
+                >
+                  <Shield className="h-4 w-4" />
+                  Voltar ao modo administrador
+                </button>
+              ) : null}
+            </>
           ) : null}
 
           <div className="my-1 border-t border-[var(--border)]" />
@@ -138,7 +223,7 @@ export function AccountMenu({
               type="button"
               role="menuitem"
               disabled={signingOut}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-300 transition hover:bg-red-500/10 focus-visible:bg-red-500/10 focus-visible:outline-none disabled:opacity-60"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-300 transition hover:bg-red-500/10 disabled:opacity-60"
               onClick={() => {
                 startSignOut(() => {
                   setOpen(false);

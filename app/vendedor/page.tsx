@@ -1,16 +1,32 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
+import { RolePreviewBanner } from "@/components/role-preview-banner";
+import { SupportButton } from "@/components/support-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireSeller } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/admin-labels";
+import { buildWhatsAppUrl, getSupportSettings } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
 
 export default async function SellerHomePage() {
   const profile = await requireSeller();
+  const support = await getSupportSettings();
+  const supportHref =
+    support.supportEnabled && support.supportWhatsApp
+      ? buildWhatsAppUrl(support.supportWhatsApp, support.supportDefaultMessage)
+      : null;
 
   return (
-    <AppShell variant="seller" showAdmin={false} userName={profile.name} userEmail={profile.email}>
+    <AppShell
+      variant="seller"
+      showAdmin={profile.actualRole === "ADMIN"}
+      isRolePreview={profile.isRolePreview}
+      userName={profile.name}
+      userEmail={profile.email}
+      supportHref={supportHref}
+      previewBanner={profile.isRolePreview ? <RolePreviewBanner asRole="SELLER" /> : null}
+    >
       <div className="mx-auto max-w-4xl space-y-6">
         <header>
           <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Área do vendedor</p>
@@ -28,7 +44,7 @@ export default async function SellerHomePage() {
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-white/70">
               <p>
-                Função: <strong className="text-white">{ROLE_LABELS[profile.role]}</strong>
+                Função: <strong className="text-white">{ROLE_LABELS[profile.effectiveRole]}</strong>
               </p>
               <p>
                 E-mail: <strong className="break-all text-white">{profile.email}</strong>
@@ -47,10 +63,14 @@ export default async function SellerHomePage() {
               <Link href="/perfil" className="inline-flex font-bold text-[#B76CFF] underline-offset-4 hover:underline">
                 Ir para meu perfil
               </Link>
+              <div>
+                <SupportButton settings={support} />
+              </div>
             </CardContent>
           </Card>
         </section>
       </div>
+      {!profile.isRolePreview ? <SupportButton variant="float" settings={support} /> : null}
     </AppShell>
   );
 }
