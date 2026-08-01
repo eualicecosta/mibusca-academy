@@ -1,28 +1,23 @@
 import { Suspense } from "react";
-import { AdminShell } from "@/components/admin-shell";
 import { ClientActions, type ClientRow } from "@/components/admin/client-management";
 import { Card, CardContent } from "@/components/ui/card";
 import { ACCESS_STATUS_LABELS, COMMERCIAL_STAGE_LABELS } from "@/lib/admin-labels";
-import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function ApprovalsPage() {
-  const profile = await requireAdmin();
   return (
-    <AdminShell userName={profile.name} userEmail={profile.email}>
-      <div className="mx-auto max-w-6xl space-y-6">
-        <header>
-          <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Aprovacoes</p>
-          <h1 className="mt-2 text-4xl font-bold">Aprovacoes pendentes</h1>
-          <p className="mt-3 text-white/62">Gerencie o funil comercial e libere o acesso quando o pagamento for confirmado.</p>
-        </header>
-        <Suspense fallback={<div className="h-40 animate-pulse rounded-xl bg-white/[0.04]" />}>
-          <ApprovalsContent />
-        </Suspense>
-      </div>
-    </AdminShell>
+    <div className="mx-auto max-w-6xl space-y-6">
+      <header>
+        <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Aprovacoes</p>
+        <h1 className="mt-2 text-4xl font-bold">Aprovacoes pendentes</h1>
+        <p className="mt-3 text-white/62">Gerencie o funil comercial e libere o acesso quando o pagamento for confirmado.</p>
+      </header>
+      <Suspense fallback={<div className="h-40 animate-pulse rounded-xl bg-white/[0.04]" />}>
+        <ApprovalsContent />
+      </Suspense>
+    </div>
   );
 }
 
@@ -87,9 +82,12 @@ async function ApprovalsContent() {
     commercialStage: s.commercialStage,
     paidAmountCents: s.paidAmountCents,
     createdAt: s.createdAt.toISOString(),
+    updatedAt: s.createdAt.toISOString(),
     approvedAt: s.approvedAt?.toISOString() || null,
     adminNotes: s.adminNotes,
-    blockReason: s.blockReason
+    blockReason: s.blockReason,
+    sellerId: null,
+    sellerName: null
   }));
 
   return (

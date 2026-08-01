@@ -2,11 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BookOpen, CheckCircle2, Plus, Save } from "lucide-react";
 import { LessonActionsAdmin } from "@/components/admin/content-actions";
-import { AdminShell } from "@/components/admin-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createLesson, updateLesson } from "@/lib/actions";
-import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +38,6 @@ function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
 
 export default async function AdminModuleContentPage({ params }: { params: Promise<{ moduleId: string }> }) {
   const { moduleId } = await params;
-  const profile = await requireAdmin();
   const courseModule = await prisma.module.findUnique({
     where: { id: moduleId },
     select: {
@@ -74,7 +71,6 @@ export default async function AdminModuleContentPage({ params }: { params: Promi
   const completedCount = courseModule.lessons.reduce((sum, lesson) => sum + lesson.progress.length, 0);
 
   return (
-    <AdminShell userName={profile.name} userEmail={profile.email}>
       <div className="mx-auto min-w-0 max-w-6xl space-y-8">
         <header className="space-y-4">
           <Link href="/admin/conteudo" className="inline-flex items-center gap-2 text-sm font-bold text-white/65 hover:text-white">
@@ -198,6 +194,5 @@ export default async function AdminModuleContentPage({ params }: { params: Promi
           ))}
         </section>
       </div>
-    </AdminShell>
   );
 }

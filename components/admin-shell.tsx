@@ -37,6 +37,7 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
           <Link
             key={item.href}
             href={item.href}
+            prefetch
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
@@ -57,11 +58,13 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
 export function AdminShell({
   children,
   userName,
-  userEmail
+  userEmail,
+  userImageUrl
 }: {
   children: React.ReactNode;
   userName: string;
   userEmail: string;
+  userImageUrl?: string | null;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -115,7 +118,7 @@ export function AdminShell({
             <p className="hidden truncate text-xs text-[var(--muted-foreground)] sm:block">Gestao de leads, clientes e time</p>
           </div>
         </div>
-        <AccountMenu name={userName} email={userEmail} showAdmin />
+        <AccountMenu name={userName} email={userEmail} imageUrl={userImageUrl} showAdmin />
       </header>
 
       <main className="min-w-0 overflow-x-hidden px-4 py-8 lg:pl-[276px] lg:pr-8">

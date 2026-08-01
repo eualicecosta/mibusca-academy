@@ -1,26 +1,21 @@
 import { Suspense } from "react";
-import { AdminShell } from "@/components/admin-shell";
 import { Card, CardContent } from "@/components/ui/card";
-import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  const profile = await requireAdmin();
   return (
-    <AdminShell userName={profile.name} userEmail={profile.email}>
-      <div className="mx-auto max-w-6xl space-y-8">
-        <header>
-          <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Painel administrativo</p>
-          <h1 className="mt-2 break-words text-4xl font-bold">Visao geral</h1>
-          <p className="mt-3 text-white/62">Resumo de leads, clientes e time. Use a sidebar para navegar.</p>
-        </header>
-        <Suspense fallback={<div className="grid gap-4 md:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-white/[0.04]" />)}</div>}>
-          <AdminMetrics />
-        </Suspense>
-      </div>
-    </AdminShell>
+    <div className="mx-auto max-w-6xl space-y-8">
+      <header>
+        <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Painel administrativo</p>
+        <h1 className="mt-2 break-words text-4xl font-bold">Visao geral</h1>
+        <p className="mt-3 text-white/62">Resumo de leads, clientes e time. Use a sidebar para navegar.</p>
+      </header>
+      <Suspense fallback={<div className="grid gap-4 md:grid-cols-3">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-white/[0.04]" />)}</div>}>
+        <AdminMetrics />
+      </Suspense>
+    </div>
   );
 }
 

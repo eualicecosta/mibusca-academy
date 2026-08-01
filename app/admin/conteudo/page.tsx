@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { CourseContentEditor } from "@/components/admin/course-content-editor";
-import { AdminShell } from "@/components/admin-shell";
 import { getR2PublicBaseUrl, storageUploadReady } from "@/lib/assets";
-import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -11,14 +9,8 @@ export const dynamic = "force-dynamic";
 const isDev = process.env.NODE_ENV === "development";
 
 export default async function AdminContentPage() {
-  const authStartedAt = isDev ? performance.now() : 0;
-  const profile = await requireAdmin();
-  if (isDev) {
-    console.info(`[perf] admin.conteudo.requireAdmin ${Math.round(performance.now() - authStartedAt)}ms`);
-  }
-
   return (
-    <AdminShell userName={profile.name} userEmail={profile.email}>
+    <>
       <div className="mb-4 flex justify-end">
         <Link href="/admin/imagens" className="text-sm font-semibold text-[#B76CFF] underline-offset-4 hover:underline">
           Banco de imagens (acesso interno)
@@ -27,7 +19,7 @@ export default async function AdminContentPage() {
       <Suspense fallback={<ContentEditorSkeleton />}>
         <AdminContentData />
       </Suspense>
-    </AdminShell>
+    </>
   );
 }
 
