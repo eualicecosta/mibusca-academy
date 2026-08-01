@@ -202,7 +202,7 @@ a {
 
 /* Auth surfaces */
 .auth-shell {
-  min-height: 100dvh;
+  min-height: 100svh;
   background:
     radial-gradient(ellipse at top left, rgba(138, 29, 238, 0.2), transparent 52%),
     radial-gradient(ellipse at bottom right, rgba(83, 0, 159, 0.14), transparent 48%),
@@ -214,6 +214,24 @@ a {
   background: linear-gradient(180deg, rgba(28, 20, 36, 0.96), rgba(17, 12, 24, 0.98));
   box-shadow: var(--shadow-glow);
   border-radius: var(--radius-xl);
+}
+
+/* Desktop: keep the auth page within the viewport when height allows */
+@media (min-width: 1024px) and (min-height: 720px) {
+  .auth-shell {
+    height: 100svh;
+    max-height: 100svh;
+    overflow: hidden;
+  }
+}
+
+@media (max-height: 719px), (max-width: 1023px) {
+  .auth-shell {
+    height: auto;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

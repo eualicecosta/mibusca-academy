@@ -30,61 +30,56 @@ export function AuthExperience({
 
   return (
     <main className="auth-shell relative overflow-x-hidden text-[var(--foreground)]">
-      <div aria-hidden className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-[var(--secondary)]/10 blur-3xl" />
-      <div aria-hidden className="pointer-events-none absolute -right-20 bottom-10 h-80 w-80 rounded-full bg-[var(--primary)]/15 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -left-20 top-10 h-56 w-56 rounded-full bg-[var(--secondary)]/10 blur-3xl" />
+      <div aria-hidden className="pointer-events-none absolute -right-16 bottom-8 h-64 w-64 rounded-full bg-[var(--primary)]/12 blur-3xl" />
 
-      <div className="relative z-10 mx-auto grid min-h-[100dvh] w-full max-w-7xl lg:grid-cols-2">
-        <aside className="hidden flex-col justify-between border-r border-[var(--border)] px-10 py-12 lg:flex xl:px-14">
-          <div>
-            <div className="animate-fade-up flex items-center gap-3">
-              <span className="grid h-11 w-11 place-items-center rounded-xl border border-white/12 bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] text-sm font-bold shadow-lg shadow-[var(--primary)]/25">
-                M
-              </span>
-              <div>
-                <p className="text-base font-bold">MiBusca Academy</p>
-                <p className="text-sm text-[var(--muted-foreground)]">Conhecimento iFood</p>
-              </div>
-            </div>
-
-            <h1 className="animate-fade-up-delay-1 mt-12 max-w-lg text-4xl font-bold leading-tight tracking-tight text-white xl:text-5xl">
+      {/*
+        Desktop: two equal columns, each centers its own content with flex.
+        Tall viewports: fit in 100svh without forced overflow.
+        Short / mobile: allow natural vertical scroll.
+      */}
+      <div className="relative z-10 mx-auto grid min-h-[100svh] w-full max-w-7xl lg:min-h-[100svh] lg:grid-cols-2 lg:overflow-hidden">
+        <aside className="hidden min-h-0 flex-col justify-center border-r border-[var(--border)] px-8 py-8 lg:flex xl:px-12 xl:py-10">
+          <div className="mx-auto w-full max-w-lg">
+            <h1 className="animate-fade-up max-w-lg text-3xl font-bold leading-tight tracking-tight text-white xl:text-4xl">
               Treinamento fechado para operar o iFood com criterio.
             </h1>
-            <p className="animate-fade-up-delay-2 mt-5 max-w-md text-base leading-relaxed text-[var(--muted-foreground)]">
+            <p className="animate-fade-up-delay-1 mt-3 max-w-md text-sm leading-relaxed text-[var(--muted-foreground)] xl:text-base">
               Domine funil, precificacao, cardapio, campanhas e rotina de crescimento com uma plataforma pensada para o dia a dia do aluno.
             </p>
 
-            <div className="mt-10 space-y-3">
+            <div className="mt-6 space-y-2.5">
               {highlights.map((item, index) => {
                 const Icon = item.icon;
                 return (
                   <div
                     key={item.title}
-                    className={`flex gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 backdrop-blur-sm ${
+                    className={`flex gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 backdrop-blur-sm ${
                       index === 0 ? "animate-fade-up-delay-1" : index === 1 ? "animate-fade-up-delay-2" : "animate-fade-up-delay-3"
                     }`}
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]/25 text-[var(--secondary)]">
-                      <Icon className="h-5 w-5" />
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary)]/25 text-[var(--secondary)]">
+                      <Icon className="h-4 w-4" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-semibold text-white">{item.title}</p>
-                      <p className="mt-0.5 text-sm text-[var(--muted-foreground)]">{item.text}</p>
+                      <p className="mt-0.5 text-xs leading-5 text-[var(--muted-foreground)] xl:text-sm">{item.text}</p>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
-            <Sparkles className="h-4 w-4 text-[var(--secondary)]" />
-            <span>Acesso seguro, progresso salvo e experiencia focada no aprendizado.</span>
+            <div className="mt-6 flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
+              <Sparkles className="h-4 w-4 shrink-0 text-[var(--secondary)]" />
+              <span>Acesso seguro, progresso salvo e experiencia focada no aprendizado.</span>
+            </div>
           </div>
         </aside>
 
-        <section className="flex items-center justify-center px-4 py-10 sm:px-6 lg:px-10">
-          <div className="auth-panel animate-fade-up w-full max-w-[440px] p-5 sm:p-8">
-            <div className="mb-6 lg:hidden">
+        <section className="flex min-h-[100svh] w-full items-center justify-center px-4 py-6 sm:px-6 lg:min-h-0 lg:px-8 lg:py-8">
+          <div className="auth-panel animate-fade-up mx-auto w-full max-w-[400px] p-4 sm:p-6">
+            <div className="mb-4 lg:hidden">
               <div className="flex items-center gap-3">
                 <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] text-sm font-bold">
                   M
@@ -96,16 +91,20 @@ export function AuthExperience({
               </div>
             </div>
 
-            <h2 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{isSignIn ? "Entrar" : "Solicitar acesso"}</h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
+            <h2 className="text-2xl font-bold tracking-tight text-white sm:text-[1.75rem]">
+              {isSignIn ? "Entrar" : "Solicitar acesso"}
+            </h2>
+            <p className="mt-1.5 text-sm leading-6 text-[var(--muted-foreground)]">
               {isSignIn
                 ? "Acesse sua area de membros com o e-mail cadastrado."
                 : "Crie sua conta e aguarde a aprovacao manual da equipe."}
             </p>
 
-            <div className="mt-6">{children}</div>
+            <div className="mt-4 w-full min-w-0 [&_.cl-rootBox]:mx-auto [&_.cl-rootBox]:w-full [&_.cl-cardBox]:mx-auto [&_.cl-cardBox]:w-full">
+              {children}
+            </div>
 
-            <p className="mt-6 text-center text-sm text-[var(--muted-foreground)]">
+            <p className="mt-4 text-center text-sm text-[var(--muted-foreground)]">
               {isSignIn ? (
                 <>
                   Ainda nao tem acesso?{" "}
@@ -142,25 +141,27 @@ export const clerkAuthAppearance = {
     fontFamily: "Inter, sans-serif"
   },
   elements: {
-    rootBox: "w-full",
-    cardBox: "w-full max-w-full shadow-none",
-    card: "bg-transparent shadow-none border-0 p-0",
+    rootBox: "w-full max-w-full mx-auto",
+    cardBox: "w-full max-w-full mx-auto shadow-none",
+    card: "bg-transparent shadow-none border-0 p-0 w-full",
+    main: "w-full gap-3",
     headerTitle: "hidden",
     headerSubtitle: "hidden",
     socialButtonsBlockButton:
-      "border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.1] min-h-11",
+      "border border-white/15 bg-white/[0.06] text-white hover:bg-white/[0.1] min-h-10",
     socialButtonsBlockButtonText: "text-white font-semibold",
     dividerLine: "bg-white/15",
     dividerText: "text-white/55",
     formFieldLabel: "text-white/75 font-medium",
     formFieldInput:
-      "bg-white/[0.06] border border-white/15 text-white placeholder:text-white/35 min-h-11 focus:border-[#8A1DEE] focus:ring-2 focus:ring-[#8A1DEE]/30",
+      "bg-white/[0.06] border border-white/15 text-white placeholder:text-white/35 min-h-10 focus:border-[#8A1DEE] focus:ring-2 focus:ring-[#8A1DEE]/30",
     formButtonPrimary:
-      "bg-[#53009F] hover:bg-[#8A1DEE] text-white font-semibold min-h-11 shadow-lg shadow-[#53009F]/25",
+      "bg-[#53009F] hover:bg-[#8A1DEE] text-white font-semibold min-h-10 shadow-lg shadow-[#53009F]/25",
     footerActionLink: "text-[#B76CFF] hover:text-white",
     identityPreviewEditButton: "text-[#B76CFF]",
     formFieldSuccessText: "text-emerald-300",
     formFieldErrorText: "text-red-300",
-    alertText: "text-white/80"
+    alertText: "text-white/80",
+    footer: "w-full"
   }
 } as const;
