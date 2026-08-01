@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Upload } from "lucide-react";
 import Image from "next/image";
 import { AppShell } from "@/components/app-shell";
@@ -12,17 +13,15 @@ export const dynamic = "force-dynamic";
 
 const imageFolders = ["geral", "banners", "categorias", ...Array.from({ length: 30 }, (_, index) => `modulo-${index}`)];
 
-async function listImages() {
-  try {
-    return await listR2Images(imageFolders);
-  } catch {
-    return [];
-  }
-}
+const isDev = process.env.NODE_ENV === "development";
 
 export default async function AdminImagesPage() {
+  const authStartedAt = isDev ? performance.now() : 0;
   const profile = await requireAdmin();
-  const images = await listImages();
+  if (isDev) {
+    console.info(`[perf] admin.imagens.requireAdmin ${Math.round(performance.now() - authStartedAt)}ms`);
+  }
+
   const uploadReady = storageUploadReady();
   const bucketName = getR2BucketName();
 
@@ -63,32 +62,61 @@ export default async function AdminImagesPage() {
             <h1 className="mt-2 break-words text-4xl font-bold">Banco de imagens</h1>
             <p className="mt-3 break-all text-white/62">Bucket: {bucketName || "nao configurado"}</p>
           </header>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {images.map((image) => (
-              <Card key={image.path}>
-                <CardContent className="p-3">
-                  <Image
-                    src={image.url}
-                    alt={image.path}
-                    width={640}
-                    height={360}
-                    sizes="(min-width: 1280px) 280px, (min-width: 768px) 50vw, 100vw"
-                    className="aspect-video w-full rounded-lg object-cover"
-                  />
-                  <p className="mt-3 break-all text-sm text-white/72">{image.path}</p>
-                </CardContent>
-              </Card>
-            ))}
-            {!images.length ? (
-              <Card>
-                <CardContent className="p-5">
-                  <p className="text-white/65">Nenhuma imagem listada. Confira as variaveis do Cloudflare R2 e o bucket.</p>
-                </CardContent>
-              </Card>
-            ) : null}
-          </div>
+          <Suspense fallback={<ImagesGridSkeleton />}>
+            <ImagesGrid />
+          </Suspense>
         </section>
       </div>
     </AppShell>
+  );
+}
+
+async function ImagesGrid() {
+  const startedAt = isDev ? performance.now() : 0;
+  let images: Awaited<ReturnType<typeof listR2Images>> = [];
+  try {
+    images = await listR2Images(imageFolders);
+  } catch {
+    images = [];
+  }
+  if (isDev) {
+    console.info(`[perf] admin.imagens.list ${Math.round(performance.now() - startedAt)}ms count=${images.length}`);
+  }
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {images.map((image) => (
+        <Card key={image.path}>
+          <CardContent className="p-3">
+            <Image
+              src={image.url}
+              alt={image.path}
+              width={640}
+              height={360}
+              sizes="(min-width: 1280px) 280px, (min-width: 768px) 50vw, 100vw"
+              className="aspect-video w-full rounded-lg object-cover"
+            />
+            <p className="mt-3 break-all text-sm text-white/72">{image.path}</p>
+          </CardContent>
+        </Card>
+      ))}
+      {!images.length ? (
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-white/65">Nenhuma imagem listada. Confira as variaveis do Cloudflare R2 e o bucket.</p>
+          </CardContent>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+
+function ImagesGridSkeleton() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Carregando imagens">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="aspect-video animate-pulse rounded-lg border border-white/10 bg-white/[0.04]" />
+      ))}
+    </div>
   );
 }

@@ -952,6 +952,7 @@ export async function uploadCourseImage(formData: FormData) {
 
   await uploadImageToR2(file, folder, { upsert: true });
 
+  revalidateTag("r2-images");
   revalidatePath("/admin/imagens");
 }
 

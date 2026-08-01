@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { CourseContentEditor } from "@/components/admin/course-content-editor";
 import { AppShell } from "@/components/app-shell";
 import { getR2PublicBaseUrl, storageUploadReady } from "@/lib/assets";
@@ -6,8 +7,28 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const isDev = process.env.NODE_ENV === "development";
+
 export default async function AdminContentPage() {
+  const authStartedAt = isDev ? performance.now() : 0;
   const profile = await requireAdmin();
+  if (isDev) {
+    console.info(`[perf] admin.conteudo.requireAdmin ${Math.round(performance.now() - authStartedAt)}ms`);
+  }
+
+  return (
+    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
+      <Suspense fallback={<ContentEditorSkeleton />}>
+        <AdminContentData />
+      </Suspense>
+    </AppShell>
+  );
+}
+
+async function AdminContentData() {
+  const startedAt = isDev ? performance.now() : 0;
+
+  // Independent queries after requireAdmin — no student progress join on lessons.
   const [course, banners] = await Promise.all([
     prisma.course.findFirst({
       orderBy: { createdAt: "asc" },
@@ -48,12 +69,8 @@ export default async function AdminContentPage() {
                 hideText: true,
                 order: true,
                 status: true,
-                lessons: {
-                  orderBy: { order: "asc" },
-                  select: {
-                    id: true,
-                    progress: { where: { completed: true }, select: { id: true } }
-                  }
+                _count: {
+                  select: { lessons: true }
                 }
               }
             }
@@ -85,82 +102,84 @@ export default async function AdminContentPage() {
     })
   ]);
 
+  if (isDev) {
+    const moduleCount = course?.categorias.reduce((sum, categoria) => sum + categoria.modules.length, 0) || 0;
+    console.info(
+      `[perf] admin.conteudo.query ${Math.round(performance.now() - startedAt)}ms banners=${banners.length} modules=${moduleCount}`
+    );
+  }
+
   const storageBaseUrl = getR2PublicBaseUrl();
   const canUploadToStorage = storageUploadReady();
 
+  if (!course) {
+    return (
+      <div className="mx-auto max-w-4xl rounded-lg border border-white/10 bg-[#151019] p-6">
+        <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Editor de conteudo</p>
+        <h1 className="mt-2 break-words text-3xl font-bold">Nenhum curso encontrado</h1>
+        <p className="mt-3 text-white/62">Rode o seed inicial para cadastrar o curso base antes de editar categorias e aulas.</p>
+      </div>
+    );
+  }
+
+  const categorias = course.categorias.map((categoria) => ({
+    id: categoria.id,
+    title: categoria.title,
+    description: categoria.description,
+    coverImagePath: categoria.coverImagePath,
+    order: categoria.order,
+    status: categoria.status,
+    modules: categoria.modules.map((module) => {
+      const lessonCount = module._count.lessons;
+      return {
+        id: module.id,
+        categoriaId: module.categoriaId,
+        number: module.number,
+        title: module.title,
+        objective: module.objective,
+        coverImagePath: module.coverImagePath,
+        hideText: module.hideText,
+        order: module.order,
+        status: module.status,
+        lessonCount,
+        // Progress metrics not required for editor chrome; keep shape stable for the client component.
+        completedLessons: 0,
+        percent: 0
+      };
+    })
+  }));
+
+  const allModules = categorias.flatMap((categoria) => categoria.modules);
+
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
-      {course ? (
-        <CourseContentEditor
-          course={{
-            id: course.id,
-            title: course.title,
-            description: course.description,
-            bannerUrl: course.bannerUrl,
-            hideText: course.hideText
-          }}
-          banners={banners}
-          dashboardBlocks={course.dashboardBlocks}
-          categorias={course.categorias.map((categoria) => ({
-            id: categoria.id,
-            title: categoria.title,
-            description: categoria.description,
-            coverImagePath: categoria.coverImagePath,
-            order: categoria.order,
-            status: categoria.status,
-            modules: categoria.modules.map((module) => {
-              const lessonCount = module.lessons.length;
-              const completedLessons = module.lessons.filter((lesson) => lesson.progress.length > 0).length;
-              const percent = lessonCount > 0 ? Math.round((completedLessons / lessonCount) * 100) : 0;
+    <CourseContentEditor
+      course={{
+        id: course.id,
+        title: course.title,
+        description: course.description,
+        bannerUrl: course.bannerUrl,
+        hideText: course.hideText
+      }}
+      banners={banners}
+      dashboardBlocks={course.dashboardBlocks}
+      categorias={categorias}
+      allModules={allModules}
+      storageBaseUrl={storageBaseUrl}
+      storageUploadReady={canUploadToStorage}
+    />
+  );
+}
 
-              return {
-                id: module.id,
-                categoriaId: module.categoriaId,
-                number: module.number,
-                title: module.title,
-                objective: module.objective,
-                coverImagePath: module.coverImagePath,
-                hideText: module.hideText,
-                order: module.order,
-                status: module.status,
-                lessonCount,
-                completedLessons,
-                percent
-              };
-            })
-          }))}
-          allModules={course.categorias.flatMap((categoria) =>
-            categoria.modules.map((module) => {
-              const lessonCount = module.lessons.length;
-              const completedLessons = module.lessons.filter((lesson) => lesson.progress.length > 0).length;
-              const percent = lessonCount > 0 ? Math.round((completedLessons / lessonCount) * 100) : 0;
-
-              return {
-                id: module.id,
-                categoriaId: module.categoriaId,
-                number: module.number,
-                title: module.title,
-                objective: module.objective,
-                coverImagePath: module.coverImagePath,
-                hideText: module.hideText,
-                order: module.order,
-                status: module.status,
-                lessonCount,
-                completedLessons,
-                percent
-              };
-            })
-          )}
-          storageBaseUrl={storageBaseUrl}
-          storageUploadReady={canUploadToStorage}
-        />
-      ) : (
-        <div className="mx-auto max-w-4xl rounded-lg border border-white/10 bg-[#151019] p-6">
-          <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Editor de conteudo</p>
-          <h1 className="mt-2 break-words text-3xl font-bold">Nenhum curso encontrado</h1>
-          <p className="mt-3 text-white/62">Rode o seed inicial para cadastrar o curso base antes de editar categorias e aulas.</p>
-        </div>
-      )}
-    </AppShell>
+function ContentEditorSkeleton() {
+  return (
+    <div className="mx-auto max-w-6xl space-y-6" aria-busy="true" aria-label="Carregando editor">
+      <div className="h-10 w-80 animate-pulse rounded-lg bg-white/[0.05]" />
+      <div className="h-40 animate-pulse rounded-lg border border-white/10 bg-white/[0.04]" />
+      <div className="flex gap-4 overflow-hidden">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="h-64 w-52 shrink-0 animate-pulse rounded-lg border border-white/10 bg-white/[0.04]" />
+        ))}
+      </div>
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 import { ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { unstable_cache } from "next/cache";
 import { getR2PublicBaseUrl, storageUploadReady } from "./assets";
 
 export function getR2BucketName() {
@@ -88,40 +89,115 @@ export async function uploadBufferToR2(path: string, body: Buffer, contentType?:
   );
 }
 
-export async function listR2Images(prefixes: string[]) {
+export type R2ImageListItem = {
+  path: string;
+  url: string;
+  size?: number;
+};
+
+const isDev = process.env.NODE_ENV === "development";
+
+function perfLog(label: string, startedAt: number, extra?: string) {
+  if (!isDev) return;
+  const suffix = extra ? ` ${extra}` : "";
+  console.info(`[perf] ${label} ${Math.round(performance.now() - startedAt)}ms${suffix}`);
+}
+
+/** Limited concurrency for R2 list calls — avoids sequential waterfall without unbounded fan-out. */
+async function mapWithConcurrency<T, R>(items: T[], concurrency: number, mapper: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  if (!items.length) return [];
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const current = nextIndex;
+      nextIndex += 1;
+      results[current] = await mapper(items[current], current);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+async function listPrefixImages(
+  client: S3Client,
+  bucketName: string,
+  publicBaseUrl: string | null,
+  prefix: string
+): Promise<R2ImageListItem[]> {
+  const startedAt = isDev ? performance.now() : 0;
+  const images: R2ImageListItem[] = [];
+  let continuationToken: string | undefined;
+  let pages = 0;
+
+  do {
+    const response = await client.send(
+      new ListObjectsV2Command({
+        Bucket: bucketName,
+        Prefix: `${prefix.replace(/^\/+|\/+$/g, "")}/`,
+        ContinuationToken: continuationToken,
+        MaxKeys: 200
+      })
+    );
+    pages += 1;
+
+    for (const object of response.Contents || []) {
+      if (!object.Key || object.Key.endsWith("/")) continue;
+      const path = object.Key;
+      images.push({
+        path,
+        url: publicBaseUrl ? `${publicBaseUrl}/${path}` : path,
+        size: object.Size
+      });
+    }
+
+    continuationToken = response.NextContinuationToken;
+  } while (continuationToken);
+
+  perfLog("listR2Images.prefix", startedAt, `prefix=${prefix} items=${images.length} pages=${pages}`);
+  return images;
+}
+
+async function listR2ImagesUncached(prefixes: string[]): Promise<R2ImageListItem[]> {
   if (!storageUploadReady()) {
     return [];
   }
 
+  const totalStartedAt = isDev ? performance.now() : 0;
   const client = getR2Client();
   const bucketName = getR2BucketName();
   const publicBaseUrl = getR2PublicBaseUrl();
-  const images: Array<{ path: string; url: string; size?: number }> = [];
 
-  for (const prefix of prefixes) {
-    let continuationToken: string | undefined;
-    do {
-      const response = await client.send(
-        new ListObjectsV2Command({
-          Bucket: bucketName,
-          Prefix: `${prefix.replace(/^\/+|\/+$/g, "")}/`,
-          ContinuationToken: continuationToken
-        })
-      );
+  // Controlled parallelism (not unbounded, not fully sequential).
+  const perPrefix = await mapWithConcurrency(prefixes, 4, (prefix) =>
+    listPrefixImages(client, bucketName, publicBaseUrl, prefix)
+  );
 
-      for (const object of response.Contents || []) {
-        if (!object.Key || object.Key.endsWith("/")) continue;
-        const path = object.Key;
-        images.push({
-          path,
-          url: publicBaseUrl ? `${publicBaseUrl}/${path}` : path,
-          size: object.Size
-        });
-      }
-
-      continuationToken = response.NextContinuationToken;
-    } while (continuationToken);
-  }
-
+  const images = perPrefix.flat();
+  perfLog("listR2Images.total", totalStartedAt, `prefixes=${prefixes.length} items=${images.length}`);
   return images;
+}
+
+/**
+ * Short-lived shared cache for admin image browser.
+ * Invalidated via revalidateTag("r2-images") after upload.
+ */
+export async function listR2Images(prefixes: string[]): Promise<R2ImageListItem[]> {
+  const key = prefixes.join("|");
+  const cached = unstable_cache(() => listR2ImagesUncached(prefixes), ["r2-image-list", key], {
+    revalidate: 60,
+    tags: ["r2-images"]
+  });
+
+  try {
+    return await cached();
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("incrementalCache missing")) {
+      return listR2ImagesUncached(prefixes);
+    }
+    throw error;
+  }
 }
