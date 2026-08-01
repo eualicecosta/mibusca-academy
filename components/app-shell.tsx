@@ -9,16 +9,25 @@ import { cn } from "@/lib/utils";
 
 const SIDEBAR_STORAGE_KEY = "mibusca.member.sidebar.collapsed";
 
-const nav: Array<{ href: string; label: string; icon: ShellNavIcon; prefetch?: boolean }> = [
-  { href: "/dashboard", label: "Dashboard", icon: "home", prefetch: true },
+const studentNav: Array<{ href: string; label: string; icon: ShellNavIcon; prefetch?: boolean }> = [
+  { href: "/dashboard", label: "Início", icon: "home", prefetch: true },
   { href: "/curso", label: "Curso", icon: "course", prefetch: true },
-  { href: "/perfil", label: "Perfil", icon: "profile", prefetch: true },
+  { href: "/perfil", label: "Perfil", icon: "profile", prefetch: true }
+];
+
+const sellerNav: Array<{ href: string; label: string; icon: ShellNavIcon; prefetch?: boolean }> = [
+  { href: "/vendedor", label: "Início", icon: "home", prefetch: true },
+  { href: "/perfil", label: "Perfil", icon: "profile", prefetch: true }
+];
+
+const adminExtra: Array<{ href: string; label: string; icon: ShellNavIcon; prefetch?: boolean }> = [
   { href: "/admin", label: "Admin", icon: "admin", prefetch: true }
 ];
 
 export function AppShell({
   children,
   showAdmin = false,
+  variant = "student",
   userName,
   userEmail,
   className,
@@ -27,6 +36,8 @@ export function AppShell({
 }: {
   children: React.ReactNode;
   showAdmin?: boolean;
+  /** student | seller — controls member-area navigation */
+  variant?: "student" | "seller";
   /** Prefer values already loaded from UserProfile — avoids Clerk currentUser() API on every navigation. */
   userName: string;
   userEmail: string;
@@ -36,7 +47,8 @@ export function AppShell({
 }) {
   const email = userEmail || "";
   const name = userName || email.split("@")[0] || "Usuario";
-  const items = showAdmin ? nav : nav.filter((item) => item.href !== "/admin");
+  const base = variant === "seller" ? sellerNav : studentNav;
+  const items = showAdmin ? [...base, ...adminExtra] : base;
 
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);

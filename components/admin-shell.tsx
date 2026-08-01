@@ -21,7 +21,7 @@ const SIDEBAR_STORAGE_KEY = "mibusca.admin.sidebar.collapsed";
 
 const adminNav = [
   { href: "/admin", label: "Painel", icon: LayoutDashboard, exact: true },
-  { href: "/admin/aprovacoes", label: "Aprovacoes pendentes", icon: ClipboardList },
+  { href: "/admin/aprovacoes", label: "Aprovações pendentes", icon: ClipboardList },
   { href: "/admin/clientes", label: "Clientes ativos", icon: Users },
   { href: "/admin/equipe", label: "Membros do time", icon: UserCog },
   { href: "/admin/conteudo", label: "Curso", icon: BookOpen }
@@ -186,8 +186,8 @@ export function AdminShell({
             <ChevronsRight className="h-5 w-5" />
           </button>
           <div className="min-w-0">
-            <p className="truncate text-lg font-bold">Administracao</p>
-            <p className="hidden truncate text-xs text-[var(--muted-foreground)] sm:block">Gestao de leads, clientes e time</p>
+            <p className="truncate text-lg font-bold">Administração</p>
+            <p className="hidden truncate text-xs text-[var(--muted-foreground)] sm:block">Gestão de leads, clientes e time</p>
           </div>
         </div>
         <AccountMenu name={userName} email={userEmail} imageUrl={userImageUrl} showAdmin />

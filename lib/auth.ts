@@ -168,14 +168,29 @@ export async function requireProfile() {
   return profile;
 }
 
+/** Canonical post-login / post-guard destination by role + access status. */
+export function homePathForProfile(profile: { role: "STUDENT" | "ADMIN" | "SELLER"; status: string }) {
+  if (
+    profile.status === "PENDING" ||
+    profile.status === "REFUSED" ||
+    profile.status === "PAUSED" ||
+    profile.status === "BLOCKED" ||
+    profile.status === "CANCELLED"
+  ) {
+    return "/aguardando-aprovacao";
+  }
+  if (profile.role === "ADMIN") return "/admin";
+  if (profile.role === "SELLER") return "/vendedor";
+  return "/dashboard";
+}
+
 export async function requireApprovedStudent() {
   const profile = await requireProfile();
   if (profile.role === "ADMIN") {
     redirect("/admin");
   }
   if (profile.role === "SELLER") {
-    // Sellers have no student area access in this version.
-    redirect("/sign-in");
+    redirect(profile.status === "ACTIVE" ? "/vendedor" : "/aguardando-aprovacao");
   }
   if (profile.status === "BLOCKED" || profile.status === "CANCELLED" || profile.status === "REFUSED") {
     redirect("/aguardando-aprovacao");
@@ -188,12 +203,25 @@ export async function requireApprovedStudent() {
 
 export async function requireAdmin() {
   const profile = await requireProfile();
-  if (profile.role !== "ADMIN") {
-    // Sellers and clients never access admin surfaces.
-    redirect(profile.role === "SELLER" ? "/sign-in" : "/dashboard");
+  if (profile.role !== "ADMIN" || profile.status !== "ACTIVE") {
+    redirect(homePathForProfile(profile));
   }
-  if (profile.status === "BLOCKED") {
-    redirect("/sign-in");
+  return profile;
+}
+
+export async function requireSeller() {
+  const profile = await requireProfile();
+  if (profile.role !== "SELLER" || profile.status !== "ACTIVE") {
+    redirect(homePathForProfile(profile));
+  }
+  return profile;
+}
+
+/** For shared pages like /perfil — any authenticated profile with status check. */
+export async function requireActiveAccount() {
+  const profile = await requireProfile();
+  if (profile.status !== "ACTIVE") {
+    redirect("/aguardando-aprovacao");
   }
   return profile;
 }

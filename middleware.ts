@@ -5,6 +5,8 @@ const isProtectedRoute = createRouteMatcher([
   "/curso(.*)",
   "/perfil(.*)",
   "/admin(.*)",
+  "/vendedor(.*)",
+  "/pos-login(.*)",
   "/aguardando-aprovacao(.*)"
 ]);
 
@@ -20,6 +22,8 @@ export const config = {
     "/curso(.*)",
     "/perfil(.*)",
     "/admin(.*)",
+    "/vendedor(.*)",
+    "/pos-login(.*)",
     "/aguardando-aprovacao(.*)"
   ]
 };

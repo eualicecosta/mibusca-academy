@@ -7,7 +7,8 @@ export default function SignInPage() {
       <SignIn
         routing="path"
         path="/sign-in"
-        fallbackRedirectUrl="/dashboard"
+        fallbackRedirectUrl="/pos-login"
+        forceRedirectUrl="/pos-login"
         signUpUrl="/sign-up"
         appearance={clerkAuthAppearance}
       />

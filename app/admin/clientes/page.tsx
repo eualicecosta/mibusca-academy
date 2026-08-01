@@ -69,6 +69,7 @@ async function ClientsContent() {
         adminNotes: true,
         blockReason: true,
         sellerId: true,
+        role: true,
         seller: { select: { id: true, name: true } }
       }
     }),
@@ -106,7 +107,8 @@ async function ClientsContent() {
     adminNotes: s.adminNotes,
     blockReason: s.blockReason,
     sellerId: s.sellerId,
-    sellerName: s.seller?.name || null
+    sellerName: s.seller?.name || null,
+    role: s.role
   }));
 
   return (
@@ -122,18 +124,57 @@ async function ClientsContent() {
         ))}
       </section>
 
-      <div className="overflow-x-auto rounded-xl border border-white/10">
+      {/* Mobile cards */}
+      <div className="space-y-3 md:hidden">
+        {rows.map((client) => (
+          <article key={client.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="break-words font-bold text-white">{client.name}</p>
+                <p className="mt-1 break-all text-sm text-white/55">{client.email}</p>
+              </div>
+              <ClientRowActions client={client} sellers={sellerOptions} />
+            </div>
+            <dl className="mt-3 grid gap-2 text-sm text-white/70">
+              <div className="flex justify-between gap-3">
+                <dt className="text-white/45">Vendedor</dt>
+                <dd className="text-right">{client.sellerName || "Sem vendedor"}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-white/45">Valor pago</dt>
+                <dd>{formatBRLFromCents(client.paidAmountCents)}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-white/45">Status</dt>
+                <dd>{ACCESS_STATUS_LABELS[client.status]}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-white/45">Etapa</dt>
+                <dd className="text-right">{COMMERCIAL_STAGE_LABELS[client.commercialStage]}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-white/45">Cadastro</dt>
+                <dd>{new Date(client.createdAt).toLocaleDateString("pt-BR")}</dd>
+              </div>
+            </dl>
+          </article>
+        ))}
+        {!rows.length ? <div className="p-6 text-sm text-white/65">Nenhum cliente cadastrado.</div> : null}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden overflow-x-auto rounded-xl border border-white/10 md:block">
         <table className="min-w-full text-left text-sm">
           <thead className="bg-white/[0.04] text-xs uppercase tracking-wide text-white/50">
             <tr>
               <th className="px-4 py-3">Cliente</th>
               <th className="px-4 py-3">E-mail</th>
-              <th className="px-4 py-3">Vendedor responsavel</th>
+              <th className="px-4 py-3">Vendedor responsável</th>
               <th className="px-4 py-3">Valor pago</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Etapa comercial</th>
               <th className="px-4 py-3">Cadastro</th>
-              <th className="px-4 py-3 text-right">Acoes</th>
+              <th className="px-4 py-3 text-right">Ações</th>
             </tr>
           </thead>
           <tbody>

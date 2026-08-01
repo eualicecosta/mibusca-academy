@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import type { ApprovalStatus, CommercialStage } from "@prisma/client";
+import type { ApprovalStatus, CommercialStage, UserRole } from "@prisma/client";
 import {
   Ban,
   CreditCard,
@@ -11,9 +11,11 @@ import {
   Play,
   Save,
   ShieldOff,
-  Trash2
+  Trash2,
+  UserCog
 } from "lucide-react";
 import { ActionMenu, ActionMenuItem } from "@/components/admin/action-menu";
+import { RoleChangeDialog } from "@/components/admin/role-change-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ACCESS_STATUS_LABELS, COMMERCIAL_STAGE_LABELS, formatBRLFromCents } from "@/lib/admin-labels";
@@ -40,6 +42,7 @@ export type ClientRow = {
   blockReason: string | null;
   sellerId: string | null;
   sellerName: string | null;
+  role?: UserRole;
 };
 
 function fieldClass() {
@@ -56,6 +59,7 @@ export function ClientRowActions({ client, sellers }: { client: ClientRow; selle
   const [editOpen, setEditOpen] = useState(false);
   const [paidOpen, setPaidOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
+  const [roleOpen, setRoleOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   function run(action: () => Promise<{ ok: boolean; error?: string; message?: string }>, close?: () => void) {
@@ -110,6 +114,10 @@ export function ClientRowActions({ client, sellers }: { client: ClientRow; selle
           <CreditCard className="h-4 w-4 text-[#8A1DEE]" />
           Marcar como pago
         </ActionMenuItem>
+        <ActionMenuItem disabled={pending} onClick={() => setRoleOpen(true)}>
+          <UserCog className="h-4 w-4 text-[#8A1DEE]" />
+          Alterar função
+        </ActionMenuItem>
         {client.status === "BLOCKED" ? (
           <ActionMenuItem
             disabled={pending}
@@ -135,6 +143,13 @@ export function ClientRowActions({ client, sellers }: { client: ClientRow; selle
       <EditClientDialog client={client} sellers={sellers} open={editOpen} onOpenChange={setEditOpen} />
       <MarkPaidDialog client={client} sellers={sellers} open={paidOpen} onOpenChange={setPaidOpen} />
       <BlockClientDialog client={client} open={blockOpen} onOpenChange={setBlockOpen} />
+      <RoleChangeDialog
+        open={roleOpen}
+        onOpenChange={setRoleOpen}
+        userId={client.id}
+        userName={client.name}
+        currentRole={client.role || "STUDENT"}
+      />
     </div>
   );
 }
