@@ -42,6 +42,12 @@ enum TeamInviteStatus {
   REVOKED
 }
 
+enum SaleStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
 enum ContentStatus {
   DRAFT
   PUBLISHED
@@ -84,6 +90,12 @@ model UserProfile {
   commercialStage CommercialStage @default(NEW_LEAD)
   /// Amount paid in centavos (BRL). Avoid floating point money.
   paidAmountCents Int @default(0)
+  /// Seller responsible for this client (self-relation to a SELLER profile).
+  sellerId   String?
+  /// Soft archive — hidden from normal admin lists, history preserved.
+  deletedAt  DateTime?
+  /// Cached public avatar URL from Clerk (not base64).
+  imageUrl   String?
   approvedAt DateTime?
   blockedAt  DateTime?
   blockReason String?
@@ -92,14 +104,62 @@ model UserProfile {
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
 
+  seller              UserProfile?          @relation("ClientSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+  clients             UserProfile[]         @relation("ClientSeller")
   lessonProgress      LessonProgress[]
   checklistCompletion ChecklistCompletion[]
   teamInvitesSent     TeamInvite[]          @relation("TeamInvitesSent")
+  salesAsClient       Sale[]                @relation("SaleClient")
+  salesAsSeller       Sale[]                @relation("SaleSeller")
+  salesCreated        Sale[]                @relation("SaleCreatedBy")
+  auditLogs           AdminAuditLog[]
 
   @@index([role, status])
   @@index([status, lastSeenAt])
   @@index([commercialStage, status])
   @@index([role, commercialStage])
+  @@index([sellerId])
+  @@index([deletedAt])
+}
+
+/// Manual sales ledger (no payment gateway in this phase).
+model Sale {
+  id               String     @id @default(cuid())
+  clientId         String
+  sellerId         String?
+  amountInCents    Int
+  status           SaleStatus @default(CONFIRMED)
+  soldAt           DateTime
+  notes            String?
+  createdByAdminId String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  client         UserProfile  @relation("SaleClient", fields: [clientId], references: [id], onDelete: Restrict)
+  seller         UserProfile? @relation("SaleSeller", fields: [sellerId], references: [id], onDelete: SetNull)
+  createdByAdmin UserProfile? @relation("SaleCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([sellerId])
+  @@index([soldAt])
+  @@index([status, soldAt])
+}
+
+/// Minimal admin audit trail (no secrets/passwords).
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String
+  entityType String
+  entityId   String?
+  result     String
+  meta       String?
+  createdAt  DateTime @default(now())
+
+  admin UserProfile @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt])
+  @@index([entityType, entityId])
 }
 
 model TeamInvite {
