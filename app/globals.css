@@ -200,9 +200,11 @@ a {
   color: #f5f3f3;
 }
 
-/* Auth surfaces */
+/* Auth surfaces — no fixed height clipping; grow with Clerk multi-step flows */
 .auth-shell {
   min-height: 100svh;
+  overflow-x: hidden;
+  overflow-y: auto;
   background:
     radial-gradient(ellipse at top left, rgba(138, 29, 238, 0.2), transparent 52%),
     radial-gradient(ellipse at bottom right, rgba(83, 0, 159, 0.14), transparent 48%),
@@ -216,22 +218,67 @@ a {
   border-radius: var(--radius-xl);
 }
 
-/* Desktop: keep the auth page within the viewport when height allows */
-@media (min-width: 1024px) and (min-height: 720px) {
-  .auth-shell {
-    height: 100svh;
-    max-height: 100svh;
-    overflow: hidden;
-  }
+/* Keep Clerk UI inside the panel without a second floating card */
+.auth-clerk,
+.auth-clerk .cl-rootBox,
+.auth-clerk .cl-cardBox,
+.auth-clerk .cl-card,
+.auth-clerk .cl-main,
+.auth-clerk .cl-footer {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
 }
 
-@media (max-height: 719px), (max-width: 1023px) {
-  .auth-shell {
-    height: auto;
-    max-height: none;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
+.auth-clerk .cl-cardBox,
+.auth-clerk .cl-card {
+  margin: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+.auth-clerk .cl-footer {
+  position: static !important;
+  margin-top: 0.75rem;
+  padding-top: 0.25rem;
+}
+
+.module-carousel-viewport {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #53009f rgba(245, 243, 243, 0.08);
+  padding-bottom: 0.75rem;
+}
+
+.module-carousel-viewport::-webkit-scrollbar {
+  height: 8px;
+}
+
+.module-carousel-viewport::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(245, 243, 243, 0.08);
+}
+
+.module-carousel-viewport::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #53009f;
+}
+
+.module-carousel-track {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 1rem;
+  padding-bottom: 0.15rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

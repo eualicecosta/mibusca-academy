@@ -834,7 +834,7 @@ function CategoryDashboardCard({
   storageUploadReady: boolean;
 }) {
   return (
-    <div className="w-full max-w-full overflow-hidden rounded-lg border border-white/10 bg-[#151019] p-5 shadow-xl transition hover:border-[#8A1DEE]/50">
+    <div className="w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-[#151019] p-5 shadow-xl transition hover:border-[#8A1DEE]/50">
       <div className="mb-4 flex min-w-0 flex-wrap items-end justify-between gap-4 pl-8">
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wide text-[#8A1DEE]">{categoria.status}</p>
@@ -893,7 +893,7 @@ function DashboardBlockShelf({
   return (
     <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={items.map((item) => item.block.id)} strategy={verticalListSortingStrategy}>
-        <div className="grid min-w-0 max-w-full gap-6 overflow-hidden data-[pending=true]:opacity-80" data-pending={pending}>
+        <div className="grid min-w-0 max-w-full gap-6 data-[pending=true]:opacity-80" data-pending={pending}>
           {items.map((item) => (
             <SortableDashboardBlock key={item.block.id} item={item} storageBaseUrl={storageBaseUrl} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
           ))}
@@ -945,12 +945,21 @@ function ModuleShelf({ categoria, storageBaseUrl, storageUploadReady }: { catego
   return (
     <DndContext collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={items.map((item) => item.id)} strategy={horizontalListSortingStrategy}>
-        <div ref={scrollerRef} className={`module-shelf flex max-w-full snap-x gap-4 overflow-x-auto data-[pending=true]:opacity-80 ${hasOverflow ? "pb-5" : "scrollbar-hidden pb-0"}`} data-pending={pending}>
-          {items.length ? (
-            items.map((module) => <SortableModule key={module.id} module={module} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />)
-          ) : (
-            <div className="flex h-[180px] w-full items-center justify-center rounded-lg border border-dashed border-white/15 text-sm text-white/50">Categoria vazia</div>
-          )}
+        <div
+          ref={scrollerRef}
+          className="module-carousel-viewport data-[pending=true]:opacity-80"
+          data-pending={pending}
+          data-has-overflow={hasOverflow ? "true" : "false"}
+        >
+          <div className="module-carousel-track snap-x">
+            {items.length ? (
+              items.map((module) => <SortableModule key={module.id} module={module} storageBaseUrl={storageBaseUrl} storageUploadReady={storageUploadReady} />)
+            ) : (
+              <div className="flex h-[180px] w-full min-w-[16rem] items-center justify-center rounded-lg border border-dashed border-white/15 text-sm text-white/50">
+                Categoria vazia
+              </div>
+            )}
+          </div>
         </div>
       </SortableContext>
     </DndContext>
@@ -995,15 +1004,15 @@ export function CourseContentEditor({ course, banners, dashboardBlocks, categori
   const activeBanners = banners.filter((banner) => banner.status === "ACTIVE").length;
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-7xl">
-      <main className="min-w-0 max-w-full space-y-8 overflow-hidden">
-        <header className="flex flex-wrap items-end justify-between gap-4">
-          <div>
+    <div className="mx-auto w-full min-w-0 max-w-full">
+      <div className="min-w-0 max-w-full space-y-8">
+        <header className="flex min-w-0 flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
             <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Editor de conteudo</p>
             <h1 className="mt-2 break-words text-4xl font-bold">Categorias e modulos</h1>
             <p className="mt-3 break-words text-white/62">Curso &gt; Categoria &gt; Modulo &gt; Aula. Categorias organizam modulos, modulos organizam aulas.</p>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex shrink-0 flex-wrap gap-3">
             <NewBannerDialog courseId={course.id} categorias={categorias} allModules={allModules} storageUploadReady={storageUploadReady} />
             <NewCategoryDialog courseId={course.id} storageUploadReady={storageUploadReady} />
           </div>
@@ -1036,14 +1045,14 @@ export function CourseContentEditor({ course, banners, dashboardBlocks, categori
           </div>
         </section>
 
-        <section className="min-w-0 space-y-4">
-          <div>
+        <section className="min-w-0 max-w-full space-y-4">
+          <div className="min-w-0">
             <h2 className="text-2xl font-bold">Organizacao da area de membros</h2>
             <p className="mt-1 text-sm text-white/55">Arraste banners e categorias para escolher a ordem exata em que aparecem para o aluno.</p>
           </div>
           <DashboardBlockShelf courseId={course.id} blocks={dashboardBlocks} banners={banners} categorias={categorias} storageBaseUrl={storageBaseUrl} allModules={allModules} storageUploadReady={storageUploadReady} />
         </section>
-      </main>
+      </div>
     </div>
   );
 }
