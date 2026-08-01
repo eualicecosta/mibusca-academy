@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
 :root {
+  /* Core surfaces */
   --background: #07040c;
+  --background-secondary: #0b0712;
+  --surface: #111017;
+  --surface-elevated: #151019;
+  --surface-muted: rgba(255, 255, 255, 0.04);
   --foreground: #f5f3f3;
   --card: #151019;
   --card-foreground: #f5f3f3;
-  --popover: #151019;
+  --popover: #17121f;
   --popover-foreground: #f5f3f3;
+
+  /* Brand (MiBusca) */
   --primary: #53009f;
+  --primary-hover: #8a1dee;
   --primary-foreground: #f5f3f3;
   --secondary: #8a1dee;
   --secondary-foreground: #f5f3f3;
-  --muted: #241b2d;
-  --muted-foreground: #bdb5c6;
   --accent: #8a1dee;
   --accent-foreground: #f5f3f3;
+
+  /* Text */
+  --muted: #241b2d;
+  --muted-foreground: #b7aec4;
+  --text-disabled: rgba(245, 243, 243, 0.38);
+
+  /* Feedback */
+  --success: #22c55e;
+  --warning: #f59e0b;
   --destructive: #ef4444;
   --destructive-foreground: #f5f3f3;
+
+  /* Chrome */
   --border: rgba(245, 243, 243, 0.12);
+  --border-hover: rgba(138, 29, 238, 0.45);
   --input: rgba(245, 243, 243, 0.14);
   --ring: #8a1dee;
-  --radius: 0.5rem;
+  --focus: #b76cff;
+
+  /* Elevation */
+  --shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.22);
+  --shadow-md: 0 16px 40px rgba(0, 0, 0, 0.32);
+  --shadow-glow: 0 0 0 1px rgba(138, 29, 238, 0.18), 0 12px 40px rgba(83, 0, 159, 0.22);
+
+  /* Radius & motion */
+  --radius: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --transition-fast: 180ms ease;
+  --transition: 240ms ease;
 }
 
 * {
@@ -38,11 +68,14 @@ body {
   overflow-x: hidden;
   min-height: 100vh;
   margin: 0;
-  background: radial-gradient(circle at 16% 0%, rgba(138, 29, 238, 0.2), transparent 32%),
-    linear-gradient(180deg, #09050f 0%, #07040c 100%);
+  background:
+    radial-gradient(circle at 14% -4%, rgba(138, 29, 238, 0.22), transparent 34%),
+    radial-gradient(circle at 88% 8%, rgba(83, 0, 159, 0.14), transparent 28%),
+    linear-gradient(180deg, #0a0610 0%, var(--background) 48%, #06030a 100%);
   color: var(--foreground);
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
   font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 button,
@@ -55,6 +88,11 @@ select {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .scrollbar-thin {
@@ -126,18 +164,31 @@ a {
   animation: menu-in 0.18s ease-out;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-  .animate-nav-progress,
-  .animate-menu-in,
-  .animate-pulse,
-  .module-shelf {
-    animation: none !important;
-    scroll-behavior: auto;
-  }
+.animate-fade-up {
+  animation: fade-up 0.4s ease-out both;
+}
+
+.animate-fade-up-delay-1 {
+  animation: fade-up 0.4s ease-out 0.08s both;
+}
+
+.animate-fade-up-delay-2 {
+  animation: fade-up 0.4s ease-out 0.16s both;
+}
+
+.animate-fade-up-delay-3 {
+  animation: fade-up 0.4s ease-out 0.24s both;
 }
 
 .content-copy p {
@@ -147,4 +198,38 @@ a {
 
 .content-copy strong {
   color: #f5f3f3;
+}
+
+/* Auth surfaces */
+.auth-shell {
+  min-height: 100dvh;
+  background:
+    radial-gradient(ellipse at top left, rgba(138, 29, 238, 0.2), transparent 52%),
+    radial-gradient(ellipse at bottom right, rgba(83, 0, 159, 0.14), transparent 48%),
+    #07040c;
+}
+
+.auth-panel {
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(28, 20, 36, 0.96), rgba(17, 12, 24, 0.98));
+  box-shadow: var(--shadow-glow);
+  border-radius: var(--radius-xl);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .animate-nav-progress,
+  .animate-menu-in,
+  .animate-fade-up,
+  .animate-fade-up-delay-1,
+  .animate-fade-up-delay-2,
+  .animate-fade-up-delay-3,
+  .animate-pulse,
+  .module-shelf {
+    animation: none !important;
+    scroll-behavior: auto;
+  }
 }
