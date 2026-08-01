@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Inter } from "next/font/google";
+import { NavigationProgress } from "@/components/navigation-progress";
 import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["500", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
   display: "swap"
 });
@@ -22,10 +24,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       signUpUrl="/sign-up"
       signInFallbackRedirectUrl="/dashboard"
       signUpFallbackRedirectUrl="/dashboard"
-      afterSignOutUrl="/"
+      afterSignOutUrl="/sign-in"
     >
       <html lang="pt-BR">
-        <body className={inter.variable}>{children}</body>
+        <body className={inter.variable}>
+          <Suspense fallback={null}>
+            <NavigationProgress />
+          </Suspense>
+          {children}
+        </body>
       </html>
     </ClerkProvider>
   );
