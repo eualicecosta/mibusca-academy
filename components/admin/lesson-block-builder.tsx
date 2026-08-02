@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   closestCenter,
   DndContext,
@@ -21,7 +21,6 @@ import { CSS } from "@dnd-kit/utilities";
 import {
   AlertTriangle,
   CheckSquare,
-  ChevronDown,
   Copy,
   Eye,
   EyeOff,
@@ -34,16 +33,15 @@ import {
   ListOrdered,
   Loader2,
   Minus,
+  MoreHorizontal,
   Plus,
-  Save,
+  Settings2,
   Sparkles,
   Text,
   Trash2,
   Type
 } from "lucide-react";
-import { LessonBlockRenderer } from "@/components/lesson/lesson-block-renderer";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { resolveAssetUrl } from "@/lib/assets";
 import {
   createLessonBlock,
   deleteLessonBlock,
@@ -58,7 +56,6 @@ import {
 } from "@/lib/lesson-block-actions";
 import {
   BLOCK_TYPE_META,
-  blockSummary,
   type LessonBlockDTO,
   type LessonBlockType
 } from "@/lib/lesson-blocks";
@@ -73,21 +70,23 @@ type LessonListItem = {
   completedCount: number;
 };
 
-const ADDABLE_TYPES: LessonBlockType[] = [
-  "HEADING",
-  "SUBHEADING",
-  "TEXT",
-  "IMAGE",
-  "CHECKLIST",
-  "CHECKBOX",
-  "TIP",
-  "WARNING",
-  "INFO",
-  "EXAMPLE",
-  "BULLET_LIST",
-  "NUMBERED_LIST",
-  "DIVIDER",
-  "STEP"
+type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
+
+const SLASH_TYPES: Array<{ type: LessonBlockType; keywords: string }> = [
+  { type: "TEXT", keywords: "texto paragrafo" },
+  { type: "HEADING", keywords: "titulo grande heading h2" },
+  { type: "SUBHEADING", keywords: "subtitulo h3" },
+  { type: "BULLET_LIST", keywords: "lista marcadores bullet" },
+  { type: "NUMBERED_LIST", keywords: "lista numerada ordered" },
+  { type: "CHECKBOX", keywords: "checkbox item" },
+  { type: "CHECKLIST", keywords: "checklist verificacao" },
+  { type: "IMAGE", keywords: "imagem foto media" },
+  { type: "TIP", keywords: "dica callout" },
+  { type: "WARNING", keywords: "atencao aviso warning" },
+  { type: "INFO", keywords: "informacao info" },
+  { type: "EXAMPLE", keywords: "exemplo pratico" },
+  { type: "DIVIDER", keywords: "divisor linha separador" },
+  { type: "STEP", keywords: "passo step" }
 ];
 
 const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -107,12 +106,9 @@ const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   STEP: ListOrdered
 };
 
-export function LessonBlockBuilder({
-  lessons
-}: {
-  moduleId?: string;
-  lessons: LessonListItem[];
-}) {
+const AUTOSAVE_MS = 700;
+
+export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: LessonListItem[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(lessons[0]?.id || null);
   const [blocks, setBlocks] = useState<LessonBlockDTO[]>([]);
   const [checklistItems, setChecklistItems] = useState<Array<{ id: string; text: string; order: number }>>([]);
@@ -125,13 +121,15 @@ export function LessonBlockBuilder({
     blocksMigrated: boolean;
   } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
-  const [insertAfterOrder, setInsertAfterOrder] = useState<number | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const revMap = useRef<Map<string, number>>(new Map());
+  const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -141,8 +139,7 @@ export function LessonBlockBuilder({
   const loadLesson = useCallback(async (lessonId: string) => {
     setLoading(true);
     setError(null);
-    setMessage(null);
-    setEditingId(null);
+    setSaveStatus("idle");
     try {
       const result = await getLessonBlocksAdmin(lessonId);
       if (!result.ok) {
@@ -161,6 +158,26 @@ export function LessonBlockBuilder({
         number: result.lesson.number,
         blocksMigrated: result.lesson.blocksMigrated
       });
+
+      // Soft migrate legacy content once when opening the canvas.
+      if (!result.lesson.blocksMigrated) {
+        const mig = await migrateLegacyLessonContent({ dryRun: false, lessonId });
+        if (mig.ok && mig.blocksCreated >= 0) {
+          const refreshed = await getLessonBlocksAdmin(lessonId);
+          if (refreshed.ok) {
+            setBlocks(refreshed.blocks);
+            setChecklistItems(refreshed.checklistItems);
+            setMeta((m) =>
+              m
+                ? {
+                    ...m,
+                    blocksMigrated: refreshed.lesson.blocksMigrated
+                  }
+                : m
+            );
+          }
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao carregar a aula.");
     } finally {
@@ -172,41 +189,170 @@ export function LessonBlockBuilder({
     if (selectedId) void loadLesson(selectedId);
   }, [selectedId, loadLesson]);
 
-  const selectedLesson = lessons.find((l) => l.id === selectedId) || null;
+  // Ctrl/Cmd+S flush
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        setSaveStatus("saved");
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
-  function openAddMenu(afterOrder: number | null = null) {
-    setInsertAfterOrder(afterOrder);
-    setAddMenuOpen(true);
+  const bumpRev = (blockId: string) => {
+    const next = (revMap.current.get(blockId) || 0) + 1;
+    revMap.current.set(blockId, next);
+    return next;
+  };
+
+  const scheduleBlockSave = useCallback(
+    (
+      blockId: string,
+      patch: {
+        content?: string;
+        imageCaption?: string | null;
+        settings?: LessonBlockDTO["settings"];
+        checklistItems?: Array<{ id?: string; text: string }>;
+        type?: string;
+        isVisible?: boolean;
+      }
+    ) => {
+      setSaveStatus("pending");
+      const existing = saveTimers.current.get(blockId);
+      if (existing) clearTimeout(existing);
+      const rev = bumpRev(blockId);
+      const timer = setTimeout(() => {
+        setSaveStatus("saving");
+        void updateLessonBlock({ ...patch, blockId, quiet: true, clientRev: rev })
+          .then((result) => {
+            if (!result.ok) {
+              setError(result.error);
+              setSaveStatus("error");
+              return;
+            }
+            // Ignore stale responses
+            if (result.clientRev !== undefined && result.clientRev !== revMap.current.get(blockId)) {
+              return;
+            }
+            setBlocks((prev) => prev.map((b) => (b.id === blockId ? { ...b, ...result.block } : b)));
+            setSaveStatus("saved");
+          })
+          .catch((e) => {
+            setError(e instanceof Error ? e.message : "Erro ao salvar");
+            setSaveStatus("error");
+          });
+      }, AUTOSAVE_MS);
+      saveTimers.current.set(blockId, timer);
+    },
+    []
+  );
+
+  function scheduleTitleSave(title: string) {
+    if (!selectedId) return;
+    setSaveStatus("pending");
+    if (titleTimer.current) clearTimeout(titleTimer.current);
+    titleTimer.current = setTimeout(() => {
+      setSaveStatus("saving");
+      void updateLessonMeta({ lessonId: selectedId, title }).then((result) => {
+        if (!result.ok) {
+          setError(result.error);
+          setSaveStatus("error");
+          return;
+        }
+        setSaveStatus("saved");
+      });
+    }, AUTOSAVE_MS);
   }
 
-  function handleAddType(type: LessonBlockType) {
-    if (!selectedId) return;
-    setAddMenuOpen(false);
-    startTransition(async () => {
-      setError(null);
-      const result = await createLessonBlock({
-        lessonId: selectedId,
-        type,
-        afterOrder: insertAfterOrder
-      });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setBlocks((prev) => {
-        const next = [...prev];
-        const idx =
-          insertAfterOrder == null
-            ? next.length
-            : next.findIndex((b) => b.order === insertAfterOrder) + 1;
-        const at = idx < 0 ? next.length : idx;
-        next.splice(at, 0, result.block);
-        return next.map((b, i) => ({ ...b, order: i + 1 }));
-      });
-      setEditingId(result.block.id);
-      setMessage("Bloco adicionado.");
-      await loadLesson(selectedId);
+  async function ensureTextBlock(): Promise<string | null> {
+    if (!selectedId) return null;
+    if (blocks.length > 0) return blocks[0]?.id || null;
+    const result = await createLessonBlock({
+      lessonId: selectedId,
+      type: "TEXT",
+      content: "",
+      quiet: true
     });
+    if (!result.ok) {
+      setError(result.error);
+      return null;
+    }
+    setBlocks([result.block]);
+    setFocusBlockId(result.block.id);
+    return result.block.id;
+  }
+
+  async function insertBlock(type: LessonBlockType, afterOrder: number | null, transformBlockId?: string) {
+    if (!selectedId) return;
+
+    if (transformBlockId) {
+      const block = blocks.find((b) => b.id === transformBlockId);
+      if (block && (block.type === "TEXT" || !block.content.trim())) {
+        const result = await updateLessonBlock({
+          blockId: transformBlockId,
+          type,
+          content: type === "DIVIDER" ? "" : block.content,
+          settings: type === "HEADING" ? { level: 2 } : type === "SUBHEADING" ? { level: 3 } : block.settings,
+          quiet: true
+        });
+        if (result.ok) {
+          setBlocks((prev) => prev.map((b) => (b.id === transformBlockId ? result.block : b)));
+          setFocusBlockId(transformBlockId);
+          if (type === "IMAGE") triggerImageUpload(transformBlockId);
+          return;
+        }
+      }
+    }
+
+    const result = await createLessonBlock({
+      lessonId: selectedId,
+      type,
+      afterOrder,
+      content: "",
+      quiet: true
+    });
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setBlocks((prev) => {
+      const next = [...prev];
+      const idx =
+        afterOrder == null ? next.length : next.findIndex((b) => b.order === afterOrder) + 1;
+      const at = idx < 0 ? next.length : idx;
+      next.splice(at, 0, result.block);
+      return next.map((b, i) => ({ ...b, order: i + 1 }));
+    });
+    setFocusBlockId(result.block.id);
+    if (type === "IMAGE") triggerImageUpload(result.block.id);
+  }
+
+  function triggerImageUpload(blockId: string) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      setSaveStatus("saving");
+      const fd = new FormData();
+      fd.set("blockId", blockId);
+      fd.set("file", file);
+      void uploadLessonBlockImage(fd).then((result) => {
+        if (!result.ok) {
+          setError(result.error);
+          setSaveStatus("error");
+          return;
+        }
+        if (result.block) {
+          setBlocks((prev) => prev.map((b) => (b.id === blockId ? result.block! : b)));
+        }
+        setSaveStatus("saved");
+      });
+    };
+    input.click();
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -218,58 +364,88 @@ export function LessonBlockBuilder({
     const previous = blocks;
     const next = arrayMove(blocks, oldIndex, newIndex).map((b, i) => ({ ...b, order: i + 1 }));
     setBlocks(next);
+    setSaveStatus("saving");
     startTransition(async () => {
       const result = await reorderLessonBlocks(
         selectedId,
-        next.map((b) => b.id)
+        next.map((b) => b.id),
+        { quiet: true }
       );
       if (!result.ok) {
         setBlocks(previous);
         setError(result.error);
+        setSaveStatus("error");
         return;
       }
       setBlocks(result.blocks);
-      setMessage("Ordem salva.");
+      setSaveStatus("saved");
     });
   }
 
-  async function handleSaveMeta() {
-    if (!selectedId || !meta) return;
-    startTransition(async () => {
-      const result = await updateLessonMeta({
-        lessonId: selectedId,
-        title: meta.title,
-        order: meta.order,
-        status: meta.status as "DRAFT" | "PUBLISHED" | "HIDDEN",
-        showAutoTitle: meta.showAutoTitle
-      });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setMessage("Dados da aula salvos.");
+  async function splitBlock(blockId: string, before: string, after: string) {
+    if (!selectedId) return;
+    const block = blocks.find((b) => b.id === blockId);
+    if (!block) return;
+
+    // Update current with before
+    setBlocks((prev) => prev.map((b) => (b.id === blockId ? { ...b, content: before } : b)));
+    scheduleBlockSave(blockId, { content: before, settings: block.settings });
+
+    const result = await createLessonBlock({
+      lessonId: selectedId,
+      type: block.type === "HEADING" || block.type === "SUBHEADING" ? "TEXT" : block.type === "CHECKBOX" ? "CHECKBOX" : "TEXT",
+      afterOrder: block.order,
+      content: after,
+      quiet: true
     });
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setBlocks((prev) => {
+      const idx = prev.findIndex((b) => b.id === blockId);
+      const next = [...prev];
+      next.splice(idx + 1, 0, result.block);
+      return next.map((b, i) => ({ ...b, order: i + 1 }));
+    });
+    setFocusBlockId(result.block.id);
   }
 
-  async function handleMigrate(dryRun: boolean) {
-    startTransition(async () => {
-      const result = await migrateLegacyLessonContent({ dryRun, lessonId: selectedId || undefined });
-      setMessage(
-        dryRun
-          ? `Dry-run: ${result.lessonsScanned} aulas, ${result.blocksCreated} blocos seriam criados, ${result.skipped} ignoradas.`
-          : `Migração: ${result.lessonsMigrated} aulas, ${result.blocksCreated} blocos criados.`
+  async function removeOrMergeBack(blockId: string) {
+    const idx = blocks.findIndex((b) => b.id === blockId);
+    if (idx < 0) return;
+    const block = blocks[idx];
+    if (blocks.length === 1) {
+      setBlocks([{ ...block, content: "" }]);
+      scheduleBlockSave(blockId, { content: "", settings: block.settings });
+      return;
+    }
+    const prev = blocks[idx - 1];
+    if (prev && isTextLike(prev.type) && isTextLike(block.type)) {
+      const merged = `${prev.content}${prev.content && block.content ? "\n" : ""}${block.content}`;
+      setBlocks((list) =>
+        list
+          .filter((b) => b.id !== blockId)
+          .map((b) => (b.id === prev.id ? { ...b, content: merged } : b))
+          .map((b, i) => ({ ...b, order: i + 1 }))
       );
-      if (!dryRun && selectedId) await loadLesson(selectedId);
-    });
+      scheduleBlockSave(prev.id, { content: merged, settings: prev.settings });
+      setFocusBlockId(prev.id);
+      void deleteLessonBlock(blockId, { confirmProgressLoss: true });
+      return;
+    }
+    setBlocks((list) => list.filter((b) => b.id !== blockId).map((b, i) => ({ ...b, order: i + 1 })));
+    void deleteLessonBlock(blockId, { confirmProgressLoss: true });
+    setFocusBlockId(prev?.id || blocks[idx + 1]?.id || null);
   }
 
   return (
-    <div className="grid min-h-0 gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
-      {/* Lesson list */}
-      <aside className="rounded-xl border border-white/10 bg-[#151019]">
-        <div className="border-b border-white/10 px-4 py-3">
-          <p className="text-sm font-semibold text-white">Aulas do módulo</p>
-          <p className="mt-0.5 text-xs text-white/45">Selecione uma aula para editar os blocos</p>
+    <div className="grid min-h-0 gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
+      {/* Compact lesson list */}
+      <aside className="rounded-xl border border-white/10 bg-[#121018]">
+        <div className="border-b border-white/[0.06] px-4 py-3">
+          <p className="text-sm font-semibold text-white">Aulas</p>
+          <p className="mt-0.5 text-xs text-white/40">Uma página de documento por vez</p>
         </div>
         <ul className="max-h-[min(70vh,640px)] space-y-0.5 overflow-y-auto p-2 scrollbar-thin">
           {lessons.map((lesson) => {
@@ -281,618 +457,786 @@ export function LessonBlockBuilder({
                   onClick={() => setSelectedId(lesson.id)}
                   className={cn(
                     "w-full rounded-lg px-3 py-2.5 text-left transition",
-                    active ? "bg-[#8A1DEE]/20 ring-1 ring-[#8A1DEE]/40" : "hover:bg-white/[0.04]"
+                    active ? "bg-[#8A1DEE]/18 ring-1 ring-[#8A1DEE]/35" : "hover:bg-white/[0.04]"
                   )}
                 >
                   <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#b07af5]">
-                    Aula {lesson.number} · {lesson.status}
+                    Aula {lesson.number}
                   </span>
-                  <span className="mt-0.5 block line-clamp-2 text-sm font-medium text-white/90">{lesson.title}</span>
-                  <span className="mt-1 block text-xs text-white/40">{lesson.completedCount} conclusões</span>
+                  <span className="mt-0.5 block line-clamp-2 text-sm text-white/90">{lesson.title}</span>
                 </button>
               </li>
             );
           })}
-          {!lessons.length ? (
-            <li className="px-3 py-6 text-center text-sm text-white/45">Nenhuma aula neste módulo.</li>
-          ) : null}
         </ul>
       </aside>
 
-      {/* Editor */}
-      <section className="min-w-0 space-y-4">
-        {!selectedLesson || !meta ? (
-          <div className="rounded-xl border border-dashed border-white/10 px-6 py-16 text-center text-sm text-white/45">
-            {loading ? "Carregando aula…" : "Selecione uma aula na lista ao lado."}
+      {/* Document canvas */}
+      <section className="min-w-0">
+        {!meta ? (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-[#0c0a10] px-6 py-20 text-center text-sm text-white/45">
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Carregando documento…
+              </span>
+            ) : (
+              "Selecione uma aula para editar."
+            )}
           </div>
         ) : (
-          <>
-            <div className="rounded-xl border border-white/10 bg-[#151019] p-4 sm:p-5">
-              <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-[#8A1DEE]">Dados gerais</p>
-                  <h2 className="mt-1 text-xl font-bold text-white">Aula {meta.number}</h2>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
-                    <Eye className="h-4 w-4" />
-                    Visualizar como aluno
-                  </Button>
-                  <Button type="button" size="sm" onClick={() => void handleSaveMeta()} disabled={pending}>
-                    {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Salvar dados
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_100px_140px]">
-                <label className="grid gap-1.5 text-xs font-semibold text-white/55">
-                  Título cadastral
-                  <input
-                    value={meta.title}
-                    onChange={(e) => setMeta({ ...meta, title: e.target.value })}
-                    className="min-h-11 rounded-lg border border-white/10 bg-black/25 px-3 text-sm text-white outline-none focus:border-[#8A1DEE]"
-                  />
-                </label>
-                <label className="grid gap-1.5 text-xs font-semibold text-white/55">
-                  Ordem
-                  <input
-                    type="number"
-                    value={meta.order}
-                    onChange={(e) => setMeta({ ...meta, order: Number(e.target.value) || 1 })}
-                    className="min-h-11 rounded-lg border border-white/10 bg-black/25 px-3 text-sm text-white outline-none focus:border-[#8A1DEE]"
-                  />
-                </label>
-                <label className="grid gap-1.5 text-xs font-semibold text-white/55">
-                  Status
-                  <select
-                    value={meta.status}
-                    onChange={(e) => setMeta({ ...meta, status: e.target.value })}
-                    className="min-h-11 rounded-lg border border-white/10 bg-black/25 px-3 text-sm text-white outline-none focus:border-[#8A1DEE]"
+          <div className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#1a1520] shadow-2xl">
+            {/* Status bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] bg-[#121018]/80 px-4 py-2.5 sm:px-6">
+              <div className="flex items-center gap-2 text-xs text-white/45">
+                <span className="font-medium text-white/60">Aula {meta.number}</span>
+                <span className="text-white/20">·</span>
+                <SaveBadge status={saveStatus} pending={pending} />
+                {error ? (
+                  <button
+                    type="button"
+                    className="text-red-300 underline-offset-2 hover:underline"
+                    onClick={() => setError(null)}
                   >
-                    <option value="PUBLISHED">PUBLISHED</option>
-                    <option value="DRAFT">DRAFT</option>
-                    <option value="HIDDEN">HIDDEN</option>
-                  </select>
-                </label>
+                    {error} — dispensar
+                  </button>
+                ) : null}
               </div>
-
-              <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-white/70">
-                <input
-                  type="checkbox"
-                  checked={meta.showAutoTitle}
-                  onChange={(e) => setMeta({ ...meta, showAutoTitle: e.target.checked })}
-                  className="h-4 w-4 accent-[#8A1DEE]"
-                />
-                Exibir título automático na aula
-              </label>
-
-              {!meta.blocksMigrated ? (
-                <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2.5 text-sm text-amber-100">
-                  <span className="flex-1">Conteúdo legado ainda não migrado para blocos.</span>
-                  <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => void handleMigrate(true)}>
-                    Dry-run
-                  </Button>
-                  <Button type="button" size="sm" disabled={pending} onClick={() => void handleMigrate(false)}>
-                    Migrar agora
-                  </Button>
-                </div>
-              ) : null}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen((v) => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-white/55 transition hover:bg-white/5 hover:text-white"
+                >
+                  <Settings2 className="h-3.5 w-3.5" />
+                  Configurações
+                </button>
+              </div>
             </div>
 
-            <div className="rounded-xl border border-white/10 bg-[#151019] p-4 sm:p-5">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-bold text-white">Conteúdo da aula</h3>
-                  <p className="mt-0.5 text-sm text-white/45">Blocos ordenáveis · {blocks.length} no total</p>
+            {settingsOpen ? (
+              <div className="border-b border-white/[0.06] bg-[#0f0c14] px-4 py-3 sm:px-6">
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="grid gap-1 text-xs text-white/50">
+                    Ordem
+                    <input
+                      type="number"
+                      value={meta.order}
+                      onChange={(e) => {
+                        const order = Number(e.target.value) || 1;
+                        setMeta({ ...meta, order });
+                        if (selectedId) void updateLessonMeta({ lessonId: selectedId, order });
+                      }}
+                      className="min-h-9 rounded-lg border border-white/10 bg-black/30 px-2 text-sm text-white"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs text-white/50">
+                    Status
+                    <select
+                      value={meta.status}
+                      onChange={(e) => {
+                        const status = e.target.value as "DRAFT" | "PUBLISHED" | "HIDDEN";
+                        setMeta({ ...meta, status });
+                        if (selectedId) void updateLessonMeta({ lessonId: selectedId, status });
+                      }}
+                      className="min-h-9 rounded-lg border border-white/10 bg-black/30 px-2 text-sm text-white"
+                    >
+                      <option value="PUBLISHED">Publicada</option>
+                      <option value="DRAFT">Rascunho</option>
+                      <option value="HIDDEN">Oculta</option>
+                    </select>
+                  </label>
+                  <label className="flex items-end gap-2 pb-2 text-sm text-white/70">
+                    <input
+                      type="checkbox"
+                      checked={meta.showAutoTitle}
+                      onChange={(e) => {
+                        const showAutoTitle = e.target.checked;
+                        setMeta({ ...meta, showAutoTitle });
+                        if (selectedId) void updateLessonMeta({ lessonId: selectedId, showAutoTitle });
+                      }}
+                      className="accent-[#8A1DEE]"
+                    />
+                    Exibir título automático na aula
+                  </label>
                 </div>
-                <Button type="button" onClick={() => openAddMenu(null)} disabled={pending || loading}>
-                  <Plus className="h-4 w-4" />
-                  Adicionar bloco
-                </Button>
               </div>
+            ) : null}
 
-              {error ? (
-                <p className="mb-3 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">{error}</p>
-              ) : null}
-              {message ? (
-                <p className="mb-3 rounded-lg border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
-                  {message}
-                </p>
-              ) : null}
+            {/* Page surface */}
+            <div
+              className="lesson-editor-canvas max-h-[min(78vh,900px)] overflow-y-auto overflow-x-hidden px-4 py-8 sm:px-10 sm:py-12 md:px-16"
+              onClick={async (e) => {
+                if (e.target === e.currentTarget) {
+                  if (!blocks.length) {
+                    const id = await ensureTextBlock();
+                    if (id) setFocusBlockId(id);
+                  }
+                }
+              }}
+            >
+              <div className="mx-auto w-full max-w-[720px]">
+                {/* Inline title */}
+                <input
+                  value={meta.title}
+                  onChange={(e) => {
+                    setMeta({ ...meta, title: e.target.value });
+                    scheduleTitleSave(e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (blocks[0]) setFocusBlockId(blocks[0].id);
+                      else void ensureTextBlock();
+                    }
+                  }}
+                  placeholder="Título da aula"
+                  className="mb-8 w-full border-0 bg-transparent p-0 text-[clamp(1.75rem,4vw,2.5rem)] font-bold leading-tight text-white outline-none placeholder:text-white/25"
+                />
 
-              {loading ? (
-                <div className="flex items-center justify-center gap-2 py-16 text-sm text-white/50">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Carregando blocos…
-                </div>
-              ) : (
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <SortableContext items={blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-2">
-                      {blocks.map((block, index) => (
-                        <div key={block.id}>
-                          {index > 0 ? (
-                            <div className="flex justify-center py-1">
-                              <button
-                                type="button"
-                                onClick={() => openAddMenu(blocks[index - 1]?.order ?? null)}
-                                className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-xs text-white/40 transition hover:border-[#8A1DEE]/40 hover:text-white/80"
-                                title="Inserir bloco aqui"
-                              >
-                                <Plus className="inline h-3 w-3" />
-                              </button>
-                            </div>
-                          ) : null}
-                          <SortableBlockRow
+                {loading ? (
+                  <div className="py-16 text-center text-sm text-white/40">
+                    <Loader2 className="mx-auto mb-2 h-5 w-5 animate-spin" />
+                    Carregando blocos…
+                  </div>
+                ) : (
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-1">
+                        {blocks.map((block, index) => (
+                          <CanvasBlock
+                            key={block.id}
                             block={block}
-                            expanded={editingId === block.id}
                             checklistItems={checklistItems}
-                            pending={pending}
-                            onToggleExpand={() => setEditingId(editingId === block.id ? null : block.id)}
-                            onToggleVisible={() => {
-                              startTransition(async () => {
-                                const result = await toggleLessonBlockVisibility(block.id);
-                                if (!result.ok) {
-                                  setError(result.error);
-                                  return;
-                                }
-                                setBlocks((prev) => prev.map((b) => (b.id === block.id ? result.block : b)));
+                            autoFocus={focusBlockId === block.id}
+                            onFocused={() => setFocusBlockId(block.id)}
+                            onContentChange={(content, settings) => {
+                              setBlocks((prev) =>
+                                prev.map((b) =>
+                                  b.id === block.id ? { ...b, content, settings: settings || b.settings } : b
+                                )
+                              );
+                              scheduleBlockSave(block.id, {
+                                content,
+                                settings: settings || block.settings,
+                                imageCaption: block.imageCaption
                               });
                             }}
+                            onCaptionChange={(caption) => {
+                              setBlocks((prev) =>
+                                prev.map((b) => (b.id === block.id ? { ...b, imageCaption: caption } : b))
+                              );
+                              scheduleBlockSave(block.id, { imageCaption: caption, settings: block.settings });
+                            }}
+                            onEnterSplit={(before, after) => void splitBlock(block.id, before, after)}
+                            onBackspaceEmpty={() => void removeOrMergeBack(block.id)}
+                            onSlashInsert={(type) =>
+                              void insertBlock(type, index > 0 ? blocks[index - 1]!.order : null, block.id)
+                            }
+                            onInsertAfter={(type) => void insertBlock(type, block.order)}
                             onDuplicate={() => {
-                              startTransition(async () => {
-                                const result = await duplicateLessonBlock(block.id);
-                                if (!result.ok) {
-                                  setError(result.error);
-                                  return;
+                              void duplicateLessonBlock(block.id).then((result) => {
+                                if (result.ok && selectedId) void loadLesson(selectedId);
+                              });
+                            }}
+                            onToggleVisible={() => {
+                              void toggleLessonBlockVisibility(block.id).then((result) => {
+                                if (result.ok) {
+                                  setBlocks((prev) => prev.map((b) => (b.id === block.id ? result.block : b)));
                                 }
-                                if (selectedId) await loadLesson(selectedId);
-                                setEditingId(result.block.id);
                               });
                             }}
                             onDelete={() => {
-                              const needsConfirm =
-                                block.type === "CHECKLIST" || block.type === "CHECKBOX"
-                                  ? window.confirm(
-                                      "Excluir este bloco pode afetar progresso de alunos em checkboxes. Continuar?"
-                                    )
-                                  : window.confirm("Excluir este bloco permanentemente?");
-                              if (!needsConfirm) return;
-                              startTransition(async () => {
-                                const result = await deleteLessonBlock(block.id, { confirmProgressLoss: true });
-                                if (!result.ok) {
-                                  setError(result.error);
-                                  return;
+                              if (!window.confirm("Excluir este bloco?")) return;
+                              setBlocks((prev) => prev.filter((b) => b.id !== block.id).map((b, i) => ({ ...b, order: i + 1 })));
+                              void deleteLessonBlock(block.id, { confirmProgressLoss: true });
+                            }}
+                            onUploadImage={() => triggerImageUpload(block.id)}
+                            onChangeType={(type) => {
+                              void updateLessonBlock({
+                                blockId: block.id,
+                                type,
+                                content: block.content,
+                                settings:
+                                  type === "HEADING"
+                                    ? { ...block.settings, level: 2 }
+                                    : type === "SUBHEADING"
+                                      ? { ...block.settings, level: 3 }
+                                      : block.settings,
+                                quiet: true
+                              }).then((result) => {
+                                if (result.ok) {
+                                  setBlocks((prev) => prev.map((b) => (b.id === block.id ? result.block : b)));
                                 }
-                                setBlocks((prev) => prev.filter((b) => b.id !== block.id));
-                                if (editingId === block.id) setEditingId(null);
                               });
                             }}
-                            onSave={async (payload) => {
-                              const result = await updateLessonBlock({ blockId: block.id, ...payload });
-                              if (!result.ok) {
-                                setError(result.error);
-                                return false;
-                              }
-                              setBlocks((prev) => prev.map((b) => (b.id === block.id ? result.block : b)));
-                              if (selectedId) await loadLesson(selectedId);
-                              setMessage("Bloco salvo.");
-                              return true;
-                            }}
-                            onUploadImage={async (file) => {
-                              const fd = new FormData();
-                              fd.set("blockId", block.id);
-                              fd.set("file", file);
-                              const result = await uploadLessonBlockImage(fd);
-                              if (!result.ok) {
-                                setError(result.error);
-                                return null;
-                              }
-                              if (result.block) {
-                                setBlocks((prev) => prev.map((b) => (b.id === block.id ? result.block! : b)));
-                              }
-                              return result.path;
+                            onChecklistItemsChange={(items) => {
+                              setChecklistItems(
+                                items.map((item, i) => ({
+                                  id: item.id || `tmp-${i}`,
+                                  text: item.text,
+                                  order: i + 1
+                                }))
+                              );
+                              scheduleBlockSave(block.id, {
+                                content: block.content,
+                                settings: block.settings,
+                                checklistItems: items
+                              });
                             }}
                           />
-                        </div>
-                      ))}
+                        ))}
 
-                      {!blocks.length ? (
-                        <div className="rounded-lg border border-dashed border-white/10 px-4 py-12 text-center">
-                          <p className="text-sm text-white/50">Nenhum bloco ainda. Comece adicionando conteúdo.</p>
-                          <Button type="button" className="mt-4" onClick={() => openAddMenu(null)}>
-                            <Plus className="h-4 w-4" />
-                            Adicionar bloco
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex justify-center pt-2">
-                          <Button type="button" variant="outline" size="sm" onClick={() => openAddMenu(blocks[blocks.length - 1]?.order ?? null)}>
-                            <Plus className="h-4 w-4" />
-                            Adicionar ao final
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </SortableContext>
-                </DndContext>
-              )}
+                        {!blocks.length ? (
+                          <button
+                            type="button"
+                            className="w-full rounded-lg px-1 py-3 text-left text-base text-white/30 transition hover:text-white/50"
+                            onClick={() => void ensureTextBlock()}
+                          >
+                            Digite “/” para adicionar um conteúdo ou comece a escrever…
+                          </button>
+                        ) : null}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                )}
+              </div>
             </div>
-          </>
+          </div>
         )}
       </section>
-
-      {/* Add block dialog */}
-      <Dialog open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogTitle>Adicionar bloco</DialogTitle>
-          <p className="text-sm text-white/55">Escolha o tipo de conteúdo a inserir.</p>
-          <div className="mt-2 grid max-h-[min(60vh,420px)] gap-2 overflow-y-auto pr-1">
-            {ADDABLE_TYPES.map((type) => {
-              const metaType = BLOCK_TYPE_META[type];
-              const Icon = TYPE_ICONS[type] || Text;
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => handleAddType(type)}
-                  className="flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-3 text-left transition hover:border-[#8A1DEE]/40 hover:bg-[#8A1DEE]/10"
-                >
-                  <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[#b07af5]" />
-                  <span>
-                    <span className="block text-sm font-semibold text-white">{metaType.label}</span>
-                    <span className="mt-0.5 block text-xs text-white/50">{metaType.description}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Student preview */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-h-[min(92dvh,900px)] max-w-3xl overflow-y-auto">
-          <DialogTitle>Pré-visualização · aluno</DialogTitle>
-          <p className="text-sm text-white/50">Somente leitura — não altera progresso.</p>
-          <div className="mt-4 rounded-xl border border-white/10 bg-[#0c0a10] p-5 sm:p-8">
-            {meta?.showAutoTitle ? (
-              <header className="mb-8 space-y-2 border-b border-white/[0.08] pb-6">
-                <p className="text-xs text-white/45">Aula {meta.number}</p>
-                <h1 className="text-2xl font-bold text-white sm:text-3xl">{meta.title}</h1>
-              </header>
-            ) : null}
-            <LessonBlockRenderer
-              blocks={blocks}
-              checklistItems={checklistItems}
-              checkedIds={[]}
-              mode="preview"
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
 
-function SortableBlockRow({
+function SaveBadge({ status, pending }: { status: SaveStatus; pending: boolean }) {
+  if (status === "saving" || pending) {
+    return (
+      <span className="inline-flex items-center gap-1 text-white/50">
+        <Loader2 className="h-3 w-3 animate-spin" /> Salvando…
+      </span>
+    );
+  }
+  if (status === "pending") return <span className="text-amber-200/70">Alterações pendentes</span>;
+  if (status === "saved") return <span className="text-emerald-300/70">Salvo</span>;
+  if (status === "error") return <span className="text-red-300">Erro ao salvar</span>;
+  return <span className="text-white/35">Documento</span>;
+}
+
+function isTextLike(type: string) {
+  return ["TEXT", "HEADING", "SUBHEADING", "TIP", "WARNING", "INFO", "EXAMPLE", "STEP", "CHECKBOX"].includes(type);
+}
+
+function CanvasBlock({
   block,
-  expanded,
   checklistItems,
-  pending,
-  onToggleExpand,
-  onToggleVisible,
+  autoFocus,
+  onFocused,
+  onContentChange,
+  onCaptionChange,
+  onEnterSplit,
+  onBackspaceEmpty,
+  onSlashInsert,
+  onInsertAfter,
   onDuplicate,
+  onToggleVisible,
   onDelete,
-  onSave,
-  onUploadImage
+  onUploadImage,
+  onChangeType,
+  onChecklistItemsChange
 }: {
   block: LessonBlockDTO;
-  expanded: boolean;
   checklistItems: Array<{ id: string; text: string; order: number }>;
-  pending: boolean;
-  onToggleExpand: () => void;
-  onToggleVisible: () => void;
+  autoFocus?: boolean;
+  onFocused: () => void;
+  onContentChange: (content: string, settings?: LessonBlockDTO["settings"]) => void;
+  onCaptionChange: (caption: string) => void;
+  onEnterSplit: (before: string, after: string) => void;
+  onBackspaceEmpty: () => void;
+  onSlashInsert: (type: LessonBlockType) => void;
+  onInsertAfter: (type: LessonBlockType) => void;
   onDuplicate: () => void;
+  onToggleVisible: () => void;
   onDelete: () => void;
-  onSave: (payload: {
-    content?: string;
-    imageCaption?: string | null;
-    settings?: LessonBlockDTO["settings"];
-    checklistItems?: Array<{ id?: string; text: string }>;
-  }) => Promise<boolean>;
-  onUploadImage: (file: File) => Promise<string | null>;
+  onUploadImage: () => void;
+  onChangeType: (type: LessonBlockType) => void;
+  onChecklistItemsChange: (items: Array<{ id?: string; text: string }>) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.85 : 1
+    opacity: isDragging ? 0.88 : 1
   };
 
-  const typeMeta = BLOCK_TYPE_META[block.type as LessonBlockType] || {
-    label: block.type,
-    description: ""
-  };
-  const Icon = TYPE_ICONS[block.type] || Text;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [slash, setSlash] = useState<{ query: string; open: boolean } | null>(null);
+  const [slashIndex, setSlashIndex] = useState(0);
+  const editableRef = useRef<HTMLDivElement | null>(null);
 
-  const [content, setContent] = useState(block.content);
-  const [caption, setCaption] = useState(block.imageCaption || "");
-  const [title, setTitle] = useState(block.settings.title || "");
-  const [level, setLevel] = useState<2 | 3>(block.settings.level || 2);
-  const [width, setWidth] = useState(block.settings.width || "full");
-  const [listText, setListText] = useState(
-    (block.settings.items || block.content.split("\n")).filter(Boolean).join("\n")
-  );
-  const [items, setItems] = useState<Array<{ id?: string; text: string }>>(
-    checklistItems.map((i) => ({ id: i.id, text: i.text }))
-  );
-  const [saving, setSaving] = useState(false);
+  const filteredSlash = SLASH_TYPES.filter((item) => {
+    if (!slash?.query) return true;
+    const q = slash.query.toLowerCase();
+    const label = BLOCK_TYPE_META[item.type]?.label.toLowerCase() || "";
+    return label.includes(q) || item.keywords.includes(q);
+  });
 
   useEffect(() => {
-    if (expanded) {
-      setContent(block.content);
-      setCaption(block.imageCaption || "");
-      setTitle(block.settings.title || "");
-      setLevel(block.settings.level || 2);
-      setWidth(block.settings.width || "full");
-      setListText((block.settings.items || block.content.split("\n")).filter(Boolean).join("\n"));
-      setItems(checklistItems.map((i) => ({ id: i.id, text: i.text })));
+    if (autoFocus && editableRef.current) {
+      editableRef.current.focus();
+      // Place caret at end
+      const range = document.createRange();
+      const sel = window.getSelection();
+      range.selectNodeContents(editableRef.current);
+      range.collapse(false);
+      sel?.removeAllRanges();
+      sel?.addRange(range);
     }
-  }, [expanded, block, checklistItems]);
+  }, [autoFocus]);
+
+  // Keep contenteditable in sync only when not focused (avoid cursor jumps)
+  useEffect(() => {
+    const el = editableRef.current;
+    if (!el) return;
+    if (document.activeElement === el) return;
+    const next = block.content || "";
+    if (el.innerText !== next) {
+      el.innerText = next;
+    }
+  }, [block.content, block.id]);
+
+  const placeholder = placeholderFor(block.type);
+
+  function handleInput() {
+    const el = editableRef.current;
+    if (!el) return;
+    const text = el.innerText.replace(/\u00a0/g, " ");
+    // Slash detection on last line
+    const lines = text.split("\n");
+    const last = lines[lines.length - 1] || "";
+    const match = last.match(/^\/([^\n]*)$/);
+    if (match) {
+      setSlash({ open: true, query: match[1] || "" });
+      setSlashIndex(0);
+    } else {
+      setSlash(null);
+    }
+    onContentChange(text);
+  }
+
+  function applySlash(type: LessonBlockType) {
+    const el = editableRef.current;
+    if (el) {
+      // Remove the /query from content
+      const text = el.innerText.replace(/\u00a0/g, " ");
+      const cleaned = text.replace(/(?:^|\n)\/[^\n]*$/, "").replace(/\n$/, "");
+      el.innerText = cleaned;
+      onContentChange(cleaned);
+    }
+    setSlash(null);
+    onSlashInsert(type);
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (slash?.open) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSlashIndex((i) => Math.min(i + 1, Math.max(filteredSlash.length - 1, 0)));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashIndex((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const item = filteredSlash[slashIndex];
+        if (item) applySlash(item.type);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSlash(null);
+        return;
+      }
+    }
+
+    if (e.key === "Enter" && !e.shiftKey) {
+      if (block.type === "BULLET_LIST" || block.type === "NUMBERED_LIST" || block.type === "CHECKLIST") {
+        // allow newline inside lists
+        return;
+      }
+      e.preventDefault();
+      const el = editableRef.current;
+      if (!el) return;
+      const text = el.innerText.replace(/\u00a0/g, " ");
+      // Simple split: all content stays, new empty block after
+      // Better: split at caret
+      const sel = window.getSelection();
+      let before = text;
+      let after = "";
+      if (sel && sel.rangeCount && el.contains(sel.anchorNode)) {
+        const range = sel.getRangeAt(0);
+        const pre = range.cloneRange();
+        pre.selectNodeContents(el);
+        pre.setEnd(range.endContainer, range.endOffset);
+        before = pre.toString();
+        const post = range.cloneRange();
+        post.selectNodeContents(el);
+        post.setStart(range.endContainer, range.endOffset);
+        after = post.toString();
+      }
+      el.innerText = before;
+      onEnterSplit(before, after);
+      return;
+    }
+
+    if (e.key === "Backspace") {
+      const el = editableRef.current;
+      const text = (el?.innerText || "").replace(/\u00a0/g, " ").trim();
+      if (!text) {
+        e.preventDefault();
+        onBackspaceEmpty();
+      }
+    }
+  }
+
+  const imageUrl = resolveAssetUrl(block.imagePath);
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "rounded-xl border border-white/10 bg-white/[0.02]",
-        !block.isVisible && "opacity-60",
-        isDragging && "z-10 shadow-xl ring-1 ring-[#8A1DEE]/40"
+        "group relative rounded-lg transition",
+        !block.isVisible && "opacity-50",
+        isDragging && "z-20 bg-[#8A1DEE]/10 ring-1 ring-[#8A1DEE]/30"
       )}
+      onMouseDown={onFocused}
     >
-      <div className="flex items-start gap-2 p-3">
+      {/* Side controls */}
+      <div className="absolute -left-10 top-1 hidden items-center gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100 sm:flex">
         <button
           type="button"
-          className="mt-1 cursor-grab rounded p-1 text-white/40 hover:bg-white/5 hover:text-white active:cursor-grabbing"
-          aria-label="Arrastar bloco"
+          className="rounded p-0.5 text-white/35 hover:bg-white/10 hover:text-white"
+          title="Inserir"
+          onClick={() => onInsertAfter("TEXT")}
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          className="cursor-grab rounded p-0.5 text-white/35 hover:bg-white/10 hover:text-white active:cursor-grabbing"
+          title="Arrastar"
           {...attributes}
           {...listeners}
         >
-          <GripVertical className="h-4 w-4" />
+          <GripVertical className="h-3.5 w-3.5" />
         </button>
+      </div>
 
-        <button type="button" onClick={onToggleExpand} className="min-w-0 flex-1 text-left">
-          <div className="flex items-center gap-2">
-            <Icon className="h-4 w-4 shrink-0 text-[#b07af5]" />
-            <span className="text-sm font-semibold text-white">{typeMeta.label}</span>
-            {!block.isVisible ? (
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white/55">
-                Oculto
-              </span>
-            ) : null}
-            <ChevronDown className={cn("ml-auto h-4 w-4 text-white/40 transition", expanded && "rotate-180")} />
+      <div className="relative flex min-w-0 items-start gap-2 py-1">
+        {block.type === "CHECKBOX" ? (
+          <span className="mt-2 h-4 w-4 shrink-0 rounded border border-white/30" aria-hidden />
+        ) : null}
+
+        {block.type === "DIVIDER" ? (
+          <hr className="my-4 w-full border-0 border-t border-white/15" />
+        ) : block.type === "IMAGE" ? (
+          <div className="w-full space-y-2">
+            {imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl} alt={block.settings.alt || block.imageCaption || ""} className="max-h-[420px] w-full rounded-lg object-contain" />
+            ) : (
+              <button
+                type="button"
+                onClick={onUploadImage}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-white/15 bg-white/[0.02] py-10 text-sm text-white/45 hover:border-[#8A1DEE]/40 hover:text-white/70"
+              >
+                <ImageIcon className="h-4 w-4" />
+                Clique para enviar imagem
+              </button>
+            )}
+            <input
+              value={block.imageCaption || ""}
+              onChange={(e) => onCaptionChange(e.target.value)}
+              placeholder="Legenda (opcional)"
+              className="w-full border-0 bg-transparent text-center text-sm text-white/50 outline-none placeholder:text-white/25"
+            />
+            <div className="flex justify-center gap-2 opacity-0 transition group-hover:opacity-100">
+              <button type="button" onClick={onUploadImage} className="text-xs text-white/45 hover:text-white">
+                Substituir
+              </button>
+            </div>
           </div>
-          <p className="mt-1 line-clamp-2 text-xs text-white/45">{blockSummary(block)}</p>
-        </button>
+        ) : block.type === "CHECKLIST" ? (
+          <div className="w-full space-y-2">
+            <EditableLine
+              ref={editableRef}
+              className="text-base font-semibold text-white"
+              data-placeholder="Título do checklist"
+              onInput={handleInput}
+              onKeyDown={onKeyDown}
+              onFocus={onFocused}
+            />
+            <div className="space-y-1.5 pl-1">
+              {checklistItems.map((item, index) => (
+                <div key={item.id || `item-${index}`} className="flex items-start gap-2">
+                  <span className="mt-1.5 h-4 w-4 shrink-0 rounded border border-white/30" />
+                  <input
+                    value={item.text}
+                    onChange={(e) => {
+                      const next = checklistItems.map((it, i) =>
+                        i === index ? { id: it.id, text: e.target.value } : { id: it.id, text: it.text }
+                      );
+                      onChecklistItemsChange(next);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const next: Array<{ id?: string; text: string }> = checklistItems.map(
+                          ({ id, text }) => ({ id, text })
+                        );
+                        next.splice(index + 1, 0, { text: "" });
+                        onChecklistItemsChange(next);
+                      }
+                    }}
+                    className="min-w-0 flex-1 border-0 bg-transparent py-1 text-[15px] text-white/80 outline-none placeholder:text-white/25"
+                    placeholder="Item da checklist"
+                  />
+                </div>
+              ))}
+              <button
+                type="button"
+                className="text-xs text-white/40 hover:text-white/70"
+                onClick={() =>
+                  onChecklistItemsChange([...checklistItems.map(({ id, text }) => ({ id, text })), { text: "" }])
+                }
+              >
+                + item
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div
+            className={cn(
+              "relative min-w-0 flex-1",
+              (block.type === "TIP" ||
+                block.type === "WARNING" ||
+                block.type === "INFO" ||
+                block.type === "EXAMPLE") &&
+                "rounded-r-lg border-l-[3px] border-l-[#8A1DEE] bg-[#8A1DEE]/[0.06] px-3 py-2",
+              block.type === "WARNING" && "border-l-amber-400/80 bg-amber-400/[0.06]",
+              block.type === "INFO" && "border-l-sky-400/70 bg-sky-400/[0.06]",
+              block.type === "EXAMPLE" && "border-l-emerald-400/70 bg-emerald-400/[0.06]"
+            )}
+          >
+            {(block.type === "TIP" ||
+              block.type === "WARNING" ||
+              block.type === "INFO" ||
+              block.type === "EXAMPLE") && (
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-white/45">
+                {BLOCK_TYPE_META[block.type as LessonBlockType]?.label || block.type}
+              </p>
+            )}
+            <EditableLine
+              ref={editableRef}
+              className={cn(
+                "w-full whitespace-pre-wrap break-words text-[15px] leading-[1.75] text-white/85 outline-none",
+                (block.type === "HEADING" || (block.type === "SUBHEADING" && block.settings.level !== 3)) &&
+                  "text-xl font-semibold text-white sm:text-2xl",
+                block.type === "SUBHEADING" && block.settings.level === 3 && "text-lg font-semibold text-white",
+                (block.type === "BULLET_LIST" || block.type === "NUMBERED_LIST") && "pl-1"
+              )}
+              data-placeholder={placeholder}
+              onInput={handleInput}
+              onKeyDown={onKeyDown}
+              onFocus={onFocused}
+            />
+          </div>
+        )}
 
-        <div className="flex shrink-0 items-center gap-0.5">
+        {/* Block menu */}
+        <div className="absolute -right-1 top-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
           <button
             type="button"
-            title={block.isVisible ? "Ocultar" : "Exibir"}
-            onClick={onToggleVisible}
-            disabled={pending}
-            className="rounded-lg p-2 text-white/50 hover:bg-white/5 hover:text-white"
+            className="rounded-md p-1 text-white/35 hover:bg-white/10 hover:text-white"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Menu do bloco"
           >
-            {block.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+            <MoreHorizontal className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            title="Duplicar"
-            onClick={onDuplicate}
-            disabled={pending}
-            className="rounded-lg p-2 text-white/50 hover:bg-white/5 hover:text-white"
-          >
-            <Copy className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            title="Excluir"
-            onClick={onDelete}
-            disabled={pending}
-            className="rounded-lg p-2 text-red-300/70 hover:bg-red-500/10 hover:text-red-200"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {menuOpen ? (
+            <div className="absolute right-0 z-30 mt-1 w-44 rounded-lg border border-white/10 bg-[#151019] p-1 shadow-2xl">
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  onChangeType("HEADING");
+                }}
+              >
+                Transformar em título
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  onChangeType("TEXT");
+                }}
+              >
+                Transformar em texto
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDuplicate();
+                }}
+              >
+                <Copy className="h-3.5 w-3.5" /> Duplicar
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  onToggleVisible();
+                }}
+              >
+                {block.isVisible ? (
+                  <>
+                    <EyeOff className="h-3.5 w-3.5" /> Ocultar
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-3.5 w-3.5" /> Exibir
+                  </>
+                )}
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDelete();
+                }}
+                danger
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Excluir
+              </MenuItem>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {expanded ? (
-        <div className="space-y-3 border-t border-white/10 p-3 sm:p-4">
-          {(block.type === "HEADING" || block.type === "SUBHEADING") && (
-            <>
-              <Field label="Texto">
-                <input
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className={fieldClass}
-                />
-              </Field>
-              <Field label="Nível">
-                <select value={level} onChange={(e) => setLevel(Number(e.target.value) as 2 | 3)} className={fieldClass}>
-                  <option value={2}>H2</option>
-                  <option value={3}>H3</option>
-                </select>
-              </Field>
-            </>
-          )}
-
-          {(block.type === "TEXT" ||
-            block.type === "STEP" ||
-            block.type === "TIP" ||
-            block.type === "WARNING" ||
-            block.type === "INFO" ||
-            block.type === "EXAMPLE" ||
-            block.type === "CHECKBOX") && (
-            <>
-              {(block.type === "TIP" ||
-                block.type === "WARNING" ||
-                block.type === "INFO" ||
-                block.type === "EXAMPLE") && (
-                <Field label="Título do callout (opcional)">
-                  <input value={title} onChange={(e) => setTitle(e.target.value)} className={fieldClass} />
-                </Field>
-              )}
-              <Field label="Conteúdo">
-                <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={5} className={fieldClass} />
-              </Field>
-            </>
-          )}
-
-          {(block.type === "BULLET_LIST" || block.type === "NUMBERED_LIST") && (
-            <Field label="Itens (um por linha)">
-              <textarea value={listText} onChange={(e) => setListText(e.target.value)} rows={6} className={fieldClass} />
-            </Field>
-          )}
-
-          {block.type === "IMAGE" && (
-            <>
-              <Field label="Upload de imagem">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void onUploadImage(file);
-                  }}
-                  className={cn(fieldClass, "text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#8A1DEE] file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white")}
-                />
-              </Field>
-              {block.imagePath ? (
-                <p className="break-all text-xs text-white/45">Arquivo: {block.imagePath}</p>
-              ) : (
-                <p className="text-xs text-amber-200/80">Nenhuma imagem enviada ainda.</p>
-              )}
-              <Field label="Legenda">
-                <input value={caption} onChange={(e) => setCaption(e.target.value)} className={fieldClass} />
-              </Field>
-              <Field label="Texto alternativo">
-                <input value={title} onChange={(e) => setTitle(e.target.value)} className={fieldClass} placeholder="Descrição da imagem" />
-              </Field>
-              <Field label="Largura">
-                <select value={width} onChange={(e) => setWidth(e.target.value as "sm" | "md" | "lg" | "full")} className={fieldClass}>
-                  <option value="sm">Pequena</option>
-                  <option value="md">Média</option>
-                  <option value="lg">Grande</option>
-                  <option value="full">Total</option>
-                </select>
-              </Field>
-            </>
-          )}
-
-          {block.type === "CHECKLIST" && (
-            <>
-              <Field label="Título do checklist">
-                <input value={content} onChange={(e) => setContent(e.target.value)} className={fieldClass} />
-              </Field>
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-white/55">Itens</p>
-                {items.map((item, index) => (
-                  <div key={item.id || index} className="flex gap-2">
-                    <input
-                      value={item.text}
-                      onChange={(e) => {
-                        const next = [...items];
-                        next[index] = { ...item, text: e.target.value };
-                        setItems(next);
-                      }}
-                      className={cn(fieldClass, "flex-1")}
-                    />
-                    <button
-                      type="button"
-                      className="rounded-lg border border-white/10 px-2 text-red-300/80 hover:bg-red-500/10"
-                      onClick={() => setItems(items.filter((_, i) => i !== index))}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setItems([...items, { text: "Novo item" }])}
-                >
-                  <Plus className="h-4 w-4" />
-                  Adicionar item
-                </Button>
-              </div>
-            </>
-          )}
-
-          {block.type === "DIVIDER" && (
-            <p className="text-sm text-white/50">Divisor visual — sem campos adicionais.</p>
-          )}
-
-          <div className="flex flex-wrap gap-2 pt-1">
-            <Button
-              type="button"
-              size="sm"
-              disabled={saving}
-              onClick={() => {
-                setSaving(true);
-                const settings = { ...block.settings };
-                if (block.type === "HEADING" || block.type === "SUBHEADING") settings.level = level;
-                if (
-                  block.type === "TIP" ||
-                  block.type === "WARNING" ||
-                  block.type === "INFO" ||
-                  block.type === "EXAMPLE"
-                ) {
-                  settings.title = title || undefined;
-                }
-                if (block.type === "IMAGE") {
-                  settings.alt = title || undefined;
-                  settings.width = width;
-                }
-                if (block.type === "BULLET_LIST" || block.type === "NUMBERED_LIST") {
-                  settings.items = listText
-                    .split("\n")
-                    .map((l) => l.trim())
-                    .filter(Boolean);
-                }
-
-                void onSave({
-                  content:
-                    block.type === "BULLET_LIST" || block.type === "NUMBERED_LIST" ? listText : content,
-                  imageCaption: block.type === "IMAGE" ? caption || null : undefined,
-                  settings,
-                  checklistItems: block.type === "CHECKLIST" ? items : undefined
-                }).finally(() => setSaving(false));
-              }}
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Salvar bloco
-            </Button>
-            <Button type="button" size="sm" variant="outline" onClick={onToggleExpand}>
-              Fechar
-            </Button>
-          </div>
+      {/* Slash menu */}
+      {slash?.open ? (
+        <div className="absolute left-0 z-40 mt-1 w-[min(100%,280px)] overflow-hidden rounded-xl border border-white/10 bg-[#151019] shadow-2xl">
+          <p className="border-b border-white/[0.06] px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/40">
+            Inserir bloco
+          </p>
+          <ul className="max-h-64 overflow-y-auto p-1">
+            {filteredSlash.map((item, index) => {
+              const Icon = TYPE_ICONS[item.type] || Text;
+              const active = index === slashIndex;
+              return (
+                <li key={item.type}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm",
+                      active ? "bg-[#8A1DEE]/25 text-white" : "text-white/75 hover:bg-white/5"
+                    )}
+                    onMouseEnter={() => setSlashIndex(index)}
+                    onClick={() => applySlash(item.type)}
+                  >
+                    <Icon className="h-4 w-4 shrink-0 text-[#b07af5]" />
+                    <span>{BLOCK_TYPE_META[item.type]?.label || item.type}</span>
+                  </button>
+                </li>
+              );
+            })}
+            {!filteredSlash.length ? (
+              <li className="px-3 py-4 text-center text-xs text-white/40">Nenhum resultado</li>
+            ) : null}
+          </ul>
         </div>
       ) : null}
     </div>
   );
 }
 
-const fieldClass =
-  "min-h-11 w-full rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none focus:border-[#8A1DEE]";
+const EditableLine = ({
+  ref,
+  className,
+  onInput,
+  onKeyDown,
+  onFocus,
+  "data-placeholder": dataPlaceholder
+}: {
+  ref?: React.Ref<HTMLDivElement>;
+  className?: string;
+  onInput?: () => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+  onFocus?: () => void;
+  "data-placeholder"?: string;
+}) => (
+  <div
+    ref={ref}
+    contentEditable
+    suppressContentEditableWarning
+    role="textbox"
+    aria-multiline
+    data-placeholder={dataPlaceholder}
+    className={cn(
+      "empty:before:pointer-events-none empty:before:text-white/25 empty:before:content-[attr(data-placeholder)]",
+      className
+    )}
+    onInput={onInput}
+    onKeyDown={onKeyDown}
+    onFocus={onFocus}
+  />
+);
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function MenuItem({
+  children,
+  onClick,
+  danger
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  danger?: boolean;
+}) {
   return (
-    <label className="grid gap-1.5 text-xs font-semibold text-white/55">
-      {label}
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition",
+        danger ? "text-red-300 hover:bg-red-500/10" : "text-white/75 hover:bg-white/5 hover:text-white"
+      )}
+    >
       {children}
-    </label>
+    </button>
   );
+}
+
+function placeholderFor(type: string) {
+  switch (type) {
+    case "HEADING":
+      return "Título";
+    case "SUBHEADING":
+      return "Subtítulo";
+    case "TIP":
+      return "Escreva a dica…";
+    case "WARNING":
+      return "Escreva o aviso…";
+    case "INFO":
+      return "Informação…";
+    case "EXAMPLE":
+      return "Exemplo prático…";
+    case "BULLET_LIST":
+      return "Item da lista (um por linha)";
+    case "NUMBERED_LIST":
+      return "Item numerado (um por linha)";
+    case "CHECKBOX":
+      return "Item a marcar";
+    case "STEP":
+      return "Descreva o passo…";
+    default:
+      return "Digite “/” para comandos, ou comece a escrever…";
+  }
 }
