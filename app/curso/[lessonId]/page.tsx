@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
 import { AlertTriangle, ImageIcon, Lightbulb } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { RolePreviewBanner } from "@/components/role-preview-banner";
 import { CourseSidebar } from "@/components/student/course-sidebar";
 import { LessonChecklist } from "@/components/student/checklist";
 import { LessonActions } from "@/components/student/lesson-actions";
@@ -12,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { resolveAssetUrl } from "@/lib/assets";
 import { requireApprovedStudent } from "@/lib/auth";
 import { getLessonContentForStudent, getStudentCourse } from "@/lib/course";
+import { buildWhatsAppUrl, getSupportSettings } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,11 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
   const pageStartedAt = process.env.NODE_ENV === "development" ? performance.now() : 0;
   const { lessonId } = await params;
   const profile = await requireApprovedStudent();
+  const support = await getSupportSettings();
+  const supportHref =
+    support.supportEnabled && support.supportWhatsApp
+      ? buildWhatsAppUrl(support.supportWhatsApp, support.supportDefaultMessage)
+      : null;
 
   if (process.env.NODE_ENV === "development") {
     console.info(`[perf] lessonPage.auth ${Math.round(performance.now() - pageStartedAt)}ms`);
@@ -30,9 +37,12 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
 
   return (
     <AppShell
-      showAdmin={profile.role === "ADMIN"}
+      showAdmin={profile.actualRole === "ADMIN"}
+      isRolePreview={profile.isRolePreview}
       userName={profile.name}
       userEmail={profile.email}
+      supportHref={supportHref}
+      previewBanner={profile.isRolePreview ? <RolePreviewBanner asRole="STUDENT" /> : null}
       className="h-dvh overflow-hidden"
       headerClassName="z-40 shrink-0"
       mainClassName="h-[calc(100dvh-72px)] min-h-0 overflow-hidden px-0 py-0 md:pl-[72px] md:pr-0"

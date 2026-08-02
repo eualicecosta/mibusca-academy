@@ -1,4 +1,4 @@
-import { ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { unstable_cache } from "next/cache";
 import { getR2PublicBaseUrl, storageUploadReady } from "./assets";
 
@@ -200,4 +200,21 @@ export async function listR2Images(prefixes: string[]): Promise<R2ImageListItem[
     }
     throw error;
   }
+}
+
+export async function deleteR2Object(path: string) {
+  if (!storageUploadReady()) {
+    throw new Error("R2 não configurado.");
+  }
+  const key = path.replace(/^\/+/, "").replace(/^https?:\/\/[^/]+\//, "");
+  if (!key || key.includes("..")) {
+    throw new Error("Caminho de objeto inválido.");
+  }
+  const client = getR2Client();
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: getR2BucketName(),
+      Key: key
+    })
+  );
 }

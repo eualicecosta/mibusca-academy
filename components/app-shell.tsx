@@ -54,8 +54,8 @@ export function AppShell({
   const email = userEmail || "";
   const name = userName || email.split("@")[0] || "Usuario";
   const base = variant === "seller" ? sellerNav : studentNav;
-  // Never show admin nav while role-preview is active.
-  const items = showAdmin && !isRolePreview ? [...base, ...adminExtra] : base;
+  // effectiveRole drives chrome: never inject admin shield/link while previewing as client/seller.
+  const items = showAdmin === true && isRolePreview !== true ? [...base, ...adminExtra] : base;
 
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);

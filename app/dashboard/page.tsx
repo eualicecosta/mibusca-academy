@@ -73,7 +73,6 @@ async function DashboardContent({ profileId }: { profileId: string }) {
     })
     : [];
   const nextLesson = firstUnlockedLesson(data.flatLessons);
-  const course = data.course;
   const categoryIds = new Set(data.categorias.map((categoria) => categoria.id));
   const categoryMap = new Map(data.categorias.map((categoria) => [categoria.id, categoria]));
   const renderedCategoryIds = new Set<string>();
@@ -137,22 +136,14 @@ async function DashboardContent({ profileId }: { profileId: string }) {
     })
     .filter((block): block is NonNullable<typeof block> => Boolean(block));
 
-  const fallbackBannerUrl = resolveAssetUrl(course?.bannerUrl);
-  const fallbackBanner: StudentBannerBlock | null = fallbackBannerUrl
-    ? {
-        id: "course-banner",
-        images: [{ id: "course-banner-image", imageUrl: fallbackBannerUrl }],
-        title: course?.hideText || fallbackBannerUrl ? null : course?.title || "Conhecimento iFood",
-        subtitle: course?.hideText || fallbackBannerUrl ? null : course?.description || "Curso pratico para dominar funil, cardapio, campanhas, ROI, precificacao e operacao dentro do iFood.",
-        href: null
-      }
-    : null;
+  // Do not fall back to course.bannerUrl — old test assets (e.g. Seleta Comunidade) lived there.
+  // Dashboard banners come only from explicit BANNER dashboard blocks.
   const [firstBlock, ...remainingBlocks] = orderedBlocks;
   const unplacedCategorias = data.categorias.filter((categoria) => !renderedCategoryIds.has(categoria.id));
 
   return (
     <div className="mx-auto min-w-0 max-w-6xl space-y-8">
-      {firstBlock ? <DashboardBlock block={firstBlock} /> : fallbackBanner ? <BannerCarousel banner={fallbackBanner} /> : null}
+      {firstBlock ? <DashboardBlock block={firstBlock} /> : null}
 
       <section className="grid min-w-0 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,.7fr)]">
         <Card>

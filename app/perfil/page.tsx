@@ -1,14 +1,33 @@
 import { AppShell } from "@/components/app-shell";
+import { RolePreviewBanner } from "@/components/role-preview-banner";
 import { AccountSettings } from "@/components/profile/account-settings";
-import { requireProfile } from "@/lib/auth";
+import { SupportButton } from "@/components/support-button";
+import { requireSessionProfile } from "@/lib/auth";
+import { buildWhatsAppUrl, getSupportSettings } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage() {
-  const profile = await requireProfile();
+  const profile = await requireSessionProfile();
+  const support = await getSupportSettings();
+  const supportHref =
+    support.supportEnabled && support.supportWhatsApp
+      ? buildWhatsAppUrl(support.supportWhatsApp, support.supportDefaultMessage)
+      : null;
 
   return (
-    <AppShell showAdmin={profile.role === "ADMIN"} userName={profile.name} userEmail={profile.email}>
+    <AppShell
+      showAdmin={profile.actualRole === "ADMIN"}
+      isRolePreview={profile.isRolePreview}
+      userName={profile.name}
+      userEmail={profile.email}
+      supportHref={supportHref}
+      previewBanner={
+        profile.isRolePreview ? (
+          <RolePreviewBanner asRole={profile.effectiveRole === "SELLER" ? "SELLER" : "STUDENT"} />
+        ) : null
+      }
+    >
       <div className="mx-auto min-w-0 max-w-5xl space-y-6">
         <header>
           <p className="text-sm font-bold uppercase tracking-wide text-[#8A1DEE]">Conta</p>
@@ -20,12 +39,13 @@ export default async function ProfilePage() {
             id: profile.id,
             name: profile.name,
             email: profile.email,
-            role: profile.role,
+            role: profile.effectiveRole,
             status: profile.status,
             createdAt: profile.createdAt.toISOString(),
             imageUrl: profile.imageUrl
           }}
         />
+        <SupportButton settings={support} />
       </div>
     </AppShell>
   );
