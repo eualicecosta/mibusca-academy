@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toggleChecklistItem } from "@/lib/actions";
+import { cn } from "@/lib/utils";
 
 export function LessonChecklist({
   items,
@@ -17,48 +18,59 @@ export function LessonChecklist({
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="space-y-3">
+    <ul className="space-y-1.5">
       {items.map((item) => {
         const isChecked = checked.has(item.id);
         return (
-          <label
-            key={item.id}
-            className="flex min-w-0 cursor-pointer items-start gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-4 text-sm text-white/78"
-          >
-            <Checkbox
-              checked={isChecked}
-              disabled={pending && pendingIds.has(item.id)}
-              onCheckedChange={(value) => {
-                const previous = new Set(checked);
-                const next = new Set(previous);
-                const nextValue = Boolean(value);
-                if (value) {
-                  next.add(item.id);
-                } else {
-                  next.delete(item.id);
-                }
-                setChecked(next);
-                setPendingIds((current) => new Set(current).add(item.id));
-                startTransition(() => {
-                  void toggleChecklistItem(item.id, nextValue)
-                    .catch(() => {
-                      setChecked(previous);
-                    })
-                    .finally(() => {
-                      setPendingIds((current) => {
-                        const updated = new Set(current);
-                        updated.delete(item.id);
-                        return updated;
+          <li key={item.id}>
+            <label
+              className={cn(
+                "flex min-w-0 cursor-pointer items-start gap-3 rounded-lg px-3 py-3 text-sm transition-colors",
+                isChecked
+                  ? "bg-[#8A1DEE]/[0.08] text-white/55"
+                  : "bg-transparent text-white/78 hover:bg-white/[0.03]"
+              )}
+            >
+              <Checkbox
+                checked={isChecked}
+                disabled={pending && pendingIds.has(item.id)}
+                className="mt-0.5"
+                onCheckedChange={(value) => {
+                  const previous = new Set(checked);
+                  const next = new Set(previous);
+                  const nextValue = Boolean(value);
+                  if (value) {
+                    next.add(item.id);
+                  } else {
+                    next.delete(item.id);
+                  }
+                  setChecked(next);
+                  setPendingIds((current) => new Set(current).add(item.id));
+                  startTransition(() => {
+                    void toggleChecklistItem(item.id, nextValue)
+                      .catch(() => {
+                        setChecked(previous);
+                      })
+                      .finally(() => {
+                        setPendingIds((current) => {
+                          const updated = new Set(current);
+                          updated.delete(item.id);
+                          return updated;
+                        });
                       });
-                    });
-                });
-              }}
-            />
-            <span className="min-w-0 break-words">{item.text}</span>
-            {pendingIds.has(item.id) ? <Loader2 className="ml-auto h-4 w-4 shrink-0 animate-spin text-[#8A1DEE]" /> : null}
-          </label>
+                  });
+                }}
+              />
+              <span className={cn("min-w-0 flex-1 break-words leading-relaxed", isChecked && "line-through decoration-white/30")}>
+                {item.text}
+              </span>
+              {pendingIds.has(item.id) ? (
+                <Loader2 className="ml-auto h-4 w-4 shrink-0 animate-spin text-[#8A1DEE]" />
+              ) : null}
+            </label>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }

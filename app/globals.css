@@ -100,6 +100,38 @@ a {
   scrollbar-color: #8a1dee rgba(245, 243, 243, 0.08);
 }
 
+/* Lesson dual-scroll owners (sidebar + document) — keep scrollbar discoverable on Windows */
+.lesson-main,
+.course-sidebar {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #8a1dee rgba(245, 243, 243, 0.14);
+  -webkit-overflow-scrolling: touch;
+}
+
+.lesson-main::-webkit-scrollbar,
+.course-sidebar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.lesson-main::-webkit-scrollbar-track,
+.course-sidebar::-webkit-scrollbar-track {
+  background: rgba(245, 243, 243, 0.06);
+}
+
+.lesson-main::-webkit-scrollbar-thumb,
+.course-sidebar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  background-color: rgba(138, 29, 238, 0.65);
+}
+
+.lesson-main::-webkit-scrollbar-thumb:hover,
+.course-sidebar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(138, 29, 238, 0.9);
+}
+
 .module-shelf {
   scrollbar-width: thin;
   scrollbar-color: #53009f rgba(245, 243, 243, 0.08);

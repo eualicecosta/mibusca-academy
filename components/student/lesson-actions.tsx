@@ -5,70 +5,109 @@ import { useState, useTransition } from "react";
 import { ArrowLeft, ArrowRight, CheckSquare, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { completeLesson } from "@/lib/actions";
+import { cn } from "@/lib/utils";
 
 export function LessonActions({
   lessonId,
   previousId,
+  previousTitle,
   nextId,
+  nextTitle,
   completed
 }: {
   lessonId: string;
   previousId?: string;
+  previousTitle?: string;
   nextId?: string;
+  nextTitle?: string;
   completed: boolean;
 }) {
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const [isComplete, setIsComplete] = useState(completed);
+  const [, startTransition] = useTransition();
 
   return (
-    <div className="sticky bottom-0 z-20 mt-8 min-w-0 rounded-lg border border-white/10 bg-[#0f0b14]/95 p-3 backdrop-blur">
-      <div className="grid min-w-0 gap-3 md:grid-cols-3">
+    <div className="space-y-4">
+      <Button
+        variant={isComplete ? "secondary" : "default"}
+        className={cn(
+          "h-12 w-full text-base font-semibold sm:w-auto sm:min-w-[240px]",
+          !isComplete && "bg-gradient-to-r from-[#53009F] to-[#8A1DEE] text-white hover:opacity-95"
+        )}
+        disabled={pending || isComplete}
+        onClick={() => {
+          setIsComplete(true);
+          setPending(true);
+          startTransition(() => {
+            void completeLesson(lessonId)
+              .catch(() => {
+                setIsComplete(false);
+              })
+              .finally(() => {
+                setPending(false);
+              });
+          });
+        }}
+      >
+        {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckSquare className="h-4 w-4" />}
+        {isComplete ? "Aula concluída" : "Marcar como concluída"}
+      </Button>
+
+      <nav
+        aria-label="Navegação entre aulas"
+        className="grid min-w-0 gap-3 sm:grid-cols-2"
+      >
         {previousId ? (
           <Link
             href={`/curso/${previousId}`}
-            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg border border-[#8A1DEE]/60 px-4 py-2 text-center text-sm font-semibold text-[#F5F3F3] hover:bg-[#8A1DEE]/15"
+            className="group flex min-h-14 min-w-0 flex-col justify-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-[#8A1DEE]/40 hover:bg-[#8A1DEE]/10"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Aula anterior
+            <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-white/45">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Aula anterior
+            </span>
+            {previousTitle ? (
+              <span className="line-clamp-2 break-words text-sm font-semibold text-white/85 group-hover:text-white">
+                {previousTitle}
+              </span>
+            ) : null}
           </Link>
         ) : (
-          <Button variant="outline" className="w-full" disabled>
-            <ArrowLeft className="h-4 w-4" />
-            Aula anterior
-          </Button>
+          <div className="flex min-h-14 min-w-0 flex-col justify-center gap-0.5 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 opacity-45">
+            <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-white/40">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Aula anterior
+            </span>
+            <span className="text-sm text-white/35">Início do curso</span>
+          </div>
         )}
-        <Button
-          variant={isComplete ? "secondary" : "outline"}
-          className="w-full border-emerald-500/70 text-emerald-300 hover:bg-emerald-500/10"
-          disabled={pending || isComplete}
-          onClick={() => {
-            setIsComplete(true);
-            startTransition(() => {
-              void completeLesson(lessonId).catch(() => {
-                setIsComplete(false);
-              });
-            });
-          }}
-        >
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckSquare className="h-4 w-4" />}
-          {isComplete ? "Aula concluida" : "Marcar como concluida"}
-        </Button>
+
         {nextId ? (
           <Link
             href={`/curso/${nextId}`}
             prefetch
-            className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#53009F] to-[#8A1DEE] px-4 py-2 text-center text-sm font-semibold text-white"
+            className="group flex min-h-14 min-w-0 flex-col justify-center gap-0.5 rounded-xl border border-[#8A1DEE]/35 bg-gradient-to-r from-[#53009F]/25 to-[#8A1DEE]/20 px-4 py-3 transition hover:border-[#8A1DEE]/60 hover:from-[#53009F]/35 hover:to-[#8A1DEE]/30 sm:text-right"
           >
-            Proxima aula
-            <ArrowRight className="h-4 w-4" />
+            <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-[#c4a0f7] sm:justify-end">
+              Próxima aula
+              <ArrowRight className="h-3.5 w-3.5" />
+            </span>
+            {nextTitle ? (
+              <span className="line-clamp-2 break-words text-sm font-semibold text-white group-hover:text-white">
+                {nextTitle}
+              </span>
+            ) : null}
           </Link>
         ) : (
-          <Button disabled>
-            Proxima aula
-            <ArrowRight className="h-4 w-4" />
-          </Button>
+          <div className="flex min-h-14 min-w-0 flex-col justify-center gap-0.5 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 opacity-45 sm:text-right">
+            <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-white/40 sm:justify-end">
+              Próxima aula
+              <ArrowRight className="h-3.5 w-3.5" />
+            </span>
+            <span className="text-sm text-white/35">Fim da sequência</span>
+          </div>
         )}
-      </div>
+      </nav>
     </div>
   );
 }

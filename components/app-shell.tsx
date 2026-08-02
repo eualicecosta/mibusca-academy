@@ -167,12 +167,13 @@ export function AppShell({
       {previewBanner}
       <main
         className={cn(
-          "min-w-0 max-w-full overflow-x-hidden px-4 py-8 pb-24 transition-[padding] duration-200 md:pr-8 md:pb-8",
+          "min-h-0 min-w-0 max-w-full overflow-x-hidden px-4 py-8 pb-24 transition-[padding] duration-200 md:pr-8 md:pb-8",
           desktopExpanded || !hydrated ? "md:pl-[104px]" : "md:pl-4",
           mainClassName
         )}
       >
-        <div className="min-w-0 max-w-full">{children}</div>
+        {/* h-full + min-h-0 keeps dual-scroll lesson layouts (and similar) sized to the main viewport owner */}
+        <div className="h-full min-h-0 min-w-0 max-w-full">{children}</div>
       </main>
     </div>
   );
