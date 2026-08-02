@@ -130,6 +130,34 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
   const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const revMap = useRef<Map<string, number>>(new Map());
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** In-flight save per entity — only one request active; latest patch waits. */
+  const inflight = useRef<Map<string, boolean>>(new Map());
+  const queuedPatch = useRef<
+    Map<
+      string,
+      {
+        content?: string;
+        imageCaption?: string | null;
+        settings?: LessonBlockDTO["settings"];
+        checklistItems?: Array<{ id?: string; text: string }>;
+        type?: string;
+        isVisible?: boolean;
+      }
+    >
+  >(new Map());
+  const lastFailedPatch = useRef<
+    Map<
+      string,
+      {
+        content?: string;
+        imageCaption?: string | null;
+        settings?: LessonBlockDTO["settings"];
+        checklistItems?: Array<{ id?: string; text: string }>;
+        type?: string;
+        isVisible?: boolean;
+      }
+    >
+  >(new Map());
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -207,6 +235,68 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
     return next;
   };
 
+  const flushBlockSave = useCallback(async (blockId: string) => {
+    if (inflight.current.get(blockId)) return;
+    const patch = queuedPatch.current.get(blockId);
+    if (!patch) return;
+
+    queuedPatch.current.delete(blockId);
+    inflight.current.set(blockId, true);
+    const rev = bumpRev(blockId);
+    setSaveStatus("saving");
+    setError(null);
+
+    // Never send temp checklist ids as persisted ids — strip tmp-/local- prefixes.
+    const safePatch = {
+      ...patch,
+      checklistItems: patch.checklistItems?.map((item) => ({
+        id:
+          item.id && !item.id.startsWith("tmp-") && !item.id.startsWith("local-")
+            ? item.id
+            : undefined,
+        text: item.text
+      }))
+    };
+
+    try {
+      const result = await updateLessonBlock({
+        ...safePatch,
+        blockId,
+        quiet: true,
+        clientRev: rev
+      });
+
+      if (!result.ok) {
+        lastFailedPatch.current.set(blockId, patch);
+        setError(result.error || "Não foi possível salvar.");
+        setSaveStatus("error");
+        return;
+      }
+
+      // Ignore stale responses — a newer revision is already queued or in progress.
+      if (result.clientRev !== undefined && result.clientRev !== revMap.current.get(blockId)) {
+        return;
+      }
+
+      lastFailedPatch.current.delete(blockId);
+      setBlocks((prev) => prev.map((b) => (b.id === blockId ? { ...b, ...result.block } : b)));
+      if (result.checklistItems) {
+        setChecklistItems(result.checklistItems);
+      }
+      setSaveStatus("saved");
+    } catch (e) {
+      lastFailedPatch.current.set(blockId, patch);
+      setError(e instanceof Error ? e.message : "Não foi possível salvar.");
+      setSaveStatus("error");
+    } finally {
+      inflight.current.set(blockId, false);
+      // If more edits arrived while saving, flush the latest only.
+      if (queuedPatch.current.has(blockId)) {
+        void flushBlockSave(blockId);
+      }
+    }
+  }, []);
+
   const scheduleBlockSave = useCallback(
     (
       blockId: string,
@@ -220,34 +310,26 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
       }
     ) => {
       setSaveStatus("pending");
+      // Merge with any queued patch so rapid edits keep the latest full state.
+      const prev = queuedPatch.current.get(blockId) || {};
+      queuedPatch.current.set(blockId, { ...prev, ...patch });
+
       const existing = saveTimers.current.get(blockId);
       if (existing) clearTimeout(existing);
-      const rev = bumpRev(blockId);
       const timer = setTimeout(() => {
-        setSaveStatus("saving");
-        void updateLessonBlock({ ...patch, blockId, quiet: true, clientRev: rev })
-          .then((result) => {
-            if (!result.ok) {
-              setError(result.error);
-              setSaveStatus("error");
-              return;
-            }
-            // Ignore stale responses
-            if (result.clientRev !== undefined && result.clientRev !== revMap.current.get(blockId)) {
-              return;
-            }
-            setBlocks((prev) => prev.map((b) => (b.id === blockId ? { ...b, ...result.block } : b)));
-            setSaveStatus("saved");
-          })
-          .catch((e) => {
-            setError(e instanceof Error ? e.message : "Erro ao salvar");
-            setSaveStatus("error");
-          });
+        void flushBlockSave(blockId);
       }, AUTOSAVE_MS);
       saveTimers.current.set(blockId, timer);
     },
-    []
+    [flushBlockSave]
   );
+
+  function retryLastFailed() {
+    for (const [blockId, patch] of lastFailedPatch.current.entries()) {
+      queuedPatch.current.set(blockId, patch);
+      void flushBlockSave(blockId);
+    }
+  }
 
   function scheduleTitleSave(title: string) {
     if (!selectedId) return;
@@ -255,7 +337,7 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
     if (titleTimer.current) clearTimeout(titleTimer.current);
     titleTimer.current = setTimeout(() => {
       setSaveStatus("saving");
-      void updateLessonMeta({ lessonId: selectedId, title }).then((result) => {
+      void updateLessonMeta({ lessonId: selectedId, title, quiet: true }).then((result) => {
         if (!result.ok) {
           setError(result.error);
           setSaveStatus("error");
@@ -265,6 +347,19 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
       });
     }, AUTOSAVE_MS);
   }
+
+  // Flush pending saves when leaving the page / switching lesson.
+  useEffect(() => {
+    const timers = saveTimers.current;
+    const queue = queuedPatch.current;
+    return () => {
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
+      for (const blockId of queue.keys()) {
+        void flushBlockSave(blockId);
+      }
+    };
+  }, [selectedId, flushBlockSave]);
 
   async function ensureTextBlock(): Promise<string | null> {
     if (!selectedId) return null;
@@ -490,14 +585,15 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
               <div className="flex items-center gap-2 text-xs text-white/45">
                 <span className="font-medium text-white/60">Aula {meta.number}</span>
                 <span className="text-white/20">·</span>
-                <SaveBadge status={saveStatus} pending={pending} />
+                <SaveBadge status={saveStatus} pending={pending} onRetry={retryLastFailed} />
                 {error ? (
                   <button
                     type="button"
-                    className="text-red-300 underline-offset-2 hover:underline"
+                    className="max-w-[240px] truncate text-red-300/90 underline-offset-2 hover:underline"
                     onClick={() => setError(null)}
+                    title={error}
                   >
-                    {error} — dispensar
+                    {error}
                   </button>
                 ) : null}
               </div>
@@ -670,17 +766,24 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
                               });
                             }}
                             onChecklistItemsChange={(items) => {
-                              setChecklistItems(
-                                items.map((item, i) => ({
-                                  id: item.id || `tmp-${i}`,
-                                  text: item.text,
-                                  order: i + 1
-                                }))
-                              );
+                              const local = items.map((item, i) => ({
+                                id: item.id || `tmp-${i}`,
+                                text: item.text,
+                                order: i + 1
+                              }));
+                              setChecklistItems(local);
+                              // Send ids only when they look like real DB ids (not tmp-*).
                               scheduleBlockSave(block.id, {
                                 content: block.content,
                                 settings: block.settings,
-                                checklistItems: items
+                                type: "CHECKLIST",
+                                checklistItems: local.map(({ id, text }) => ({
+                                  id:
+                                    id.startsWith("tmp-") || id.startsWith("local-")
+                                      ? undefined
+                                      : id,
+                                  text
+                                }))
                               });
                             }}
                           />
@@ -708,7 +811,15 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
   );
 }
 
-function SaveBadge({ status, pending }: { status: SaveStatus; pending: boolean }) {
+function SaveBadge({
+  status,
+  pending,
+  onRetry
+}: {
+  status: SaveStatus;
+  pending: boolean;
+  onRetry?: () => void;
+}) {
   if (status === "saving" || pending) {
     return (
       <span className="inline-flex items-center gap-1 text-white/50">
@@ -718,7 +829,18 @@ function SaveBadge({ status, pending }: { status: SaveStatus; pending: boolean }
   }
   if (status === "pending") return <span className="text-amber-200/70">Alterações pendentes</span>;
   if (status === "saved") return <span className="text-emerald-300/70">Salvo</span>;
-  if (status === "error") return <span className="text-red-300">Erro ao salvar</span>;
+  if (status === "error") {
+    return (
+      <span className="inline-flex items-center gap-2 text-red-300">
+        Não foi possível salvar
+        {onRetry ? (
+          <button type="button" className="underline underline-offset-2 hover:text-red-200" onClick={onRetry}>
+            Tentar novamente
+          </button>
+        ) : null}
+      </span>
+    );
+  }
   return <span className="text-white/35">Documento</span>;
 }
 
