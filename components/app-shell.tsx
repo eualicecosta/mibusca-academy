@@ -35,7 +35,9 @@ export function AppShell({
   headerClassName,
   isRolePreview = false,
   supportHref,
-  previewBanner
+  previewBanner,
+  /** Locks shell to the viewport and makes main the only flexible region (lesson dual-scroll). */
+  fillViewport = false
 }: {
   children: React.ReactNode;
   showAdmin?: boolean;
@@ -50,6 +52,7 @@ export function AppShell({
   isRolePreview?: boolean;
   supportHref?: string | null;
   previewBanner?: React.ReactNode;
+  fillViewport?: boolean;
 }) {
   const email = userEmail || "";
   const name = userName || email.split("@")[0] || "Usuario";
@@ -83,7 +86,13 @@ export function AppShell({
   const desktopExpanded = hydrated && !collapsed;
 
   return (
-    <div className={cn("min-h-screen bg-[var(--background)] text-[var(--foreground)]", className)}>
+    <div
+      className={cn(
+        "bg-[var(--background)] text-[var(--foreground)]",
+        fillViewport ? "flex h-dvh max-h-dvh flex-col overflow-hidden" : "min-h-screen",
+        className
+      )}
+    >
       <aside
         className={cn(
           "pointer-events-auto fixed left-0 top-0 z-40 hidden h-screen border-r border-[var(--border)] bg-[var(--surface-elevated)] transition-[width,transform] duration-200 ease-out md:flex md:flex-col md:items-center md:gap-4 md:py-4",
@@ -131,7 +140,8 @@ export function AppShell({
 
       <header
         className={cn(
-          "sticky top-0 z-30 flex h-[72px] min-w-0 items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--surface)]/90 px-4 backdrop-blur-md transition-[padding] duration-200 md:pr-8",
+          "z-30 flex h-[72px] min-w-0 shrink-0 items-center justify-between gap-4 border-b border-[var(--border)] bg-[var(--surface)]/90 px-4 backdrop-blur-md transition-[padding] duration-200 md:pr-8",
+          fillViewport ? "relative" : "sticky top-0",
           desktopExpanded || !hydrated ? "md:pl-[104px]" : "md:pl-4",
           headerClassName
         )}
@@ -164,16 +174,19 @@ export function AppShell({
           supportHref={supportHref}
         />
       </header>
-      {previewBanner}
+      {previewBanner ? <div className={cn(fillViewport && "shrink-0")}>{previewBanner}</div> : null}
       <main
         className={cn(
           "min-h-0 min-w-0 max-w-full overflow-x-hidden px-4 py-8 pb-24 transition-[padding] duration-200 md:pr-8 md:pb-8",
+          fillViewport ? "flex flex-1 flex-col overflow-hidden" : "",
           desktopExpanded || !hydrated ? "md:pl-[104px]" : "md:pl-4",
           mainClassName
         )}
       >
-        {/* h-full + min-h-0 keeps dual-scroll lesson layouts (and similar) sized to the main viewport owner */}
-        <div className="h-full min-h-0 min-w-0 max-w-full">{children}</div>
+        {/* min-h-0 + flex-1 keeps dual-scroll lesson layouts sized to the main viewport owner */}
+        <div className={cn("min-h-0 min-w-0 max-w-full", fillViewport ? "flex h-full min-h-0 flex-1 flex-col" : "h-full")}>
+          {children}
+        </div>
       </main>
     </div>
   );
