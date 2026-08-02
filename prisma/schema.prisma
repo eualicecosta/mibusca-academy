@@ -60,6 +60,15 @@ enum ContentBlockType {
   TIP
   WARNING
   IMAGE
+  HEADING
+  SUBHEADING
+  CHECKLIST
+  CHECKBOX
+  INFO
+  EXAMPLE
+  BULLET_LIST
+  NUMBERED_LIST
+  DIVIDER
 }
 
 enum BannerStatus {
@@ -305,20 +314,24 @@ model Module {
 }
 
 model Lesson {
-  id           String        @id @default(cuid())
-  moduleId     String
-  number       String
-  title        String
-  objective    String?
-  context      String?
-  order        Int
-  status       ContentStatus @default(PUBLISHED)
-  tipKind      String?
-  tipText      String?
-  imagePath    String?
-  imageCaption String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id            String        @id @default(cuid())
+  moduleId      String
+  number        String
+  title         String
+  objective     String?
+  context       String?
+  order         Int
+  status        ContentStatus @default(PUBLISHED)
+  tipKind       String?
+  tipText       String?
+  imagePath     String?
+  imageCaption  String?
+  /// When true, student document shows the cadastral title at the top.
+  showAutoTitle Boolean       @default(true)
+  /// Idempotent flag: legacy objective/context/tip/steps already converted to ContentBlocks.
+  blocksMigrated Boolean      @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   module         Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   blocks         ContentBlock[]
@@ -334,9 +347,13 @@ model ContentBlock {
   lessonId     String
   type         ContentBlockType
   order        Int
-  content      String
+  content      String           @default("")
   imagePath    String?
   imageCaption String?
+  /// Hidden blocks stay in admin but are omitted for students.
+  isVisible    Boolean          @default(true)
+  /// Validated JSON string for type-specific options (level, list items, alt, etc.).
+  settings     String?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
@@ -344,6 +361,7 @@ model ContentBlock {
 
   @@unique([lessonId, order])
   @@index([lessonId, type, order])
+  @@index([lessonId, isVisible, order])
 }
 
 model ChecklistItem {

@@ -954,7 +954,9 @@ export async function createLesson(formData: FormData) {
       objective: objective || null,
       context: context || null,
       order: lastLesson ? lastLesson.order + 1 : 1,
-      status: "PUBLISHED"
+      status: "PUBLISHED",
+      showAutoTitle: true,
+      blocksMigrated: false
     }
   });
 
