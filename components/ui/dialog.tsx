@@ -3,6 +3,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import * as React from "react";
+import { isThemeSelectEventTarget } from "@/components/ui/theme-select";
 import { cn } from "@/lib/utils";
 
 const Dialog = DialogPrimitive.Root;
@@ -23,10 +24,21 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+function shouldIgnoreOutside(target: EventTarget | null) {
+  if (isThemeSelectEventTarget(target)) return true;
+  if (!(target instanceof Element)) return false;
+  // Native form controls and our floating menus
+  return Boolean(
+    target.closest(
+      "input, textarea, select, label, [role='listbox'], [role='menu'], [data-radix-select-content], [data-radix-popper-content-wrapper]"
+    )
+  );
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, onPointerDownOutside, onInteractOutside, ...props }, ref) => (
+>(({ className, children, onPointerDownOutside, onInteractOutside, onFocusOutside, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -36,15 +48,22 @@ const DialogContent = React.forwardRef<
         className
       )}
       onPointerDownOutside={(event) => {
-        // File inputs / selects can fire outside events in some browsers — keep dialog stable.
-        const target = event.target as HTMLElement | null;
-        if (target?.closest?.("input, textarea, select, label, button, [role='listbox']")) {
+        if (shouldIgnoreOutside(event.target)) {
           event.preventDefault();
         }
         onPointerDownOutside?.(event);
       }}
       onInteractOutside={(event) => {
+        if (shouldIgnoreOutside(event.target)) {
+          event.preventDefault();
+        }
         onInteractOutside?.(event);
+      }}
+      onFocusOutside={(event) => {
+        if (shouldIgnoreOutside(event.target)) {
+          event.preventDefault();
+        }
+        onFocusOutside?.(event);
       }}
       {...props}
     >
