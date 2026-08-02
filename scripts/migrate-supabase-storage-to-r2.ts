@@ -144,10 +144,10 @@ async function updateImageReferences() {
     }
   }
 
-  for (const module of await prisma.module.findMany({ select: { id: true, coverImagePath: true } })) {
-    const next = migratedValue(module.coverImagePath);
-    if (next && next !== module.coverImagePath) {
-      await prisma.module.update({ where: { id: module.id }, data: { coverImagePath: next } });
+  for (const courseModule of await prisma.module.findMany({ select: { id: true, coverImagePath: true } })) {
+    const next = migratedValue(courseModule.coverImagePath);
+    if (next && next !== courseModule.coverImagePath) {
+      await prisma.module.update({ where: { id: courseModule.id }, data: { coverImagePath: next } });
       updated++;
     }
   }

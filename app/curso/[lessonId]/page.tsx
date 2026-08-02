@@ -16,6 +16,8 @@ import { buildWhatsAppUrl, getSupportSettings } from "@/lib/support";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 
 type StudentCourse = Awaited<ReturnType<typeof getStudentCourse>>;
 type FlatLesson = StudentCourse["flatLessons"][number];
@@ -93,17 +95,17 @@ async function LessonShell({ userId, lessonId }: { userId: string; lessonId: str
       </div>
 
       {/* Desktop: independent vertical scroll for course tree */}
-      <aside className="course-sidebar hidden min-h-0 overflow-x-hidden overflow-y-auto border-r border-white/10 bg-[#121018] scrollbar-thin xl:block">
+      <aside className="course-sidebar hidden h-full min-h-0 overflow-x-hidden overflow-y-scroll border-r border-white/10 bg-[#121018] xl:block">
         <CourseSidebar
           categorias={data.categorias}
           currentLessonId={lessonId}
           showHeading
-          className="max-h-none min-h-full rounded-none border-0 bg-transparent"
+          className="max-h-none min-h-0 overflow-visible rounded-none border-0 bg-transparent"
         />
       </aside>
 
-      {/* Desktop + mobile document: sole owner of main lesson scroll */}
-      <div className="lesson-main min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain scrollbar-thin">
+      {/* Desktop + mobile document: sole owner of main lesson scroll (always paint scrollbar track) */}
+      <div className="lesson-main h-full min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-scroll overscroll-contain">
         <Suspense fallback={<LessonArticleSkeleton />}>
           <LessonArticle
             contentPromise={contentPromise}
@@ -170,23 +172,23 @@ async function LessonArticle({
           {detail.title}
         </h1>
 
-        <div className="flex flex-wrap items-center gap-2 text-sm text-white/55">
-          <MetaChip>
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/55">
+          <span>
             <strong className="font-semibold text-white/80">{totalLessons}</strong> aulas
-          </MetaChip>
-          <span className="hidden text-white/20 sm:inline" aria-hidden>
+          </span>
+          <span className="text-white/25" aria-hidden>
             ·
           </span>
-          <MetaChip>
+          <span>
             <strong className="font-semibold text-white/80">{completedLessons}</strong> concluídas
-          </MetaChip>
-          <span className="hidden text-white/20 sm:inline" aria-hidden>
+          </span>
+          <span className="text-white/25" aria-hidden>
             ·
           </span>
-          <MetaChip>
+          <span>
             <strong className="font-semibold text-white/80">{modulePercent}%</strong> do módulo
-          </MetaChip>
-        </div>
+          </span>
+        </p>
 
         <div className="max-w-md space-y-1.5">
           <div className="flex items-center justify-between text-xs text-white/45">
@@ -336,14 +338,6 @@ async function LessonArticle({
   );
 }
 
-function MetaChip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs sm:text-sm">
-      {children}
-    </span>
-  );
-}
-
 function LessonShellSkeleton() {
   return (
     <div
@@ -353,7 +347,7 @@ function LessonShellSkeleton() {
     >
       <div className="h-14 shrink-0 animate-pulse border-b border-white/10 bg-white/[0.04] xl:hidden" />
       <div className="hidden min-h-0 animate-pulse border-r border-white/10 bg-white/[0.03] xl:block" />
-      <div className="lesson-main min-h-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6 md:px-8">
+      <div className="lesson-main min-h-0 flex-1 overflow-y-scroll px-4 py-6 sm:px-6 md:px-8">
         <LessonArticleSkeleton />
       </div>
     </div>
