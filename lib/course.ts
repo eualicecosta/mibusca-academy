@@ -180,6 +180,8 @@ async function loadLessonContentForStudent(userId: string, lessonId: string) {
         context: true,
         tipKind: true,
         tipText: true,
+        showAutoTitle: true,
+        blocksMigrated: true,
         blocks: {
           orderBy: { order: "asc" },
           select: {
@@ -188,7 +190,9 @@ async function loadLessonContentForStudent(userId: string, lessonId: string) {
             order: true,
             content: true,
             imagePath: true,
-            imageCaption: true
+            imageCaption: true,
+            isVisible: true,
+            settings: true
           }
         },
         checklistItems: {

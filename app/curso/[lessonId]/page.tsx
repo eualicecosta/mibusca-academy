@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
 import { AlertTriangle, ImageIcon, Lightbulb, Target } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { LessonBlockRenderer } from "@/components/lesson/lesson-block-renderer";
 import { RolePreviewBanner } from "@/components/role-preview-banner";
 import { CourseSidebar } from "@/components/student/course-sidebar";
 import { LessonChecklist } from "@/components/student/checklist";
@@ -12,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { resolveAssetUrl } from "@/lib/assets";
 import { requireApprovedStudent } from "@/lib/auth";
 import { getLessonContentForStudent, getStudentCourse } from "@/lib/course";
+import { parseBlockSettings } from "@/lib/lesson-blocks";
 import { buildWhatsAppUrl, getSupportSettings } from "@/lib/support";
 import { cn } from "@/lib/utils";
 
@@ -150,10 +152,25 @@ async function LessonArticle({
   }
 
   const tipIsAttention = detail.tipKind === "Atencao";
+  const checkedIds = checked.map((item) => item.checklistItemId);
+  const showAutoTitle = detail.showAutoTitle !== false;
+  const useBlockDocument = Boolean(detail.blocksMigrated);
+
+  const documentBlocks = detail.blocks.map((block) => ({
+    id: block.id,
+    type: block.type,
+    order: block.order,
+    content: block.content,
+    imagePath: block.imagePath,
+    imageCaption: block.imageCaption,
+    isVisible: block.isVisible !== false,
+    settings: parseBlockSettings(block.settings)
+  }));
+
+  const hasChecklistBlock = documentBlocks.some((b) => b.isVisible && (b.type === "CHECKLIST" || b.type === "CHECKBOX"));
 
   return (
     <article className="mx-auto w-full min-w-0 max-w-[920px] px-4 py-6 pb-28 sm:px-6 sm:py-8 md:px-10 md:py-10 md:pb-20">
-      {/* Document header — Notion-like continuous page */}
       <header className="space-y-4 border-b border-white/[0.08] pb-8">
         <nav
           aria-label="Localização da aula"
@@ -170,9 +187,13 @@ async function LessonArticle({
           <span>Aula {current.number}</span>
         </nav>
 
-        <h1 className="break-words font-bold tracking-tight text-white [font-size:clamp(1.75rem,4vw,2.75rem)] [line-height:1.2]">
-          {detail.title}
-        </h1>
+        {showAutoTitle ? (
+          <h1 className="break-words font-bold tracking-tight text-white [font-size:clamp(1.75rem,4vw,2.75rem)] [line-height:1.2]">
+            {detail.title}
+          </h1>
+        ) : (
+          <h1 className="sr-only">{detail.title}</h1>
+        )}
 
         <p className="text-sm leading-relaxed text-white/55">
           <span className="text-white/80">{totalLessons}</span> aulas
@@ -196,136 +217,142 @@ async function LessonArticle({
       </header>
 
       <div className="mt-10 space-y-12">
-        {detail.objective ? (
-          <section aria-labelledby="lesson-objective">
-            <div className="rounded-r-xl border border-transparent border-l-[3px] border-l-[#8A1DEE] bg-[#8A1DEE]/[0.08] px-4 py-4 sm:px-5 sm:py-5">
-              <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#c4a0f7]">
-                <Target className="h-4 w-4 shrink-0" aria-hidden />
-                <h2 id="lesson-objective">Objetivo</h2>
-              </div>
-              <DocParagraphs text={detail.objective} className="text-white/80" />
-            </div>
-          </section>
-        ) : null}
-
-        {detail.context ? (
-          <section aria-labelledby="lesson-context" className="space-y-3">
-            <h2
-              id="lesson-context"
-              className="text-[1.15rem] font-semibold tracking-tight text-white sm:text-xl"
-            >
-              Contexto
-            </h2>
-            <DocParagraphs text={detail.context} className="text-white/72" />
-          </section>
-        ) : null}
-
-        {detail.blocks.length > 0 ? (
-          <section aria-labelledby="lesson-steps" className="space-y-6">
-            <h2
-              id="lesson-steps"
-              className="text-[1.15rem] font-semibold tracking-tight text-white sm:text-xl"
-            >
-              Passo a passo
-            </h2>
-            <ol className="space-y-9">
-              {detail.blocks.map((block) => {
-                const url = resolveAssetUrl(block.imagePath);
-                return (
-                  <li key={block.id} className="min-w-0">
-                    <div className="flex min-w-0 gap-3 sm:gap-4">
-                      <span
-                        className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#8A1DEE] text-xs font-bold text-white sm:h-8 sm:w-8 sm:text-sm"
-                        aria-hidden
-                      >
-                        {block.order}
-                      </span>
-                      <div className="min-w-0 flex-1 space-y-3 border-b border-white/[0.04] pb-8 last:border-b-0 last:pb-0">
-                        <DocParagraphs text={block.content} className="text-white/80" />
-                        {url ? (
-                          <figure className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
-                            <Image
-                              src={url}
-                              alt={block.imageCaption || `Ilustração do passo ${block.order}`}
-                              width={1280}
-                              height={720}
-                              sizes="(min-width: 1280px) 880px, 100vw"
-                              className="max-h-[560px] w-full object-contain"
-                            />
-                            {block.imageCaption ? (
-                              <figcaption className="break-words border-t border-white/5 px-3 py-2.5 text-sm text-white/50">
-                                {block.imageCaption}
-                              </figcaption>
-                            ) : null}
-                          </figure>
-                        ) : block.imagePath && process.env.NODE_ENV === "development" ? (
-                          <p className="flex items-center gap-2 text-xs text-white/40">
-                            <ImageIcon className="h-3.5 w-3.5 shrink-0" />
-                            <span className="min-w-0 break-all">Asset pendente: {block.imagePath}</span>
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          </section>
-        ) : null}
-
-        {detail.tipText ? (
-          <aside
-            className={cn(
-              "rounded-r-xl border border-transparent border-l-[3px] px-4 py-4 sm:px-5 sm:py-5",
-              tipIsAttention
-                ? "border-l-amber-400/80 bg-amber-400/[0.07]"
-                : "border-l-[#8A1DEE] bg-[#8A1DEE]/[0.07]"
-            )}
-          >
-            <div
-              className={cn(
-                "mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em]",
-                tipIsAttention ? "text-amber-200" : "text-[#c4a0f7]"
-              )}
-            >
-              {tipIsAttention ? (
-                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-              ) : (
-                <Lightbulb className="h-4 w-4 shrink-0" aria-hidden />
-              )}
-              <span>{detail.tipKind || "Dica"}</span>
-            </div>
-            <DocParagraphs text={detail.tipText} className="text-white/75" />
-          </aside>
-        ) : null}
-
-        {detail.checklistItems.length ? (
-          <section aria-labelledby="lesson-checklist" className="space-y-4">
-            <div className="space-y-1">
-              <h2
-                id="lesson-checklist"
-                className="text-[1.15rem] font-semibold tracking-tight text-white sm:text-xl"
-              >
-                Checklist de conclusão
-              </h2>
-              <p className="text-sm text-white/50">Marque o que você já validou nesta aula.</p>
-            </div>
-            <LessonChecklist
-              items={detail.checklistItems}
-              checkedIds={checked.map((item) => item.checklistItemId)}
+        {useBlockDocument ? (
+          <>
+            <LessonBlockRenderer
+              blocks={documentBlocks}
+              checklistItems={detail.checklistItems}
+              checkedIds={checkedIds}
+              mode="student"
             />
-          </section>
-        ) : null}
+            {!hasChecklistBlock && detail.checklistItems.length ? (
+              <section aria-labelledby="lesson-checklist" className="space-y-4">
+                <div className="space-y-1">
+                  <h2 id="lesson-checklist" className="text-[1.15rem] font-semibold tracking-tight text-white sm:text-xl">
+                    Checklist de conclusão
+                  </h2>
+                  <p className="text-sm text-white/50">Marque o que você já validou nesta aula.</p>
+                </div>
+                <LessonChecklist items={detail.checklistItems} checkedIds={checkedIds} />
+              </section>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {detail.objective ? (
+              <section aria-labelledby="lesson-objective">
+                <div className="rounded-r-xl border border-transparent border-l-[3px] border-l-[#8A1DEE] bg-[#8A1DEE]/[0.08] px-4 py-4 sm:px-5 sm:py-5">
+                  <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#c4a0f7]">
+                    <Target className="h-4 w-4 shrink-0" aria-hidden />
+                    <h2 id="lesson-objective">Objetivo</h2>
+                  </div>
+                  <DocParagraphs text={detail.objective} className="text-white/80" />
+                </div>
+              </section>
+            ) : null}
 
-        <section
-          aria-labelledby="lesson-complete"
-          className="space-y-5 border-t border-white/[0.08] pt-10"
-        >
+            {detail.context ? (
+              <section aria-labelledby="lesson-context" className="space-y-3">
+                <h2 id="lesson-context" className="text-[1.15rem] font-semibold tracking-tight text-white sm:text-xl">
+                  Contexto
+                </h2>
+                <DocParagraphs text={detail.context} className="text-white/72" />
+              </section>
+            ) : null}
+
+            {detail.blocks.length > 0 ? (
+              <section aria-labelledby="lesson-steps" className="space-y-6">
+                <h2 id="lesson-steps" className="text-[1.15rem] font-semibold tracking-tight text-white sm:text-xl">
+                  Passo a passo
+                </h2>
+                <ol className="space-y-9">
+                  {detail.blocks.map((block) => {
+                    const url = resolveAssetUrl(block.imagePath);
+                    return (
+                      <li key={block.id} className="min-w-0">
+                        <div className="flex min-w-0 gap-3 sm:gap-4">
+                          <span
+                            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#8A1DEE] text-xs font-bold text-white sm:h-8 sm:w-8 sm:text-sm"
+                            aria-hidden
+                          >
+                            {block.order}
+                          </span>
+                          <div className="min-w-0 flex-1 space-y-3 border-b border-white/[0.04] pb-8 last:border-b-0 last:pb-0">
+                            <DocParagraphs text={block.content} className="text-white/80" />
+                            {url ? (
+                              <figure className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
+                                <Image
+                                  src={url}
+                                  alt={block.imageCaption || `Ilustração do passo ${block.order}`}
+                                  width={1280}
+                                  height={720}
+                                  sizes="(min-width: 1280px) 880px, 100vw"
+                                  className="max-h-[560px] w-full object-contain"
+                                />
+                                {block.imageCaption ? (
+                                  <figcaption className="break-words border-t border-white/5 px-3 py-2.5 text-sm text-white/50">
+                                    {block.imageCaption}
+                                  </figcaption>
+                                ) : null}
+                              </figure>
+                            ) : block.imagePath && process.env.NODE_ENV === "development" ? (
+                              <p className="flex items-center gap-2 text-xs text-white/40">
+                                <ImageIcon className="h-3.5 w-3.5 shrink-0" />
+                                <span className="min-w-0 break-all">Asset pendente: {block.imagePath}</span>
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            ) : null}
+
+            {detail.tipText ? (
+              <aside
+                className={cn(
+                  "rounded-r-xl border border-transparent border-l-[3px] px-4 py-4 sm:px-5 sm:py-5",
+                  tipIsAttention
+                    ? "border-l-amber-400/80 bg-amber-400/[0.07]"
+                    : "border-l-[#8A1DEE] bg-[#8A1DEE]/[0.07]"
+                )}
+              >
+                <div
+                  className={cn(
+                    "mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em]",
+                    tipIsAttention ? "text-amber-200" : "text-[#c4a0f7]"
+                  )}
+                >
+                  {tipIsAttention ? (
+                    <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
+                  ) : (
+                    <Lightbulb className="h-4 w-4 shrink-0" aria-hidden />
+                  )}
+                  <span>{detail.tipKind || "Dica"}</span>
+                </div>
+                <DocParagraphs text={detail.tipText} className="text-white/75" />
+              </aside>
+            ) : null}
+
+            {detail.checklistItems.length ? (
+              <section aria-labelledby="lesson-checklist" className="space-y-4">
+                <div className="space-y-1">
+                  <h2 id="lesson-checklist" className="text-[1.15rem] font-semibold tracking-tight text-white sm:text-xl">
+                    Checklist de conclusão
+                  </h2>
+                  <p className="text-sm text-white/50">Marque o que você já validou nesta aula.</p>
+                </div>
+                <LessonChecklist items={detail.checklistItems} checkedIds={checkedIds} />
+              </section>
+            ) : null}
+          </>
+        )}
+
+        <section aria-labelledby="lesson-complete" className="space-y-5 border-t border-white/[0.08] pt-10">
           <div className="space-y-1">
-            <h2
-              id="lesson-complete"
-              className="text-[1.15rem] font-semibold tracking-tight text-white sm:text-xl"
-            >
+            <h2 id="lesson-complete" className="text-[1.15rem] font-semibold tracking-tight text-white sm:text-xl">
               Concluir esta aula
             </h2>
             <p className="text-sm text-white/50">
