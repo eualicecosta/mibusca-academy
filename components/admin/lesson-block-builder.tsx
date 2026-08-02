@@ -43,12 +43,7 @@ import {
   Type
 } from "lucide-react";
 import { resolveAssetUrl } from "@/lib/assets";
-import {
-  getLessonBlocksAdmin,
-  migrateLegacyLessonContent,
-  saveLessonDocument,
-  uploadLessonBlockImage
-} from "@/lib/lesson-block-actions";
+import { getLessonBlocksAdmin, saveLessonDocument, uploadLessonBlockImage } from "@/lib/lesson-block-actions";
 import {
   BLOCK_TYPE_META,
   type LessonBlockDTO,
@@ -175,18 +170,7 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
         number: result.lesson.number,
         blocksMigrated: result.lesson.blocksMigrated
       });
-
-      if (!result.lesson.blocksMigrated) {
-        const mig = await migrateLegacyLessonContent({ dryRun: false, lessonId });
-        if (mig.ok) {
-          const refreshed = await getLessonBlocksAdmin(lessonId);
-          if (refreshed.ok) {
-            setBlocks(refreshed.blocks);
-            setChecklistItems(refreshed.checklistItems);
-            setMeta((m) => (m ? { ...m, blocksMigrated: refreshed.lesson.blocksMigrated } : m));
-          }
-        }
-      }
+      // Never write to the database on open. Migration (if needed) only runs when the user clicks Salvar.
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao carregar a aula.");
     } finally {
@@ -200,66 +184,95 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
 
   const saveAll = useCallback(async () => {
     if (!selectedId || !meta) return;
+    if (saveStatus === "saving") return;
     setSaveStatus("saving");
     setError(null);
 
-    const result = await saveLessonDocument({
-      lessonId: selectedId,
-      title: meta.title,
-      order: meta.order,
-      status: meta.status as "DRAFT" | "PUBLISHED" | "HIDDEN",
-      showAutoTitle: meta.showAutoTitle,
-      blocks: blocks.map((b, index) => ({
-        id: b.id,
-        type: b.type,
-        order: index + 1,
-        content: b.content,
-        imagePath: b.imagePath,
-        imageCaption: b.imageCaption,
-        isVisible: b.isVisible,
-        settings: b.settings
-      })),
-      checklistItems: checklistItems.map(({ id, text }) => ({
-        id: id.startsWith("tmp-") || id.startsWith("local-") ? undefined : id,
-        text
-      }))
-    });
+    try {
+      const result = await saveLessonDocument({
+        lessonId: selectedId,
+        title: meta.title,
+        order: meta.order,
+        status: meta.status as "DRAFT" | "PUBLISHED" | "HIDDEN",
+        showAutoTitle: meta.showAutoTitle,
+        blocks: blocks.map((b, index) => ({
+          id: b.id,
+          type: b.type,
+          order: index + 1,
+          content: b.content,
+          imagePath: b.imagePath,
+          imageCaption: b.imageCaption,
+          isVisible: b.isVisible,
+          settings: b.settings
+        })),
+        checklistItems: checklistItems.map(({ id, text }) => ({
+          id: id.startsWith("tmp-") || id.startsWith("local-") ? undefined : id,
+          text
+        }))
+      });
 
-    if (!result.ok) {
-      setError(result.error);
+      if (!result.ok) {
+        setError(result.error);
+        setSaveStatus("error");
+        return;
+      }
+
+      setBlocks(result.blocks);
+      setChecklistItems(result.checklistItems);
+      setMeta((m) => (m ? { ...m, blocksMigrated: true } : m));
+      dirtyRef.current = false;
+      setSaveStatus("saved");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível salvar.");
       setSaveStatus("error");
-      return;
     }
+  }, [selectedId, meta, blocks, checklistItems, saveStatus]);
 
-    setBlocks(result.blocks);
-    setChecklistItems(result.checklistItems);
-    dirtyRef.current = false;
-    setSaveStatus("saved");
-  }, [selectedId, meta, blocks, checklistItems]);
-
-  // Ctrl/Cmd+S → save
+  // Ctrl/Cmd+S only saves when user explicitly presses it (still manual).
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        if (dirtyRef.current || saveStatus === "dirty" || saveStatus === "error") {
-          void saveAll();
-        }
+        if (dirtyRef.current) void saveAll();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [saveAll, saveStatus]);
+  }, [saveAll]);
 
-  // Warn before leaving with unsaved changes
+  // Browser tab close / refresh with unsaved changes
   useEffect(() => {
     function onBeforeUnload(e: BeforeUnloadEvent) {
       if (!dirtyRef.current) return;
       e.preventDefault();
-      e.returnValue = "";
+      e.returnValue = "Você tem alterações não salvas.";
     }
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  // Intercept in-app link clicks (ex: "Voltar para curso") when there are unsaved edits
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (!dirtyRef.current) return;
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest("a[href]");
+      if (!(anchor instanceof HTMLAnchorElement)) return;
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+      // Same-page anchors ok
+      if (href === window.location.pathname + window.location.search) return;
+      const ok = window.confirm(
+        "Você tem alterações que ainda não foram salvas.\n\nSe sair agora, essas alterações serão perdidas.\n\nDeseja sair sem salvar?"
+      );
+      if (!ok) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
   }, []);
 
   function ensureTextBlock(): string | null {
@@ -321,18 +334,14 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
     input.accept = "image/*";
     input.onchange = () => {
       const file = input.files?.[0];
-      if (!file) return;
-      setSaveStatus("saving");
+      if (!file || !selectedId) return;
+      // Upload file to R2 only — does NOT save the lesson until user clicks Salvar.
       const fd = new FormData();
-      // Only attach blockId if it's already persisted (not local-*)
-      if (!blockId.startsWith("local-") && !blockId.startsWith("tmp-")) {
-        fd.set("blockId", blockId);
-      }
+      fd.set("lessonId", selectedId);
       fd.set("file", file);
       void uploadLessonBlockImage(fd).then((result) => {
         if (!result.ok) {
           setError(result.error);
-          setSaveStatus("error");
           return;
         }
         setBlocks((prev) =>
@@ -348,7 +357,6 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
           )
         );
         markDirty();
-        setSaveStatus("dirty");
       });
     };
     input.click();
@@ -417,12 +425,16 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
     markDirty();
   }
 
+  function confirmDiscardUnsaved(): boolean {
+    if (!dirtyRef.current) return true;
+    return window.confirm(
+      "Você tem alterações que ainda não foram salvas.\n\nSe sair agora, essas alterações serão perdidas.\n\nDeseja sair sem salvar?"
+    );
+  }
+
   function selectLesson(id: string) {
     if (id === selectedId) return;
-    if (dirtyRef.current) {
-      const ok = window.confirm("Há alterações não salvas. Descartar e trocar de aula?");
-      if (!ok) return;
-    }
+    if (!confirmDiscardUnsaved()) return;
     setSelectedId(id);
   }
 
@@ -470,6 +482,22 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#1a1520] shadow-2xl">
+            {saveStatus === "dirty" || saveStatus === "error" ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-400/30 bg-amber-500/15 px-4 py-2.5 sm:px-6">
+                <p className="text-sm font-medium text-amber-100">
+                  Alterações não salvas — clique em <strong>Salvar</strong> para gravar. Se sair agora, elas serão perdidas.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => startTransition(() => void saveAll())}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#53009F] to-[#8A1DEE] px-3 py-1.5 text-xs font-semibold text-white"
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  Salvar agora
+                </button>
+              </div>
+            ) : null}
+
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] bg-[#121018]/80 px-4 py-2.5 sm:px-6">
               <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-white/45">
                 <span className="font-medium text-white/60">Aula {meta.number}</span>
@@ -500,16 +528,16 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
                   disabled={saveStatus === "saving" || (saveStatus !== "dirty" && saveStatus !== "error")}
                   onClick={() => startTransition(() => void saveAll())}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                    "inline-flex min-w-[7.5rem] items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition",
                     saveStatus === "dirty" || saveStatus === "error"
                       ? "bg-gradient-to-r from-[#53009F] to-[#8A1DEE] text-white hover:opacity-95"
                       : "border border-white/10 bg-white/[0.04] text-white/45 disabled:opacity-50"
                   )}
                 >
                   {saveStatus === "saving" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Save className="h-3.5 w-3.5" />
+                    <Save className="h-4 w-4" />
                   )}
                   {saveStatus === "saving" ? "Salvando…" : "Salvar"}
                 </button>

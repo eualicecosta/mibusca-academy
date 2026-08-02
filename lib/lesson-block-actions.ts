@@ -13,7 +13,7 @@ import {
   type LessonBlockDTO
 } from "@/lib/lesson-blocks";
 import { prisma } from "@/lib/prisma";
-import { uploadImageToR2, sanitizeStorageName } from "@/lib/r2";
+import { uploadImageToR2 } from "@/lib/r2";
 
 function revalidateLesson(moduleId: string, lessonId: string, options?: { quiet?: boolean }) {
   // Quiet autosaves must NOT revalidate routes — that can interrupt the editor RSC tree.
@@ -642,32 +642,12 @@ export async function uploadLessonBlockImage(
       return { ok: false, error: "Arquivo deve ser uma imagem.", code: "VALIDATION_ERROR" };
     }
 
-    const block = blockId
-      ? await prisma.contentBlock.findUnique({
-          where: { id: blockId },
-          include: { lesson: { select: { id: true, moduleId: true } } }
-        })
-      : null;
-
-    const folder = block ? `aulas/${block.lessonId}` : "aulas";
+    // Upload only — never persist to ContentBlock here.
+    // The admin canvas saves the lesson only when the user clicks Salvar.
+    const lessonIdHint = String(formData.get("lessonId") || "").trim();
+    const folder = lessonIdHint ? `aulas/${lessonIdHint}` : blockId ? `aulas/${blockId}` : "aulas";
     const path = await uploadImageToR2(file, folder, { upsert: false });
     revalidateTag("r2-images");
-
-    if (block) {
-      const updated = await prisma.contentBlock.update({
-        where: { id: block.id },
-        data: {
-          imagePath: path,
-          type: block.type === "IMAGE" ? "IMAGE" : block.type,
-          settings: serializeBlockSettings({
-            ...parseBlockSettings(block.settings),
-            alt: parseBlockSettings(block.settings).alt || sanitizeStorageName(file.name)
-          })
-        }
-      });
-      revalidateLesson(block.lesson.moduleId, block.lesson.id, { quiet: true });
-      return { ok: true, path, block: toDTO(updated) };
-    }
 
     return { ok: true, path };
   } catch (error) {
