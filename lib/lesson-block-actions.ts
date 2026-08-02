@@ -676,6 +676,195 @@ export async function uploadLessonBlockImage(
   }
 }
 
+/**
+ * Single-request save for the whole lesson document (meta + blocks + checklist).
+ * Much faster than N per-block autosaves.
+ */
+export async function saveLessonDocument(input: {
+  lessonId: string;
+  title: string;
+  order: number;
+  status: "DRAFT" | "PUBLISHED" | "HIDDEN";
+  showAutoTitle: boolean;
+  blocks: Array<{
+    id: string;
+    type: string;
+    order: number;
+    content: string;
+    imagePath?: string | null;
+    imageCaption?: string | null;
+    isVisible?: boolean;
+    settings?: BlockSettings;
+  }>;
+  checklistItems: Array<{ id?: string; text: string }>;
+}): Promise<
+  | {
+      ok: true;
+      blocks: LessonBlockDTO[];
+      checklistItems: Array<{ id: string; text: string; order: number }>;
+      idMap: Record<string, string>;
+    }
+  | { ok: false; error: string; code?: string }
+> {
+  const started = Date.now();
+  try {
+    await requireAdmin();
+
+    const lesson = await prisma.lesson.findUnique({
+      where: { id: input.lessonId },
+      select: { id: true, moduleId: true }
+    });
+    if (!lesson) return { ok: false, error: "Aula não encontrada.", code: "NOT_FOUND" };
+
+    const title = String(input.title || "").trim().slice(0, 200) || "Sem título";
+    const order = Math.max(1, Math.floor(Number(input.order) || 1));
+    const status =
+      input.status === "DRAFT" || input.status === "PUBLISHED" || input.status === "HIDDEN"
+        ? input.status
+        : "PUBLISHED";
+
+    const prepared: Array<{
+      clientId: string;
+      isLocal: boolean;
+      type: ContentBlockType;
+      order: number;
+      content: string;
+      imagePath: string | null;
+      imageCaption: string | null;
+      isVisible: boolean;
+      settings: string | null;
+    }> = [];
+
+    for (const [index, raw] of input.blocks.entries()) {
+      const validated = validateBlockInput({
+        type: raw.type,
+        content: raw.content,
+        imagePath: raw.imagePath,
+        imageCaption: raw.imageCaption,
+        settings: raw.settings
+      });
+      if (!validated.ok) {
+        return { ok: false, error: validated.error, code: "VALIDATION_ERROR" };
+      }
+      const clientId = String(raw.id || "");
+      const isLocal = !clientId || clientId.startsWith("local-") || clientId.startsWith("tmp-");
+      prepared.push({
+        clientId: clientId || `local-${index}`,
+        isLocal,
+        type: validated.type,
+        order: index + 1,
+        content: validated.content,
+        imagePath: raw.imagePath ?? null,
+        imageCaption: raw.imageCaption ?? null,
+        isVisible: raw.isVisible !== false,
+        settings: serializeBlockSettings(validated.settings)
+      });
+    }
+
+    const existing = await prisma.contentBlock.findMany({
+      where: { lessonId: lesson.id },
+      select: { id: true }
+    });
+    const existingIds = new Set(existing.map((b) => b.id));
+    const keepIds = new Set(prepared.filter((b) => !b.isLocal && existingIds.has(b.clientId)).map((b) => b.clientId));
+    const toDelete = existing.filter((b) => !keepIds.has(b.id)).map((b) => b.id);
+
+    const idMap: Record<string, string> = {};
+
+    await prisma.$transaction(async (tx) => {
+      await tx.lesson.update({
+        where: { id: lesson.id },
+        data: {
+          title,
+          order,
+          status,
+          showAutoTitle: Boolean(input.showAutoTitle)
+        }
+      });
+
+      if (toDelete.length) {
+        await tx.contentBlock.deleteMany({ where: { id: { in: toDelete } } });
+      }
+
+      // Clear unique order constraints with a temp range, then write final order.
+      const stillThere = await tx.contentBlock.findMany({
+        where: { lessonId: lesson.id },
+        select: { id: true }
+      });
+      for (const [i, row] of stillThere.entries()) {
+        await tx.contentBlock.update({
+          where: { id: row.id },
+          data: { order: -5000 - i }
+        });
+      }
+
+      for (const block of prepared) {
+        if (!block.isLocal && existingIds.has(block.clientId)) {
+          await tx.contentBlock.update({
+            where: { id: block.clientId },
+            data: {
+              type: block.type,
+              order: block.order,
+              content: block.content,
+              imagePath: block.imagePath,
+              imageCaption: block.imageCaption,
+              isVisible: block.isVisible,
+              settings: block.settings
+            }
+          });
+          idMap[block.clientId] = block.clientId;
+        } else {
+          const created = await tx.contentBlock.create({
+            data: {
+              lessonId: lesson.id,
+              type: block.type,
+              order: block.order,
+              content: block.content,
+              imagePath: block.imagePath,
+              imageCaption: block.imageCaption,
+              isVisible: block.isVisible,
+              settings: block.settings
+            }
+          });
+          idMap[block.clientId] = created.id;
+        }
+      }
+    });
+
+    // Checklist once at the end (not per keystroke).
+    const checklistItems = await syncChecklistItems(lesson.id, input.checklistItems || []);
+
+    const blocks = await prisma.contentBlock.findMany({
+      where: { lessonId: lesson.id },
+      orderBy: { order: "asc" }
+    });
+
+    // Single controlled revalidation after full save (not on every keystroke).
+    revalidateTag("course-structure");
+    revalidatePath(`/curso/${lesson.id}`);
+
+    console.info(
+      JSON.stringify({
+        scope: "lesson-editor",
+        action: "saveLessonDocument",
+        lessonId: lesson.id,
+        blocks: blocks.length,
+        ms: Date.now() - started
+      })
+    );
+
+    return {
+      ok: true,
+      blocks: blocks.map(toDTO),
+      checklistItems,
+      idMap
+    };
+  } catch (error) {
+    logActionError("saveLessonDocument", { lessonId: input.lessonId }, error);
+    return { ok: false, error: "Não foi possível salvar a aula.", code: "DATABASE_ERROR" };
+  }
+}
+
 async function normalizeBlockOrders(lessonId: string) {
   const blocks = await prisma.contentBlock.findMany({
     where: { lessonId },

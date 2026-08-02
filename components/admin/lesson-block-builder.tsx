@@ -35,6 +35,7 @@ import {
   Minus,
   MoreHorizontal,
   Plus,
+  Save,
   Settings2,
   Sparkles,
   Text,
@@ -43,15 +44,9 @@ import {
 } from "lucide-react";
 import { resolveAssetUrl } from "@/lib/assets";
 import {
-  createLessonBlock,
-  deleteLessonBlock,
-  duplicateLessonBlock,
   getLessonBlocksAdmin,
   migrateLegacyLessonContent,
-  reorderLessonBlocks,
-  toggleLessonBlockVisibility,
-  updateLessonBlock,
-  updateLessonMeta,
+  saveLessonDocument,
   uploadLessonBlockImage
 } from "@/lib/lesson-block-actions";
 import {
@@ -70,7 +65,9 @@ type LessonListItem = {
   completedCount: number;
 };
 
-type SaveStatus = "idle" | "pending" | "saving" | "saved" | "error";
+type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
+
+type LocalBlock = LessonBlockDTO;
 
 const SLASH_TYPES: Array<{ type: LessonBlockType; keywords: string }> = [
   { type: "TEXT", keywords: "texto paragrafo" },
@@ -106,11 +103,28 @@ const TYPE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   STEP: ListOrdered
 };
 
-const AUTOSAVE_MS = 700;
+function newLocalId() {
+  return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function emptyBlock(type: LessonBlockType, order: number, lessonId: string): LocalBlock {
+  return {
+    id: newLocalId(),
+    lessonId,
+    type,
+    order,
+    content: "",
+    imagePath: null,
+    imageCaption: null,
+    isVisible: true,
+    settings:
+      type === "HEADING" ? { level: 2 } : type === "SUBHEADING" ? { level: 3 } : {}
+  };
+}
 
 export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: LessonListItem[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(lessons[0]?.id || null);
-  const [blocks, setBlocks] = useState<LessonBlockDTO[]>([]);
+  const [blocks, setBlocks] = useState<LocalBlock[]>([]);
   const [checklistItems, setChecklistItems] = useState<Array<{ id: string; text: string; order: number }>>([]);
   const [meta, setMeta] = useState<{
     title: string;
@@ -126,48 +140,23 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-
-  const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
-  const revMap = useRef<Map<string, number>>(new Map());
-  const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** In-flight save per entity — only one request active; latest patch waits. */
-  const inflight = useRef<Map<string, boolean>>(new Map());
-  const queuedPatch = useRef<
-    Map<
-      string,
-      {
-        content?: string;
-        imageCaption?: string | null;
-        settings?: LessonBlockDTO["settings"];
-        checklistItems?: Array<{ id?: string; text: string }>;
-        type?: string;
-        isVisible?: boolean;
-      }
-    >
-  >(new Map());
-  const lastFailedPatch = useRef<
-    Map<
-      string,
-      {
-        content?: string;
-        imageCaption?: string | null;
-        settings?: LessonBlockDTO["settings"];
-        checklistItems?: Array<{ id?: string; text: string }>;
-        type?: string;
-        isVisible?: boolean;
-      }
-    >
-  >(new Map());
+  const dirtyRef = useRef(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const markDirty = useCallback(() => {
+    dirtyRef.current = true;
+    setSaveStatus((s) => (s === "saving" ? s : "dirty"));
+  }, []);
+
   const loadLesson = useCallback(async (lessonId: string) => {
     setLoading(true);
     setError(null);
     setSaveStatus("idle");
+    dirtyRef.current = false;
     try {
       const result = await getLessonBlocksAdmin(lessonId);
       if (!result.ok) {
@@ -187,22 +176,14 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
         blocksMigrated: result.lesson.blocksMigrated
       });
 
-      // Soft migrate legacy content once when opening the canvas.
       if (!result.lesson.blocksMigrated) {
         const mig = await migrateLegacyLessonContent({ dryRun: false, lessonId });
-        if (mig.ok && mig.blocksCreated >= 0) {
+        if (mig.ok) {
           const refreshed = await getLessonBlocksAdmin(lessonId);
           if (refreshed.ok) {
             setBlocks(refreshed.blocks);
             setChecklistItems(refreshed.checklistItems);
-            setMeta((m) =>
-              m
-                ? {
-                    ...m,
-                    blocksMigrated: refreshed.lesson.blocksMigrated
-                  }
-                : m
-            );
+            setMeta((m) => (m ? { ...m, blocksMigrated: refreshed.lesson.blocksMigrated } : m));
           }
         }
       }
@@ -217,211 +198,121 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
     if (selectedId) void loadLesson(selectedId);
   }, [selectedId, loadLesson]);
 
-  // Ctrl/Cmd+S flush
+  const saveAll = useCallback(async () => {
+    if (!selectedId || !meta) return;
+    setSaveStatus("saving");
+    setError(null);
+
+    const result = await saveLessonDocument({
+      lessonId: selectedId,
+      title: meta.title,
+      order: meta.order,
+      status: meta.status as "DRAFT" | "PUBLISHED" | "HIDDEN",
+      showAutoTitle: meta.showAutoTitle,
+      blocks: blocks.map((b, index) => ({
+        id: b.id,
+        type: b.type,
+        order: index + 1,
+        content: b.content,
+        imagePath: b.imagePath,
+        imageCaption: b.imageCaption,
+        isVisible: b.isVisible,
+        settings: b.settings
+      })),
+      checklistItems: checklistItems.map(({ id, text }) => ({
+        id: id.startsWith("tmp-") || id.startsWith("local-") ? undefined : id,
+        text
+      }))
+    });
+
+    if (!result.ok) {
+      setError(result.error);
+      setSaveStatus("error");
+      return;
+    }
+
+    setBlocks(result.blocks);
+    setChecklistItems(result.checklistItems);
+    dirtyRef.current = false;
+    setSaveStatus("saved");
+  }, [selectedId, meta, blocks, checklistItems]);
+
+  // Ctrl/Cmd+S → save
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        setSaveStatus("saved");
+        if (dirtyRef.current || saveStatus === "dirty" || saveStatus === "error") {
+          void saveAll();
+        }
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [saveAll, saveStatus]);
 
-  const bumpRev = (blockId: string) => {
-    const next = (revMap.current.get(blockId) || 0) + 1;
-    revMap.current.set(blockId, next);
-    return next;
-  };
-
-  const flushBlockSave = useCallback(async (blockId: string) => {
-    if (inflight.current.get(blockId)) return;
-    const patch = queuedPatch.current.get(blockId);
-    if (!patch) return;
-
-    queuedPatch.current.delete(blockId);
-    inflight.current.set(blockId, true);
-    const rev = bumpRev(blockId);
-    setSaveStatus("saving");
-    setError(null);
-
-    // Never send temp checklist ids as persisted ids — strip tmp-/local- prefixes.
-    const safePatch = {
-      ...patch,
-      checklistItems: patch.checklistItems?.map((item) => ({
-        id:
-          item.id && !item.id.startsWith("tmp-") && !item.id.startsWith("local-")
-            ? item.id
-            : undefined,
-        text: item.text
-      }))
-    };
-
-    try {
-      const result = await updateLessonBlock({
-        ...safePatch,
-        blockId,
-        quiet: true,
-        clientRev: rev
-      });
-
-      if (!result.ok) {
-        lastFailedPatch.current.set(blockId, patch);
-        setError(result.error || "Não foi possível salvar.");
-        setSaveStatus("error");
-        return;
-      }
-
-      // Ignore stale responses — a newer revision is already queued or in progress.
-      if (result.clientRev !== undefined && result.clientRev !== revMap.current.get(blockId)) {
-        return;
-      }
-
-      lastFailedPatch.current.delete(blockId);
-      setBlocks((prev) => prev.map((b) => (b.id === blockId ? { ...b, ...result.block } : b)));
-      if (result.checklistItems) {
-        setChecklistItems(result.checklistItems);
-      }
-      setSaveStatus("saved");
-    } catch (e) {
-      lastFailedPatch.current.set(blockId, patch);
-      setError(e instanceof Error ? e.message : "Não foi possível salvar.");
-      setSaveStatus("error");
-    } finally {
-      inflight.current.set(blockId, false);
-      // If more edits arrived while saving, flush the latest only.
-      if (queuedPatch.current.has(blockId)) {
-        void flushBlockSave(blockId);
-      }
-    }
-  }, []);
-
-  const scheduleBlockSave = useCallback(
-    (
-      blockId: string,
-      patch: {
-        content?: string;
-        imageCaption?: string | null;
-        settings?: LessonBlockDTO["settings"];
-        checklistItems?: Array<{ id?: string; text: string }>;
-        type?: string;
-        isVisible?: boolean;
-      }
-    ) => {
-      setSaveStatus("pending");
-      // Merge with any queued patch so rapid edits keep the latest full state.
-      const prev = queuedPatch.current.get(blockId) || {};
-      queuedPatch.current.set(blockId, { ...prev, ...patch });
-
-      const existing = saveTimers.current.get(blockId);
-      if (existing) clearTimeout(existing);
-      const timer = setTimeout(() => {
-        void flushBlockSave(blockId);
-      }, AUTOSAVE_MS);
-      saveTimers.current.set(blockId, timer);
-    },
-    [flushBlockSave]
-  );
-
-  function retryLastFailed() {
-    for (const [blockId, patch] of lastFailedPatch.current.entries()) {
-      queuedPatch.current.set(blockId, patch);
-      void flushBlockSave(blockId);
-    }
-  }
-
-  function scheduleTitleSave(title: string) {
-    if (!selectedId) return;
-    setSaveStatus("pending");
-    if (titleTimer.current) clearTimeout(titleTimer.current);
-    titleTimer.current = setTimeout(() => {
-      setSaveStatus("saving");
-      void updateLessonMeta({ lessonId: selectedId, title, quiet: true }).then((result) => {
-        if (!result.ok) {
-          setError(result.error);
-          setSaveStatus("error");
-          return;
-        }
-        setSaveStatus("saved");
-      });
-    }, AUTOSAVE_MS);
-  }
-
-  // Flush pending saves when leaving the page / switching lesson.
+  // Warn before leaving with unsaved changes
   useEffect(() => {
-    const timers = saveTimers.current;
-    const queue = queuedPatch.current;
-    return () => {
-      for (const timer of timers.values()) clearTimeout(timer);
-      timers.clear();
-      for (const blockId of queue.keys()) {
-        void flushBlockSave(blockId);
-      }
-    };
-  }, [selectedId, flushBlockSave]);
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      if (!dirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
 
-  async function ensureTextBlock(): Promise<string | null> {
+  function ensureTextBlock(): string | null {
     if (!selectedId) return null;
     if (blocks.length > 0) return blocks[0]?.id || null;
-    const result = await createLessonBlock({
-      lessonId: selectedId,
-      type: "TEXT",
-      content: "",
-      quiet: true
-    });
-    if (!result.ok) {
-      setError(result.error);
-      return null;
-    }
-    setBlocks([result.block]);
-    setFocusBlockId(result.block.id);
-    return result.block.id;
+    const block = emptyBlock("TEXT", 1, selectedId);
+    setBlocks([block]);
+    setFocusBlockId(block.id);
+    markDirty();
+    return block.id;
   }
 
-  async function insertBlock(type: LessonBlockType, afterOrder: number | null, transformBlockId?: string) {
+  function insertBlock(type: LessonBlockType, afterOrder: number | null, transformBlockId?: string) {
     if (!selectedId) return;
 
     if (transformBlockId) {
       const block = blocks.find((b) => b.id === transformBlockId);
       if (block && (block.type === "TEXT" || !block.content.trim())) {
-        const result = await updateLessonBlock({
-          blockId: transformBlockId,
-          type,
-          content: type === "DIVIDER" ? "" : block.content,
-          settings: type === "HEADING" ? { level: 2 } : type === "SUBHEADING" ? { level: 3 } : block.settings,
-          quiet: true
-        });
-        if (result.ok) {
-          setBlocks((prev) => prev.map((b) => (b.id === transformBlockId ? result.block : b)));
-          setFocusBlockId(transformBlockId);
-          if (type === "IMAGE") triggerImageUpload(transformBlockId);
-          return;
-        }
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.id === transformBlockId
+              ? {
+                  ...b,
+                  type,
+                  content: type === "DIVIDER" ? "" : b.content,
+                  settings:
+                    type === "HEADING" ? { level: 2 } : type === "SUBHEADING" ? { level: 3 } : b.settings
+                }
+              : b
+          )
+        );
+        setFocusBlockId(transformBlockId);
+        markDirty();
+        if (type === "IMAGE") triggerImageUpload(transformBlockId);
+        return;
       }
     }
 
-    const result = await createLessonBlock({
-      lessonId: selectedId,
-      type,
-      afterOrder,
-      content: "",
-      quiet: true
-    });
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
     setBlocks((prev) => {
       const next = [...prev];
       const idx =
         afterOrder == null ? next.length : next.findIndex((b) => b.order === afterOrder) + 1;
       const at = idx < 0 ? next.length : idx;
-      next.splice(at, 0, result.block);
+      const block = emptyBlock(type, at + 1, selectedId);
+      next.splice(at, 0, block);
+      setFocusBlockId(block.id);
+      if (type === "IMAGE") {
+        // upload after state commits
+        queueMicrotask(() => triggerImageUpload(block.id));
+      }
       return next.map((b, i) => ({ ...b, order: i + 1 }));
     });
-    setFocusBlockId(result.block.id);
-    if (type === "IMAGE") triggerImageUpload(result.block.id);
+    markDirty();
   }
 
   function triggerImageUpload(blockId: string) {
@@ -433,7 +324,10 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
       if (!file) return;
       setSaveStatus("saving");
       const fd = new FormData();
-      fd.set("blockId", blockId);
+      // Only attach blockId if it's already persisted (not local-*)
+      if (!blockId.startsWith("local-") && !blockId.startsWith("tmp-")) {
+        fd.set("blockId", blockId);
+      }
       fd.set("file", file);
       void uploadLessonBlockImage(fd).then((result) => {
         if (!result.ok) {
@@ -441,10 +335,20 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
           setSaveStatus("error");
           return;
         }
-        if (result.block) {
-          setBlocks((prev) => prev.map((b) => (b.id === blockId ? result.block! : b)));
-        }
-        setSaveStatus("saved");
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.id === blockId
+              ? {
+                  ...b,
+                  type: "IMAGE",
+                  imagePath: result.path,
+                  settings: { ...b.settings, alt: b.settings.alt || file.name }
+                }
+              : b
+          )
+        );
+        markDirty();
+        setSaveStatus("dirty");
       });
     };
     input.click();
@@ -452,67 +356,47 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id || !selectedId) return;
+    if (!over || active.id === over.id) return;
     const oldIndex = blocks.findIndex((b) => b.id === active.id);
     const newIndex = blocks.findIndex((b) => b.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
-    const previous = blocks;
-    const next = arrayMove(blocks, oldIndex, newIndex).map((b, i) => ({ ...b, order: i + 1 }));
-    setBlocks(next);
-    setSaveStatus("saving");
-    startTransition(async () => {
-      const result = await reorderLessonBlocks(
-        selectedId,
-        next.map((b) => b.id),
-        { quiet: true }
-      );
-      if (!result.ok) {
-        setBlocks(previous);
-        setError(result.error);
-        setSaveStatus("error");
-        return;
-      }
-      setBlocks(result.blocks);
-      setSaveStatus("saved");
-    });
+    setBlocks(arrayMove(blocks, oldIndex, newIndex).map((b, i) => ({ ...b, order: i + 1 })));
+    markDirty();
   }
 
-  async function splitBlock(blockId: string, before: string, after: string) {
+  function splitBlock(blockId: string, before: string, after: string) {
     if (!selectedId) return;
     const block = blocks.find((b) => b.id === blockId);
     if (!block) return;
 
-    // Update current with before
-    setBlocks((prev) => prev.map((b) => (b.id === blockId ? { ...b, content: before } : b)));
-    scheduleBlockSave(blockId, { content: before, settings: block.settings });
+    const newType: LessonBlockType =
+      block.type === "HEADING" || block.type === "SUBHEADING"
+        ? "TEXT"
+        : block.type === "CHECKBOX"
+          ? "CHECKBOX"
+          : "TEXT";
 
-    const result = await createLessonBlock({
-      lessonId: selectedId,
-      type: block.type === "HEADING" || block.type === "SUBHEADING" ? "TEXT" : block.type === "CHECKBOX" ? "CHECKBOX" : "TEXT",
-      afterOrder: block.order,
-      content: after,
-      quiet: true
-    });
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
     setBlocks((prev) => {
       const idx = prev.findIndex((b) => b.id === blockId);
+      if (idx < 0) return prev;
       const next = [...prev];
-      next.splice(idx + 1, 0, result.block);
+      next[idx] = { ...next[idx]!, content: before };
+      const created = emptyBlock(newType, idx + 2, selectedId);
+      created.content = after;
+      next.splice(idx + 1, 0, created);
+      setFocusBlockId(created.id);
       return next.map((b, i) => ({ ...b, order: i + 1 }));
     });
-    setFocusBlockId(result.block.id);
+    markDirty();
   }
 
-  async function removeOrMergeBack(blockId: string) {
+  function removeOrMergeBack(blockId: string) {
     const idx = blocks.findIndex((b) => b.id === blockId);
     if (idx < 0) return;
-    const block = blocks[idx];
+    const block = blocks[idx]!;
     if (blocks.length === 1) {
       setBlocks([{ ...block, content: "" }]);
-      scheduleBlockSave(blockId, { content: "", settings: block.settings });
+      markDirty();
       return;
     }
     const prev = blocks[idx - 1];
@@ -524,23 +408,30 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
           .map((b) => (b.id === prev.id ? { ...b, content: merged } : b))
           .map((b, i) => ({ ...b, order: i + 1 }))
       );
-      scheduleBlockSave(prev.id, { content: merged, settings: prev.settings });
       setFocusBlockId(prev.id);
-      void deleteLessonBlock(blockId, { confirmProgressLoss: true });
+      markDirty();
       return;
     }
     setBlocks((list) => list.filter((b) => b.id !== blockId).map((b, i) => ({ ...b, order: i + 1 })));
-    void deleteLessonBlock(blockId, { confirmProgressLoss: true });
     setFocusBlockId(prev?.id || blocks[idx + 1]?.id || null);
+    markDirty();
+  }
+
+  function selectLesson(id: string) {
+    if (id === selectedId) return;
+    if (dirtyRef.current) {
+      const ok = window.confirm("Há alterações não salvas. Descartar e trocar de aula?");
+      if (!ok) return;
+    }
+    setSelectedId(id);
   }
 
   return (
     <div className="grid min-h-0 gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
-      {/* Compact lesson list */}
       <aside className="rounded-xl border border-white/10 bg-[#121018]">
         <div className="border-b border-white/[0.06] px-4 py-3">
           <p className="text-sm font-semibold text-white">Aulas</p>
-          <p className="mt-0.5 text-xs text-white/40">Uma página de documento por vez</p>
+          <p className="mt-0.5 text-xs text-white/40">Edite e clique em Salvar</p>
         </div>
         <ul className="max-h-[min(70vh,640px)] space-y-0.5 overflow-y-auto p-2 scrollbar-thin">
           {lessons.map((lesson) => {
@@ -549,7 +440,7 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
               <li key={lesson.id}>
                 <button
                   type="button"
-                  onClick={() => setSelectedId(lesson.id)}
+                  onClick={() => selectLesson(lesson.id)}
                   className={cn(
                     "w-full rounded-lg px-3 py-2.5 text-left transition",
                     active ? "bg-[#8A1DEE]/18 ring-1 ring-[#8A1DEE]/35" : "hover:bg-white/[0.04]"
@@ -566,7 +457,6 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
         </ul>
       </aside>
 
-      {/* Document canvas */}
       <section className="min-w-0">
         {!meta ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-[#0c0a10] px-6 py-20 text-center text-sm text-white/45">
@@ -580,16 +470,15 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#1a1520] shadow-2xl">
-            {/* Status bar */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] bg-[#121018]/80 px-4 py-2.5 sm:px-6">
-              <div className="flex items-center gap-2 text-xs text-white/45">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-white/45">
                 <span className="font-medium text-white/60">Aula {meta.number}</span>
                 <span className="text-white/20">·</span>
-                <SaveBadge status={saveStatus} pending={pending} onRetry={retryLastFailed} />
+                <SaveBadge status={saveStatus} pending={pending} />
                 {error ? (
                   <button
                     type="button"
-                    className="max-w-[240px] truncate text-red-300/90 underline-offset-2 hover:underline"
+                    className="max-w-[220px] truncate text-red-300/90 underline-offset-2 hover:underline"
                     onClick={() => setError(null)}
                     title={error}
                   >
@@ -597,7 +486,7 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
                   </button>
                 ) : null}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setSettingsOpen((v) => !v)}
@@ -605,6 +494,24 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
                 >
                   <Settings2 className="h-3.5 w-3.5" />
                   Configurações
+                </button>
+                <button
+                  type="button"
+                  disabled={saveStatus === "saving" || (saveStatus !== "dirty" && saveStatus !== "error")}
+                  onClick={() => startTransition(() => void saveAll())}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                    saveStatus === "dirty" || saveStatus === "error"
+                      ? "bg-gradient-to-r from-[#53009F] to-[#8A1DEE] text-white hover:opacity-95"
+                      : "border border-white/10 bg-white/[0.04] text-white/45 disabled:opacity-50"
+                  )}
+                >
+                  {saveStatus === "saving" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Save className="h-3.5 w-3.5" />
+                  )}
+                  {saveStatus === "saving" ? "Salvando…" : "Salvar"}
                 </button>
               </div>
             </div>
@@ -618,9 +525,8 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
                       type="number"
                       value={meta.order}
                       onChange={(e) => {
-                        const order = Number(e.target.value) || 1;
-                        setMeta({ ...meta, order });
-                        if (selectedId) void updateLessonMeta({ lessonId: selectedId, order });
+                        setMeta({ ...meta, order: Number(e.target.value) || 1 });
+                        markDirty();
                       }}
                       className="min-h-9 rounded-lg border border-white/10 bg-black/30 px-2 text-sm text-white"
                     />
@@ -630,9 +536,8 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
                     <select
                       value={meta.status}
                       onChange={(e) => {
-                        const status = e.target.value as "DRAFT" | "PUBLISHED" | "HIDDEN";
-                        setMeta({ ...meta, status });
-                        if (selectedId) void updateLessonMeta({ lessonId: selectedId, status });
+                        setMeta({ ...meta, status: e.target.value });
+                        markDirty();
                       }}
                       className="min-h-9 rounded-lg border border-white/10 bg-black/30 px-2 text-sm text-white"
                     >
@@ -646,9 +551,8 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
                       type="checkbox"
                       checked={meta.showAutoTitle}
                       onChange={(e) => {
-                        const showAutoTitle = e.target.checked;
-                        setMeta({ ...meta, showAutoTitle });
-                        if (selectedId) void updateLessonMeta({ lessonId: selectedId, showAutoTitle });
+                        setMeta({ ...meta, showAutoTitle: e.target.checked });
+                        markDirty();
                       }}
                       className="accent-[#8A1DEE]"
                     />
@@ -658,31 +562,26 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
               </div>
             ) : null}
 
-            {/* Page surface */}
             <div
               className="lesson-editor-canvas max-h-[min(78vh,900px)] overflow-y-auto overflow-x-hidden px-4 py-8 sm:px-10 sm:py-12 md:px-16"
-              onClick={async (e) => {
-                if (e.target === e.currentTarget) {
-                  if (!blocks.length) {
-                    const id = await ensureTextBlock();
-                    if (id) setFocusBlockId(id);
-                  }
+              onClick={(e) => {
+                if (e.target === e.currentTarget && !blocks.length) {
+                  ensureTextBlock();
                 }
               }}
             >
               <div className="mx-auto w-full max-w-[720px]">
-                {/* Inline title */}
                 <input
                   value={meta.title}
                   onChange={(e) => {
                     setMeta({ ...meta, title: e.target.value });
-                    scheduleTitleSave(e.target.value);
+                    markDirty();
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
                       if (blocks[0]) setFocusBlockId(blocks[0].id);
-                      else void ensureTextBlock();
+                      else ensureTextBlock();
                     }
                   }}
                   placeholder="Título da aula"
@@ -711,80 +610,77 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
                                   b.id === block.id ? { ...b, content, settings: settings || b.settings } : b
                                 )
                               );
-                              scheduleBlockSave(block.id, {
-                                content,
-                                settings: settings || block.settings,
-                                imageCaption: block.imageCaption
-                              });
+                              markDirty();
                             }}
                             onCaptionChange={(caption) => {
                               setBlocks((prev) =>
                                 prev.map((b) => (b.id === block.id ? { ...b, imageCaption: caption } : b))
                               );
-                              scheduleBlockSave(block.id, { imageCaption: caption, settings: block.settings });
+                              markDirty();
                             }}
-                            onEnterSplit={(before, after) => void splitBlock(block.id, before, after)}
-                            onBackspaceEmpty={() => void removeOrMergeBack(block.id)}
+                            onEnterSplit={(before, after) => splitBlock(block.id, before, after)}
+                            onBackspaceEmpty={() => removeOrMergeBack(block.id)}
                             onSlashInsert={(type) =>
-                              void insertBlock(type, index > 0 ? blocks[index - 1]!.order : null, block.id)
+                              insertBlock(type, index > 0 ? blocks[index - 1]!.order : null, block.id)
                             }
-                            onInsertAfter={(type) => void insertBlock(type, block.order)}
+                            onInsertAfter={(type) => insertBlock(type, block.order)}
                             onDuplicate={() => {
-                              void duplicateLessonBlock(block.id).then((result) => {
-                                if (result.ok && selectedId) void loadLesson(selectedId);
+                              setBlocks((prev) => {
+                                const idx = prev.findIndex((b) => b.id === block.id);
+                                if (idx < 0) return prev;
+                                const copy: LocalBlock = {
+                                  ...block,
+                                  id: newLocalId(),
+                                  content: block.content
+                                };
+                                const next = [...prev];
+                                next.splice(idx + 1, 0, copy);
+                                return next.map((b, i) => ({ ...b, order: i + 1 }));
                               });
+                              markDirty();
                             }}
                             onToggleVisible={() => {
-                              void toggleLessonBlockVisibility(block.id).then((result) => {
-                                if (result.ok) {
-                                  setBlocks((prev) => prev.map((b) => (b.id === block.id ? result.block : b)));
-                                }
-                              });
+                              setBlocks((prev) =>
+                                prev.map((b) => (b.id === block.id ? { ...b, isVisible: !b.isVisible } : b))
+                              );
+                              markDirty();
                             }}
                             onDelete={() => {
                               if (!window.confirm("Excluir este bloco?")) return;
-                              setBlocks((prev) => prev.filter((b) => b.id !== block.id).map((b, i) => ({ ...b, order: i + 1 })));
-                              void deleteLessonBlock(block.id, { confirmProgressLoss: true });
+                              setBlocks((prev) =>
+                                prev.filter((b) => b.id !== block.id).map((b, i) => ({ ...b, order: i + 1 }))
+                              );
+                              markDirty();
                             }}
                             onUploadImage={() => triggerImageUpload(block.id)}
                             onChangeType={(type) => {
-                              void updateLessonBlock({
-                                blockId: block.id,
-                                type,
-                                content: block.content,
-                                settings:
-                                  type === "HEADING"
-                                    ? { ...block.settings, level: 2 }
-                                    : type === "SUBHEADING"
-                                      ? { ...block.settings, level: 3 }
-                                      : block.settings,
-                                quiet: true
-                              }).then((result) => {
-                                if (result.ok) {
-                                  setBlocks((prev) => prev.map((b) => (b.id === block.id ? result.block : b)));
-                                }
-                              });
+                              setBlocks((prev) =>
+                                prev.map((b) =>
+                                  b.id === block.id
+                                    ? {
+                                        ...b,
+                                        type,
+                                        settings:
+                                          type === "HEADING"
+                                            ? { ...b.settings, level: 2 }
+                                            : type === "SUBHEADING"
+                                              ? { ...b.settings, level: 3 }
+                                              : b.settings
+                                      }
+                                    : b
+                                )
+                              );
+                              markDirty();
                             }}
                             onChecklistItemsChange={(items) => {
-                              const local = items.map((item, i) => ({
-                                id: item.id || `tmp-${i}`,
-                                text: item.text,
-                                order: i + 1
-                              }));
-                              setChecklistItems(local);
-                              // Send ids only when they look like real DB ids (not tmp-*).
-                              scheduleBlockSave(block.id, {
-                                content: block.content,
-                                settings: block.settings,
-                                type: "CHECKLIST",
-                                checklistItems: local.map(({ id, text }) => ({
-                                  id:
-                                    id.startsWith("tmp-") || id.startsWith("local-")
-                                      ? undefined
-                                      : id,
-                                  text
+                              setChecklistItems(
+                                items.map((item, i) => ({
+                                  id: item.id || `tmp-${i}`,
+                                  text: item.text,
+                                  order: i + 1
                                 }))
-                              });
+                              );
+                              markDirty();
                             }}
                           />
                         ))}
@@ -793,7 +689,7 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
                           <button
                             type="button"
                             className="w-full rounded-lg px-1 py-3 text-left text-base text-white/30 transition hover:text-white/50"
-                            onClick={() => void ensureTextBlock()}
+                            onClick={() => ensureTextBlock()}
                           >
                             Digite “/” para adicionar um conteúdo ou comece a escrever…
                           </button>
@@ -811,15 +707,7 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
   );
 }
 
-function SaveBadge({
-  status,
-  pending,
-  onRetry
-}: {
-  status: SaveStatus;
-  pending: boolean;
-  onRetry?: () => void;
-}) {
+function SaveBadge({ status, pending }: { status: SaveStatus; pending: boolean }) {
   if (status === "saving" || pending) {
     return (
       <span className="inline-flex items-center gap-1 text-white/50">
@@ -827,21 +715,10 @@ function SaveBadge({
       </span>
     );
   }
-  if (status === "pending") return <span className="text-amber-200/70">Alterações pendentes</span>;
+  if (status === "dirty") return <span className="text-amber-200/80">Alterações não salvas</span>;
   if (status === "saved") return <span className="text-emerald-300/70">Salvo</span>;
-  if (status === "error") {
-    return (
-      <span className="inline-flex items-center gap-2 text-red-300">
-        Não foi possível salvar
-        {onRetry ? (
-          <button type="button" className="underline underline-offset-2 hover:text-red-200" onClick={onRetry}>
-            Tentar novamente
-          </button>
-        ) : null}
-      </span>
-    );
-  }
-  return <span className="text-white/35">Documento</span>;
+  if (status === "error") return <span className="text-red-300">Falha ao salvar</span>;
+  return <span className="text-white/35">Sem alterações</span>;
 }
 
 function isTextLike(type: string) {
@@ -866,7 +743,7 @@ function CanvasBlock({
   onChangeType,
   onChecklistItemsChange
 }: {
-  block: LessonBlockDTO;
+  block: LocalBlock;
   checklistItems: Array<{ id: string; text: string; order: number }>;
   autoFocus?: boolean;
   onFocused: () => void;
@@ -905,7 +782,6 @@ function CanvasBlock({
   useEffect(() => {
     if (autoFocus && editableRef.current) {
       editableRef.current.focus();
-      // Place caret at end
       const range = document.createRange();
       const sel = window.getSelection();
       range.selectNodeContents(editableRef.current);
@@ -915,15 +791,12 @@ function CanvasBlock({
     }
   }, [autoFocus]);
 
-  // Keep contenteditable in sync only when not focused (avoid cursor jumps)
   useEffect(() => {
     const el = editableRef.current;
     if (!el) return;
     if (document.activeElement === el) return;
     const next = block.content || "";
-    if (el.innerText !== next) {
-      el.innerText = next;
-    }
+    if (el.innerText !== next) el.innerText = next;
   }, [block.content, block.id]);
 
   const placeholder = placeholderFor(block.type);
@@ -932,7 +805,6 @@ function CanvasBlock({
     const el = editableRef.current;
     if (!el) return;
     const text = el.innerText.replace(/\u00a0/g, " ");
-    // Slash detection on last line
     const lines = text.split("\n");
     const last = lines[lines.length - 1] || "";
     const match = last.match(/^\/([^\n]*)$/);
@@ -948,7 +820,6 @@ function CanvasBlock({
   function applySlash(type: LessonBlockType) {
     const el = editableRef.current;
     if (el) {
-      // Remove the /query from content
       const text = el.innerText.replace(/\u00a0/g, " ");
       const cleaned = text.replace(/(?:^|\n)\/[^\n]*$/, "").replace(/\n$/, "");
       el.innerText = cleaned;
@@ -985,15 +856,12 @@ function CanvasBlock({
 
     if (e.key === "Enter" && !e.shiftKey) {
       if (block.type === "BULLET_LIST" || block.type === "NUMBERED_LIST" || block.type === "CHECKLIST") {
-        // allow newline inside lists
         return;
       }
       e.preventDefault();
       const el = editableRef.current;
       if (!el) return;
       const text = el.innerText.replace(/\u00a0/g, " ");
-      // Simple split: all content stays, new empty block after
-      // Better: split at caret
       const sel = window.getSelection();
       let before = text;
       let after = "";
@@ -1036,7 +904,6 @@ function CanvasBlock({
       )}
       onMouseDown={onFocused}
     >
-      {/* Side controls */}
       <div className="absolute -left-10 top-1 hidden items-center gap-0.5 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100 sm:flex">
         <button
           type="button"
@@ -1068,7 +935,11 @@ function CanvasBlock({
           <div className="w-full space-y-2">
             {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt={block.settings.alt || block.imageCaption || ""} className="max-h-[420px] w-full rounded-lg object-contain" />
+              <img
+                src={imageUrl}
+                alt={block.settings.alt || block.imageCaption || ""}
+                className="max-h-[420px] w-full rounded-lg object-contain"
+              />
             ) : (
               <button
                 type="button"
@@ -1167,8 +1038,7 @@ function CanvasBlock({
                 "w-full whitespace-pre-wrap break-words text-[15px] leading-[1.75] text-white/85 outline-none",
                 (block.type === "HEADING" || (block.type === "SUBHEADING" && block.settings.level !== 3)) &&
                   "text-xl font-semibold text-white sm:text-2xl",
-                block.type === "SUBHEADING" && block.settings.level === 3 && "text-lg font-semibold text-white",
-                (block.type === "BULLET_LIST" || block.type === "NUMBERED_LIST") && "pl-1"
+                block.type === "SUBHEADING" && block.settings.level === 3 && "text-lg font-semibold text-white"
               )}
               data-placeholder={placeholder}
               onInput={handleInput}
@@ -1178,7 +1048,6 @@ function CanvasBlock({
           </div>
         )}
 
-        {/* Block menu */}
         <div className="absolute -right-1 top-1 opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100">
           <button
             type="button"
@@ -1244,7 +1113,6 @@ function CanvasBlock({
         </div>
       </div>
 
-      {/* Slash menu */}
       {slash?.open ? (
         <div className="absolute left-0 z-40 mt-1 w-[min(100%,280px)] overflow-hidden rounded-xl border border-white/10 bg-[#151019] shadow-2xl">
           <p className="border-b border-white/[0.06] px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-white/40">
