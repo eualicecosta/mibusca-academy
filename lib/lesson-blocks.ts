@@ -134,17 +134,18 @@ export function validateBlockInput(input: {
       return { ok: true, type, content: "", settings };
     case "HEADING":
     case "SUBHEADING":
-      if (!content) return { ok: false, error: "Informe o texto do título." };
       if (!settings.level) settings.level = type === "HEADING" ? 2 : 3;
       return { ok: true, type, content: content.slice(0, 300), settings };
     case "TEXT":
     case "STEP":
+      // Allow empty draft paragraphs while typing in the canvas editor.
+      return { ok: true, type, content: content.slice(0, 20000), settings };
     case "TIP":
     case "WARNING":
     case "INFO":
     case "EXAMPLE":
     case "CHECKBOX":
-      if (!content) return { ok: false, error: "Informe o conteúdo do bloco." };
+      // Allow empty draft callouts/checkboxes; UI shows placeholder.
       return { ok: true, type, content: content.slice(0, 20000), settings };
     case "BULLET_LIST":
     case "NUMBERED_LIST": {
@@ -155,9 +156,9 @@ export function validateBlockInput(input: {
               .split("\n")
               .map((line) => line.replace(/^[-*\d.)\s]+/, "").trim())
               .filter(Boolean);
-      if (!items.length) return { ok: false, error: "Adicione ao menos um item na lista." };
+      // Allow empty draft lists while typing in the canvas.
       settings.items = items;
-      return { ok: true, type, content: items.join("\n"), settings };
+      return { ok: true, type, content: items.length ? items.join("\n") : content.slice(0, 20000), settings };
     }
     case "IMAGE":
       if (!input.imagePath && !content) {

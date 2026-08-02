@@ -15,7 +15,12 @@ import {
 import { prisma } from "@/lib/prisma";
 import { uploadImageToR2, sanitizeStorageName } from "@/lib/r2";
 
-function revalidateLesson(moduleId: string, lessonId: string) {
+function revalidateLesson(moduleId: string, lessonId: string, options?: { quiet?: boolean }) {
+  // Quiet autosaves only refresh student lesson cache — avoid thrashing admin route caches.
+  if (options?.quiet) {
+    revalidatePath(`/curso/${lessonId}`);
+    return;
+  }
   revalidateTag("course-structure");
   revalidatePath("/admin/conteudo");
   revalidatePath(`/admin/conteudo/${moduleId}`);
@@ -153,14 +158,19 @@ export async function createLessonBlock(input: {
   afterOrder?: number | null;
   content?: string;
   settings?: BlockSettings;
+  quiet?: boolean;
 }): Promise<{ ok: true; block: LessonBlockDTO } | { ok: false; error: string }> {
   await requireAdmin();
   const lesson = await getLessonMeta(input.lessonId);
   if (!lesson) return { ok: false, error: "Aula não encontrada." };
 
+  // Canvas starts blocks empty (Notion-like); placeholders are visual only.
+  const seedContent =
+    input.content !== undefined ? input.content : input.type === "DIVIDER" || input.type === "IMAGE" ? "" : "";
+
   const validated = validateBlockInput({
     type: input.type,
-    content: input.content || defaultContentForType(input.type),
+    content: seedContent,
     settings: input.settings
   });
   if (!validated.ok) return validated;
@@ -207,38 +217,8 @@ export async function createLessonBlock(input: {
   await normalizeBlockOrders(lesson.id);
 
   const fresh = await prisma.contentBlock.findUniqueOrThrow({ where: { id: block.id } });
-  revalidateLesson(lesson.moduleId, lesson.id);
+  revalidateLesson(lesson.moduleId, lesson.id, { quiet: input.quiet });
   return { ok: true, block: toDTO(fresh) };
-}
-
-function defaultContentForType(type: string): string {
-  switch (type) {
-    case "HEADING":
-      return "Novo título";
-    case "SUBHEADING":
-      return "Novo subtítulo";
-    case "TEXT":
-      return "Escreva o texto aqui…";
-    case "TIP":
-      return "Dica para o aluno…";
-    case "WARNING":
-      return "Atenção…";
-    case "INFO":
-      return "Informação importante…";
-    case "EXAMPLE":
-      return "Exemplo prático…";
-    case "CHECKBOX":
-      return "Item a marcar";
-    case "CHECKLIST":
-      return "Checklist de conclusão";
-    case "BULLET_LIST":
-    case "NUMBERED_LIST":
-      return "Item 1\nItem 2";
-    case "STEP":
-      return "Descreva o passo…";
-    default:
-      return "";
-  }
 }
 
 export async function updateLessonBlock(input: {
@@ -250,7 +230,10 @@ export async function updateLessonBlock(input: {
   settings?: BlockSettings;
   type?: string;
   checklistItems?: Array<{ id?: string; text: string }>;
-}): Promise<{ ok: true; block: LessonBlockDTO } | { ok: false; error: string }> {
+  quiet?: boolean;
+  /** Client generation to detect stale responses (returned as-is). */
+  clientRev?: number;
+}): Promise<{ ok: true; block: LessonBlockDTO; clientRev?: number } | { ok: false; error: string; clientRev?: number }> {
   await requireAdmin();
 
   const current = await prisma.contentBlock.findUnique({
@@ -301,8 +284,8 @@ export async function updateLessonBlock(input: {
     }
   });
 
-  revalidateLesson(current.lesson.moduleId, current.lesson.id);
-  return { ok: true, block: toDTO(updated) };
+  revalidateLesson(current.lesson.moduleId, current.lesson.id, { quiet: input.quiet });
+  return { ok: true, block: toDTO(updated), clientRev: input.clientRev };
 }
 
 async function syncChecklistItems(lessonId: string, items: Array<{ id?: string; text: string }>) {
@@ -499,7 +482,8 @@ export async function deleteLessonBlock(
 
 export async function reorderLessonBlocks(
   lessonId: string,
-  orderedIds: string[]
+  orderedIds: string[],
+  options?: { quiet?: boolean }
 ): Promise<{ ok: true; blocks: LessonBlockDTO[] } | { ok: false; error: string }> {
   await requireAdmin();
   const lesson = await getLessonMeta(lessonId);
@@ -527,7 +511,7 @@ export async function reorderLessonBlocks(
     where: { lessonId },
     orderBy: { order: "asc" }
   });
-  revalidateLesson(lesson.moduleId, lesson.id);
+  revalidateLesson(lesson.moduleId, lesson.id, { quiet: options?.quiet });
   return { ok: true, blocks: blocks.map(toDTO) };
 }
 
