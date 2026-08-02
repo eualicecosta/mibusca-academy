@@ -16,9 +16,9 @@ import { prisma } from "@/lib/prisma";
 import { uploadImageToR2, sanitizeStorageName } from "@/lib/r2";
 
 function revalidateLesson(moduleId: string, lessonId: string, options?: { quiet?: boolean }) {
-  // Quiet autosaves only refresh student lesson cache — avoid thrashing admin route caches.
+  // Quiet autosaves must NOT revalidate routes — that can interrupt the editor RSC tree.
+  // Client keeps local state; student routes refresh on next navigation.
   if (options?.quiet) {
-    revalidatePath(`/curso/${lessonId}`);
     return;
   }
   revalidateTag("course-structure");
@@ -27,6 +27,25 @@ function revalidateLesson(moduleId: string, lessonId: string, options?: { quiet?
   revalidatePath(`/curso/${lessonId}`);
   revalidatePath("/dashboard");
   revalidatePath("/curso");
+}
+
+function logActionError(action: string, meta: Record<string, string | undefined>, error: unknown) {
+  const message = error instanceof Error ? error.message : "unknown";
+  console.error(
+    JSON.stringify({
+      scope: "lesson-editor",
+      action,
+      ...meta,
+      error: message
+    })
+  );
+}
+
+function isPersistedChecklistId(id: string | undefined | null, existingIds: Set<string>): id is string {
+  if (!id) return false;
+  // Client temp ids look like tmp-0 / tmp-1 — never send those to Prisma update.
+  if (id.startsWith("tmp-") || id.startsWith("local-")) return false;
+  return existingIds.has(id);
 }
 
 function toDTO(block: {
@@ -136,20 +155,27 @@ export async function updateLessonMeta(input: {
   order?: number;
   status?: "DRAFT" | "PUBLISHED" | "HIDDEN";
   showAutoTitle?: boolean;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
-  await requireAdmin();
-  const lesson = await getLessonMeta(input.lessonId);
-  if (!lesson) return { ok: false, error: "Aula não encontrada." };
+  quiet?: boolean;
+}): Promise<{ ok: true } | { ok: false; error: string; code?: string }> {
+  try {
+    await requireAdmin();
+    const lesson = await getLessonMeta(input.lessonId);
+    if (!lesson) return { ok: false, error: "Aula não encontrada.", code: "NOT_FOUND" };
 
-  const data: Prisma.LessonUpdateInput = {};
-  if (typeof input.title === "string" && input.title.trim()) data.title = input.title.trim().slice(0, 200);
-  if (typeof input.order === "number" && Number.isFinite(input.order)) data.order = Math.max(1, Math.floor(input.order));
-  if (input.status === "DRAFT" || input.status === "PUBLISHED" || input.status === "HIDDEN") data.status = input.status;
-  if (typeof input.showAutoTitle === "boolean") data.showAutoTitle = input.showAutoTitle;
+    const data: Prisma.LessonUpdateInput = {};
+    if (typeof input.title === "string") data.title = input.title.trim().slice(0, 200) || "Sem título";
+    if (typeof input.order === "number" && Number.isFinite(input.order)) data.order = Math.max(1, Math.floor(input.order));
+    if (input.status === "DRAFT" || input.status === "PUBLISHED" || input.status === "HIDDEN") data.status = input.status;
+    if (typeof input.showAutoTitle === "boolean") data.showAutoTitle = input.showAutoTitle;
 
-  await prisma.lesson.update({ where: { id: lesson.id }, data });
-  revalidateLesson(lesson.moduleId, lesson.id);
-  return { ok: true };
+    await prisma.lesson.update({ where: { id: lesson.id }, data });
+    // Title list needs admin revalidate only when not quiet typing.
+    revalidateLesson(lesson.moduleId, lesson.id, { quiet: input.quiet ?? true });
+    return { ok: true };
+  } catch (error) {
+    logActionError("updateLessonMeta", { lessonId: input.lessonId }, error);
+    return { ok: false, error: "Não foi possível salvar os dados da aula.", code: "DATABASE_ERROR" };
+  }
 }
 
 export async function createLessonBlock(input: {
@@ -159,10 +185,11 @@ export async function createLessonBlock(input: {
   content?: string;
   settings?: BlockSettings;
   quiet?: boolean;
-}): Promise<{ ok: true; block: LessonBlockDTO } | { ok: false; error: string }> {
+}): Promise<{ ok: true; block: LessonBlockDTO } | { ok: false; error: string; code?: string }> {
+  try {
   await requireAdmin();
   const lesson = await getLessonMeta(input.lessonId);
-  if (!lesson) return { ok: false, error: "Aula não encontrada." };
+  if (!lesson) return { ok: false, error: "Aula não encontrada.", code: "NOT_FOUND" };
 
   // Canvas starts blocks empty (Notion-like); placeholders are visual only.
   const seedContent =
@@ -219,6 +246,10 @@ export async function createLessonBlock(input: {
   const fresh = await prisma.contentBlock.findUniqueOrThrow({ where: { id: block.id } });
   revalidateLesson(lesson.moduleId, lesson.id, { quiet: input.quiet });
   return { ok: true, block: toDTO(fresh) };
+  } catch (error) {
+    logActionError("createLessonBlock", { lessonId: input.lessonId, type: input.type }, error);
+    return { ok: false, error: "Não foi possível criar o bloco.", code: "DATABASE_ERROR" };
+  }
 }
 
 export async function updateLessonBlock(input: {
@@ -233,99 +264,158 @@ export async function updateLessonBlock(input: {
   quiet?: boolean;
   /** Client generation to detect stale responses (returned as-is). */
   clientRev?: number;
-}): Promise<{ ok: true; block: LessonBlockDTO; clientRev?: number } | { ok: false; error: string; clientRev?: number }> {
-  await requireAdmin();
-
-  const current = await prisma.contentBlock.findUnique({
-    where: { id: input.blockId },
-    include: { lesson: { select: { id: true, moduleId: true } } }
-  });
-  if (!current) return { ok: false, error: "Bloco não encontrado." };
-
-  const nextType = input.type && isLessonBlockType(input.type) ? input.type : current.type;
-  const nextSettings = input.settings !== undefined ? input.settings : parseBlockSettings(current.settings);
-  const nextContent = input.content !== undefined ? input.content : current.content;
-
-  const validated = validateBlockInput({
-    type: nextType,
-    content: nextContent,
-    imagePath: input.imagePath !== undefined ? input.imagePath : current.imagePath,
-    imageCaption: input.imageCaption !== undefined ? input.imageCaption : current.imageCaption,
-    settings: nextSettings
-  });
-  if (!validated.ok) return validated;
-
-  if (validated.type === "IMAGE" && input.imagePath === null) {
-    // clearing image
-  } else if (validated.type === "IMAGE") {
-    const path = input.imagePath !== undefined ? input.imagePath : current.imagePath;
-    if (!path) {
-      // allow save without image while drafting, but keep prior
+}): Promise<
+  | {
+      ok: true;
+      block: LessonBlockDTO;
+      clientRev?: number;
+      checklistItems?: Array<{ id: string; text: string; order: number }>;
     }
-  }
+  | { ok: false; error: string; code?: string; clientRev?: number }
+> {
+  try {
+    await requireAdmin();
 
-  if (validated.type === "CHECKLIST" && input.checklistItems) {
-    await syncChecklistItems(current.lessonId, input.checklistItems);
-  }
-
-  if (validated.type === "CHECKBOX") {
-    await syncSingleCheckbox(current.lessonId, current, validated.content, nextSettings);
-  }
-
-  const updated = await prisma.contentBlock.update({
-    where: { id: current.id },
-    data: {
-      type: validated.type,
-      content: validated.content,
-      settings: serializeBlockSettings(validated.settings),
-      ...(input.imagePath !== undefined ? { imagePath: input.imagePath } : {}),
-      ...(input.imageCaption !== undefined ? { imageCaption: input.imageCaption } : {}),
-      ...(typeof input.isVisible === "boolean" ? { isVisible: input.isVisible } : {})
+    const current = await prisma.contentBlock.findUnique({
+      where: { id: input.blockId },
+      include: { lesson: { select: { id: true, moduleId: true } } }
+    });
+    if (!current) {
+      return { ok: false, error: "Bloco não encontrado.", code: "NOT_FOUND", clientRev: input.clientRev };
     }
-  });
 
-  revalidateLesson(current.lesson.moduleId, current.lesson.id, { quiet: input.quiet });
-  return { ok: true, block: toDTO(updated), clientRev: input.clientRev };
+    const nextType = input.type && isLessonBlockType(input.type) ? input.type : current.type;
+    const nextSettings = input.settings !== undefined ? input.settings : parseBlockSettings(current.settings);
+    const nextContent = input.content !== undefined ? input.content : current.content;
+
+    const validated = validateBlockInput({
+      type: nextType,
+      content: nextContent,
+      imagePath: input.imagePath !== undefined ? input.imagePath : current.imagePath,
+      imageCaption: input.imageCaption !== undefined ? input.imageCaption : current.imageCaption,
+      settings: nextSettings
+    });
+    if (!validated.ok) {
+      return { ok: false, error: validated.error, code: "VALIDATION_ERROR", clientRev: input.clientRev };
+    }
+
+    let checklistItems: Array<{ id: string; text: string; order: number }> | undefined;
+
+    if ((validated.type === "CHECKLIST" || input.checklistItems) && input.checklistItems) {
+      checklistItems = await syncChecklistItems(current.lessonId, input.checklistItems);
+    }
+
+    if (validated.type === "CHECKBOX") {
+      await syncSingleCheckbox(current.lessonId, current, validated.content, nextSettings);
+    }
+
+    const updated = await prisma.contentBlock.update({
+      where: { id: current.id },
+      data: {
+        type: validated.type,
+        content: validated.content,
+        settings: serializeBlockSettings(validated.settings),
+        ...(input.imagePath !== undefined ? { imagePath: input.imagePath } : {}),
+        ...(input.imageCaption !== undefined ? { imageCaption: input.imageCaption } : {}),
+        ...(typeof input.isVisible === "boolean" ? { isVisible: input.isVisible } : {})
+      }
+    });
+
+    revalidateLesson(current.lesson.moduleId, current.lesson.id, { quiet: input.quiet });
+    return {
+      ok: true,
+      block: toDTO(updated),
+      clientRev: input.clientRev,
+      checklistItems
+    };
+  } catch (error) {
+    logActionError("updateLessonBlock", { blockId: input.blockId }, error);
+    return {
+      ok: false,
+      error: "Não foi possível salvar. Tente novamente.",
+      code: "DATABASE_ERROR",
+      clientRev: input.clientRev
+    };
+  }
 }
 
-async function syncChecklistItems(lessonId: string, items: Array<{ id?: string; text: string }>) {
-  const cleaned = items.map((item) => ({ id: item.id, text: item.text.trim() })).filter((item) => item.text);
+/**
+ * Sync checklist items for a lesson.
+ * - Never treats client temp ids (tmp-*) as Prisma ids
+ * - Creates missing items, updates existing, deletes only when removed from the full list
+ * - Preserves progress for kept ids
+ */
+async function syncChecklistItems(
+  lessonId: string,
+  items: Array<{ id?: string; text: string }>
+): Promise<Array<{ id: string; text: string; order: number }>> {
   const existing = await prisma.checklistItem.findMany({
     where: { lessonId },
     select: { id: true }
   });
-  const keepIds = new Set(cleaned.map((item) => item.id).filter(Boolean) as string[]);
-  const toDelete = existing.filter((item) => !keepIds.has(item.id)).map((item) => item.id);
+  const existingIdSet = new Set(existing.map((row) => row.id));
+
+  // Normalize payload: strip temp ids for create path; keep empty rows only if they have real ids (user cleared text).
+  const normalized = items.map((item) => ({
+    id: item.id,
+    text: String(item.text || "").trim().slice(0, 500),
+    isReal: isPersistedChecklistId(item.id, existingIdSet)
+  }));
+
+  // IDs present in the client list (including empty text with real id) — do not delete those.
+  const clientRealIds = new Set(normalized.filter((item) => item.isReal).map((item) => item.id as string));
+
+  // Rows to persist with text (create or update). Empty brand-new temps are ignored until the user types.
+  const toPersist = normalized.filter((item) => item.text.length > 0 || item.isReal);
+
+  // Delete only real items completely absent from the client list.
+  const toDelete = existing.filter((row) => !clientRealIds.has(row.id)).map((row) => row.id);
 
   await prisma.$transaction(async (tx) => {
     if (toDelete.length) {
+      // Progress is cascade-deleted with the item relation — only when admin truly removed the row.
       await tx.checklistCompletion.deleteMany({ where: { checklistItemId: { in: toDelete } } });
       await tx.checklistItem.deleteMany({ where: { id: { in: toDelete } } });
     }
 
-    // Two-phase order rewrite
-    const all = await tx.checklistItem.findMany({ where: { lessonId }, select: { id: true } });
-    for (const [index, row] of all.entries()) {
-      await tx.checklistItem.update({ where: { id: row.id }, data: { order: -1000 - index } });
+    // Two-phase order rewrite on remaining rows to avoid unique collisions.
+    const remaining = await tx.checklistItem.findMany({
+      where: { lessonId },
+      select: { id: true }
+    });
+    for (const [index, row] of remaining.entries()) {
+      await tx.checklistItem.update({
+        where: { id: row.id },
+        data: { order: -2000 - index }
+      });
     }
 
     let order = 1;
-    for (const item of cleaned) {
-      if (item.id && keepIds.has(item.id)) {
+    for (const item of toPersist) {
+      if (item.isReal && item.id) {
         await tx.checklistItem.update({
           where: { id: item.id },
-          data: { text: item.text.slice(0, 500), order: order++ }
+          data: {
+            text: item.text || " ",
+            order: order++
+          }
         });
-      } else {
+      } else if (item.text) {
         await tx.checklistItem.create({
           data: {
             lessonId,
-            text: item.text.slice(0, 500),
+            text: item.text,
             order: order++
           }
         });
       }
     }
+  });
+
+  return prisma.checklistItem.findMany({
+    where: { lessonId },
+    orderBy: { order: "asc" },
+    select: { id: true, text: true, order: true }
   });
 }
 
@@ -368,20 +458,25 @@ async function syncSingleCheckbox(
 
 export async function toggleLessonBlockVisibility(
   blockId: string
-): Promise<{ ok: true; block: LessonBlockDTO } | { ok: false; error: string }> {
-  await requireAdmin();
-  const current = await prisma.contentBlock.findUnique({
-    where: { id: blockId },
-    include: { lesson: { select: { id: true, moduleId: true } } }
-  });
-  if (!current) return { ok: false, error: "Bloco não encontrado." };
+): Promise<{ ok: true; block: LessonBlockDTO } | { ok: false; error: string; code?: string }> {
+  try {
+    await requireAdmin();
+    const current = await prisma.contentBlock.findUnique({
+      where: { id: blockId },
+      include: { lesson: { select: { id: true, moduleId: true } } }
+    });
+    if (!current) return { ok: false, error: "Bloco não encontrado.", code: "NOT_FOUND" };
 
-  const updated = await prisma.contentBlock.update({
-    where: { id: blockId },
-    data: { isVisible: !current.isVisible }
-  });
-  revalidateLesson(current.lesson.moduleId, current.lesson.id);
-  return { ok: true, block: toDTO(updated) };
+    const updated = await prisma.contentBlock.update({
+      where: { id: blockId },
+      data: { isVisible: !current.isVisible }
+    });
+    revalidateLesson(current.lesson.moduleId, current.lesson.id, { quiet: true });
+    return { ok: true, block: toDTO(updated) };
+  } catch (error) {
+    logActionError("toggleLessonBlockVisibility", { blockId }, error);
+    return { ok: false, error: "Não foi possível alterar a visibilidade.", code: "DATABASE_ERROR" };
+  }
 }
 
 export async function duplicateLessonBlock(
@@ -422,13 +517,14 @@ export async function duplicateLessonBlock(
 export async function deleteLessonBlock(
   blockId: string,
   options?: { confirmProgressLoss?: boolean }
-): Promise<{ ok: true } | { ok: false; error: string; requiresConfirm?: boolean }> {
+): Promise<{ ok: true } | { ok: false; error: string; requiresConfirm?: boolean; code?: string }> {
+  try {
   await requireAdmin();
   const current = await prisma.contentBlock.findUnique({
     where: { id: blockId },
     include: { lesson: { select: { id: true, moduleId: true } } }
   });
-  if (!current) return { ok: false, error: "Bloco não encontrado." };
+  if (!current) return { ok: false, error: "Bloco não encontrado.", code: "NOT_FOUND" };
 
   const settings = parseBlockSettings(current.settings);
 
@@ -476,90 +572,108 @@ export async function deleteLessonBlock(
   }
 
   await normalizeBlockOrders(current.lessonId);
-  revalidateLesson(current.lesson.moduleId, current.lesson.id);
+  revalidateLesson(current.lesson.moduleId, current.lesson.id, { quiet: true });
   return { ok: true };
+  } catch (error) {
+    logActionError("deleteLessonBlock", { blockId }, error);
+    return { ok: false, error: "Não foi possível excluir o bloco.", code: "DATABASE_ERROR" };
+  }
 }
 
 export async function reorderLessonBlocks(
   lessonId: string,
   orderedIds: string[],
   options?: { quiet?: boolean }
-): Promise<{ ok: true; blocks: LessonBlockDTO[] } | { ok: false; error: string }> {
-  await requireAdmin();
-  const lesson = await getLessonMeta(lessonId);
-  if (!lesson) return { ok: false, error: "Aula não encontrada." };
+): Promise<{ ok: true; blocks: LessonBlockDTO[] } | { ok: false; error: string; code?: string }> {
+  try {
+    await requireAdmin();
+    const lesson = await getLessonMeta(lessonId);
+    if (!lesson) return { ok: false, error: "Aula não encontrada.", code: "NOT_FOUND" };
 
-  const existing = await prisma.contentBlock.findMany({
-    where: { lessonId },
-    select: { id: true }
-  });
-  const existingIds = new Set(existing.map((b) => b.id));
-  if (orderedIds.length !== existing.length || orderedIds.some((id) => !existingIds.has(id))) {
-    return { ok: false, error: "Ordem inválida — recarregue a aula e tente novamente." };
+    const existing = await prisma.contentBlock.findMany({
+      where: { lessonId },
+      select: { id: true }
+    });
+    const existingIds = new Set(existing.map((b) => b.id));
+    if (orderedIds.length !== existing.length || orderedIds.some((id) => !existingIds.has(id))) {
+      return {
+        ok: false,
+        error: "Ordem inválida — recarregue a aula e tente novamente.",
+        code: "CONFLICT"
+      };
+    }
+
+    await prisma.$transaction([
+      ...orderedIds.map((id, index) =>
+        prisma.contentBlock.update({ where: { id }, data: { order: -1000 - index } })
+      ),
+      ...orderedIds.map((id, index) =>
+        prisma.contentBlock.update({ where: { id }, data: { order: index + 1 } })
+      )
+    ]);
+
+    const blocks = await prisma.contentBlock.findMany({
+      where: { lessonId },
+      orderBy: { order: "asc" }
+    });
+    revalidateLesson(lesson.moduleId, lesson.id, { quiet: options?.quiet });
+    return { ok: true, blocks: blocks.map(toDTO) };
+  } catch (error) {
+    logActionError("reorderLessonBlocks", { lessonId }, error);
+    return { ok: false, error: "Não foi possível reordenar os blocos.", code: "DATABASE_ERROR" };
   }
-
-  await prisma.$transaction([
-    ...orderedIds.map((id, index) =>
-      prisma.contentBlock.update({ where: { id }, data: { order: -1000 - index } })
-    ),
-    ...orderedIds.map((id, index) =>
-      prisma.contentBlock.update({ where: { id }, data: { order: index + 1 } })
-    )
-  ]);
-
-  const blocks = await prisma.contentBlock.findMany({
-    where: { lessonId },
-    orderBy: { order: "asc" }
-  });
-  revalidateLesson(lesson.moduleId, lesson.id, { quiet: options?.quiet });
-  return { ok: true, blocks: blocks.map(toDTO) };
 }
 
 export async function uploadLessonBlockImage(
   formData: FormData
-): Promise<{ ok: true; path: string; block?: LessonBlockDTO } | { ok: false; error: string }> {
-  await requireAdmin();
-  const blockId = String(formData.get("blockId") || "");
-  const file = formData.get("file");
+): Promise<{ ok: true; path: string; block?: LessonBlockDTO } | { ok: false; error: string; code?: string }> {
+  try {
+    await requireAdmin();
+    const blockId = String(formData.get("blockId") || "");
+    const file = formData.get("file");
 
-  if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, error: "Selecione uma imagem." };
-  }
-  if (file.size > 8 * 1024 * 1024) {
-    return { ok: false, error: "Imagem muito grande (máx. 8MB)." };
-  }
-  if (!file.type.startsWith("image/")) {
-    return { ok: false, error: "Arquivo deve ser uma imagem." };
-  }
+    if (!(file instanceof File) || file.size === 0) {
+      return { ok: false, error: "Selecione uma imagem.", code: "VALIDATION_ERROR" };
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      return { ok: false, error: "Imagem muito grande (máx. 8MB).", code: "VALIDATION_ERROR" };
+    }
+    if (!file.type.startsWith("image/")) {
+      return { ok: false, error: "Arquivo deve ser uma imagem.", code: "VALIDATION_ERROR" };
+    }
 
-  const block = blockId
-    ? await prisma.contentBlock.findUnique({
-        where: { id: blockId },
-        include: { lesson: { select: { id: true, moduleId: true } } }
-      })
-    : null;
-
-  const folder = block ? `aulas/${block.lessonId}` : "aulas";
-  const path = await uploadImageToR2(file, folder, { upsert: false });
-  revalidateTag("r2-images");
-
-  if (block) {
-    const updated = await prisma.contentBlock.update({
-      where: { id: block.id },
-      data: {
-        imagePath: path,
-        type: block.type === "IMAGE" ? "IMAGE" : block.type,
-        settings: serializeBlockSettings({
-          ...parseBlockSettings(block.settings),
-          alt: parseBlockSettings(block.settings).alt || sanitizeStorageName(file.name)
+    const block = blockId
+      ? await prisma.contentBlock.findUnique({
+          where: { id: blockId },
+          include: { lesson: { select: { id: true, moduleId: true } } }
         })
-      }
-    });
-    revalidateLesson(block.lesson.moduleId, block.lesson.id);
-    return { ok: true, path, block: toDTO(updated) };
-  }
+      : null;
 
-  return { ok: true, path };
+    const folder = block ? `aulas/${block.lessonId}` : "aulas";
+    const path = await uploadImageToR2(file, folder, { upsert: false });
+    revalidateTag("r2-images");
+
+    if (block) {
+      const updated = await prisma.contentBlock.update({
+        where: { id: block.id },
+        data: {
+          imagePath: path,
+          type: block.type === "IMAGE" ? "IMAGE" : block.type,
+          settings: serializeBlockSettings({
+            ...parseBlockSettings(block.settings),
+            alt: parseBlockSettings(block.settings).alt || sanitizeStorageName(file.name)
+          })
+        }
+      });
+      revalidateLesson(block.lesson.moduleId, block.lesson.id, { quiet: true });
+      return { ok: true, path, block: toDTO(updated) };
+    }
+
+    return { ok: true, path };
+  } catch (error) {
+    logActionError("uploadLessonBlockImage", {}, error);
+    return { ok: false, error: "Falha no upload da imagem.", code: "UPLOAD_ERROR" };
+  }
 }
 
 async function normalizeBlockOrders(lessonId: string) {
