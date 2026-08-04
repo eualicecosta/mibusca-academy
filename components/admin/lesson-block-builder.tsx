@@ -42,6 +42,14 @@ import {
   Trash2,
   Type
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogTitle
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { resolveAssetUrl } from "@/lib/assets";
 import { getLessonBlocksAdmin, saveLessonDocument, uploadLessonBlockImage } from "@/lib/lesson-block-actions";
 import {
@@ -50,6 +58,14 @@ import {
   type LessonBlockType
 } from "@/lib/lesson-blocks";
 import { cn } from "@/lib/utils";
+
+function blockImageUrl(path: string | null | undefined, storageBaseUrl: string | null) {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  // Prefer server-provided base URL (client cannot read R2_PUBLIC_BASE_URL).
+  if (storageBaseUrl) return `${storageBaseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+  return resolveAssetUrl(path);
+}
 
 type LessonListItem = {
   id: string;
@@ -117,7 +133,14 @@ function emptyBlock(type: LessonBlockType, order: number, lessonId: string): Loc
   };
 }
 
-export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: LessonListItem[] }) {
+export function LessonBlockBuilder({
+  lessons,
+  storageBaseUrl = null
+}: {
+  moduleId?: string;
+  lessons: LessonListItem[];
+  storageBaseUrl?: string | null;
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(lessons[0]?.id || null);
   const [blocks, setBlocks] = useState<LocalBlock[]>([]);
   const [checklistItems, setChecklistItems] = useState<Array<{ id: string; text: string; order: number }>>([]);
@@ -135,6 +158,8 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const dirtyRef = useRef(false);
 
   const sensors = useSensors(
@@ -212,18 +237,20 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
       });
 
       if (!result.ok) {
-        setError(result.error);
+        setError(result.error || result.message || "Não foi possível salvar a aula.");
         setSaveStatus("error");
         return;
       }
 
-      setBlocks(result.blocks);
+      // Remap local ids so subsequent saves update instead of recreating.
+      const mapped = result.blocks;
+      setBlocks(mapped);
       setChecklistItems(result.checklistItems);
       setMeta((m) => (m ? { ...m, blocksMigrated: true } : m));
       dirtyRef.current = false;
       setSaveStatus("saved");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível salvar.");
+      setError(e instanceof Error ? e.message : "Não foi possível salvar a aula.");
       setSaveStatus("error");
     }
   }, [selectedId, meta, blocks, checklistItems, saveStatus]);
@@ -351,7 +378,9 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
                   ...b,
                   type: "IMAGE",
                   imagePath: result.path,
-                  settings: { ...b.settings, alt: b.settings.alt || file.name }
+                  updatedAt: new Date().toISOString(),
+                  // Keep original filename only as alt metadata, never as primary visible content.
+                  settings: { ...b.settings, alt: b.settings.alt || "Imagem da aula" }
                 }
               : b
           )
@@ -483,18 +512,12 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
         ) : (
           <div className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#1a1520] shadow-2xl">
             {saveStatus === "dirty" || saveStatus === "error" ? (
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-400/30 bg-amber-500/15 px-4 py-2.5 sm:px-6">
+              <div className="border-b border-amber-400/30 bg-amber-500/15 px-4 py-2.5 sm:px-6">
                 <p className="text-sm font-medium text-amber-100">
-                  Alterações não salvas — clique em <strong>Salvar</strong> para gravar. Se sair agora, elas serão perdidas.
+                  {saveStatus === "error"
+                    ? "Não foi possível salvar. Suas alterações locais foram preservadas — use o botão Salvar para tentar de novo."
+                    : "Alterações não salvas — clique em Salvar (canto superior direito) para gravar. Se sair agora, elas serão perdidas."}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => startTransition(() => void saveAll())}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#53009F] to-[#8A1DEE] px-3 py-1.5 text-xs font-semibold text-white"
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  Salvar agora
-                </button>
               </div>
             ) : null}
 
@@ -539,7 +562,7 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
                   ) : (
                     <Save className="h-4 w-4" />
                   )}
-                  {saveStatus === "saving" ? "Salvando…" : "Salvar"}
+                  {saveStatus === "saving" ? "Salvando..." : "Salvar"}
                 </button>
               </div>
             </div>
@@ -673,14 +696,19 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
                               );
                               markDirty();
                             }}
-                            onDelete={() => {
-                              if (!window.confirm("Excluir este bloco?")) return;
+                            onDelete={() => setDeleteTargetId(block.id)}
+                            onUploadImage={() => triggerImageUpload(block.id)}
+                            onClearImage={() => {
                               setBlocks((prev) =>
-                                prev.filter((b) => b.id !== block.id).map((b, i) => ({ ...b, order: i + 1 }))
+                                prev.map((b) =>
+                                  b.id === block.id
+                                    ? { ...b, imagePath: null, imageCaption: b.imageCaption, updatedAt: new Date().toISOString() }
+                                    : b
+                                )
                               );
                               markDirty();
                             }}
-                            onUploadImage={() => triggerImageUpload(block.id)}
+                            storageBaseUrl={storageBaseUrl}
                             onChangeType={(type) => {
                               setBlocks((prev) =>
                                 prev.map((b) =>
@@ -731,6 +759,48 @@ export function LessonBlockBuilder({ lessons }: { moduleId?: string; lessons: Le
           </div>
         )}
       </section>
+
+      <AlertDialog
+        open={Boolean(deleteTargetId)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTargetId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogTitle>Excluir bloco</AlertDialogTitle>
+          <AlertDialogDescription>
+            Tem certeza de que deseja excluir este bloco? Esta ação removerá o conteúdo da aula.
+          </AlertDialogDescription>
+          {error && deleteTargetId ? <p className="text-sm text-red-300">{error}</p> : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <AlertDialogCancel asChild>
+              <Button type="button" variant="secondary" disabled={deleting}>
+                Cancelar
+              </Button>
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleting || !deleteTargetId}
+              onClick={() => {
+                if (!deleteTargetId || deleting) return;
+                setDeleting(true);
+                try {
+                  setBlocks((prev) =>
+                    prev.filter((b) => b.id !== deleteTargetId).map((b, i) => ({ ...b, order: i + 1 }))
+                  );
+                  markDirty();
+                  setDeleteTargetId(null);
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? "Excluindo..." : "Excluir bloco"}
+            </Button>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -744,8 +814,8 @@ function SaveBadge({ status, pending }: { status: SaveStatus; pending: boolean }
     );
   }
   if (status === "dirty") return <span className="text-amber-200/80">Alterações não salvas</span>;
-  if (status === "saved") return <span className="text-emerald-300/70">Salvo</span>;
-  if (status === "error") return <span className="text-red-300">Falha ao salvar</span>;
+  if (status === "saved") return <span className="text-emerald-300/70">Alterações salvas</span>;
+  if (status === "error") return <span className="text-red-300">Não foi possível salvar</span>;
   return <span className="text-white/35">Sem alterações</span>;
 }
 
@@ -757,6 +827,7 @@ function CanvasBlock({
   block,
   checklistItems,
   autoFocus,
+  storageBaseUrl,
   onFocused,
   onContentChange,
   onCaptionChange,
@@ -768,12 +839,14 @@ function CanvasBlock({
   onToggleVisible,
   onDelete,
   onUploadImage,
+  onClearImage,
   onChangeType,
   onChecklistItemsChange
 }: {
   block: LocalBlock;
   checklistItems: Array<{ id: string; text: string; order: number }>;
   autoFocus?: boolean;
+  storageBaseUrl: string | null;
   onFocused: () => void;
   onContentChange: (content: string, settings?: LessonBlockDTO["settings"]) => void;
   onCaptionChange: (caption: string) => void;
@@ -785,6 +858,7 @@ function CanvasBlock({
   onToggleVisible: () => void;
   onDelete: () => void;
   onUploadImage: () => void;
+  onClearImage: () => void;
   onChangeType: (type: LessonBlockType) => void;
   onChecklistItemsChange: (items: Array<{ id?: string; text: string }>) => void;
 }) {
@@ -798,7 +872,12 @@ function CanvasBlock({
   const [menuOpen, setMenuOpen] = useState(false);
   const [slash, setSlash] = useState<{ query: string; open: boolean } | null>(null);
   const [slashIndex, setSlashIndex] = useState(0);
+  const [imageFailed, setImageFailed] = useState(false);
   const editableRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [block.imagePath]);
 
   const filteredSlash = SLASH_TYPES.filter((item) => {
     if (!slash?.query) return true;
@@ -919,7 +998,14 @@ function CanvasBlock({
     }
   }
 
-  const imageUrl = resolveAssetUrl(block.imagePath);
+  const imageUrl = blockImageUrl(block.imagePath, storageBaseUrl);
+  // Bust stale browser cache after replace/upload while keeping stable path in DB.
+  const imageSrc =
+    imageUrl && block.updatedAt
+      ? `${imageUrl}${imageUrl.includes("?") ? "&" : "?"}v=${encodeURIComponent(block.updatedAt)}`
+      : imageUrl
+        ? `${imageUrl}${imageUrl.includes("?") ? "&" : "?"}v=${encodeURIComponent(block.imagePath || "")}`
+        : null;
 
   return (
     <div
@@ -961,13 +1047,42 @@ function CanvasBlock({
           <hr className="my-4 w-full border-0 border-t border-white/15" />
         ) : block.type === "IMAGE" ? (
           <div className="w-full space-y-2">
-            {imageUrl ? (
+            {imageSrc && !imageFailed ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={imageUrl}
-                alt={block.settings.alt || block.imageCaption || ""}
-                className="max-h-[420px] w-full rounded-lg object-contain"
+                src={imageSrc}
+                alt={block.settings.alt || block.imageCaption || "Imagem da aula"}
+                className="mx-auto max-h-[420px] w-full max-w-full rounded-lg object-contain"
+                onError={() => setImageFailed(true)}
+                onLoad={() => setImageFailed(false)}
               />
+            ) : imageSrc && imageFailed ? (
+              <div className="space-y-3 rounded-lg border border-red-400/30 bg-red-500/10 px-4 py-6 text-center">
+                <p className="text-sm text-red-100">Não foi possível carregar esta imagem.</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/80 hover:bg-white/5"
+                    onClick={() => setImageFailed(false)}
+                  >
+                    Tentar novamente
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/80 hover:bg-white/5"
+                    onClick={onUploadImage}
+                  >
+                    Substituir
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-red-400/40 px-3 py-1.5 text-xs text-red-100 hover:bg-red-500/10"
+                    onClick={onClearImage}
+                  >
+                    Remover
+                  </button>
+                </div>
+              </div>
             ) : (
               <button
                 type="button"
@@ -984,10 +1099,15 @@ function CanvasBlock({
               placeholder="Legenda (opcional)"
               className="w-full border-0 bg-transparent text-center text-sm text-white/50 outline-none placeholder:text-white/25"
             />
-            <div className="flex justify-center gap-2 opacity-0 transition group-hover:opacity-100">
+            <div className="flex justify-center gap-3 opacity-0 transition group-hover:opacity-100">
               <button type="button" onClick={onUploadImage} className="text-xs text-white/45 hover:text-white">
                 Substituir
               </button>
+              {block.imagePath ? (
+                <button type="button" onClick={onClearImage} className="text-xs text-red-300/80 hover:text-red-200">
+                  Remover imagem
+                </button>
+              ) : null}
             </div>
           </div>
         ) : block.type === "CHECKLIST" ? (
