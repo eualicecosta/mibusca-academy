@@ -7,7 +7,8 @@ function cleanBaseUrl(value?: string | null) {
 }
 
 export function getR2PublicBaseUrl() {
-  return cleanBaseUrl(process.env.R2_PUBLIC_BASE_URL);
+  // Prefer public env for client components; fall back to server-only R2 URL.
+  return cleanBaseUrl(process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL || process.env.R2_PUBLIC_BASE_URL);
 }
 
 export function getSupabaseStorageBaseUrl() {

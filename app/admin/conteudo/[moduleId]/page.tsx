@@ -5,6 +5,7 @@ import { LessonBlockBuilder } from "@/components/admin/lesson-block-builder";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createLesson } from "@/lib/actions";
+import { getR2PublicBaseUrl } from "@/lib/assets";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -132,6 +133,7 @@ export default async function AdminModuleContentPage({ params }: { params: Promi
 
         <LessonBlockBuilder
           moduleId={courseModule.id}
+          storageBaseUrl={getR2PublicBaseUrl()}
           lessons={courseModule.lessons.map((lesson) => ({
             id: lesson.id,
             number: lesson.number,
