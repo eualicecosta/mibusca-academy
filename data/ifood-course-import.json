@@ -1,0 +1,2487 @@
+{
+  "slug": "conhecimento-ifood",
+  "title": "Conhecimento iFood",
+  "subtitle": "Gestão estratégica para vender com clareza, margem e controle dentro do iFood.",
+  "description": "Curso prático para donos e gestores de delivery que querem entender o funil do iFood, corrigir gargalos, proteger a margem, estruturar o cardápio e tomar decisões com base em dados reais.",
+  "importVersion": "ifood-import-v1",
+  "pdfPages": 37,
+  "chapter5Note": "PDF salta do Capítulo 4 para o Capítulo 6. Módulo 5 da plataforma = Capítulo 6 do PDF.",
+  "modules": [
+    {
+      "number": "0",
+      "title": "Introdução e mentalidade",
+      "objective": "Mudar a mentalidade do dono: o iFood é uma máquina de conversão, e a loja precisa se adaptar à plataforma — não o contrário.",
+      "pdfChapter": "Introdução",
+      "lessons": [
+        {
+          "number": "0.1",
+          "title": "Gerenciar no iFood não é apenas cadastrar o cardápio",
+          "objective": "Entender por que gerenciar no iFood exige estratégia e domínio dos comandos certos, e não só subir cardápio e ativar promoção.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "O iFood é uma máquina",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Se você tem um restaurante no iFood — ou está prestes a colocar o seu lá — precisa entender uma coisa: gerenciar no iFood não é só subir cardápio e ativar promoção."
+            },
+            {
+              "type": "TEXT",
+              "content": "O app é uma máquina. E como toda máquina, quem domina os comandos certos, lidera. Quem não entende… fica para trás — mesmo tendo comida boa."
+            },
+            {
+              "type": "TEXT",
+              "content": "Esse curso foi criado para você que quer parar de depender da sorte e assumir o controle."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Talvez você se identifique com um destes cenários",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Já esteja no iFood, mas sente que não está extraindo tudo que pode\nVive testando promoções, mas não sabe se estão funcionando\nVê o restaurante vendendo, mas o lucro não aparece\nOu simplesmente cansou do achismo e quer gestão real, com estratégia",
+              "settings": {
+                "items": [
+                  "Já esteja no iFood, mas sente que não está extraindo tudo que pode",
+                  "Vive testando promoções, mas não sabe se estão funcionando",
+                  "Vê o restaurante vendendo, mas o lucro não aparece",
+                  "Ou simplesmente cansou do achismo e quer gestão real, com estratégia"
+                ]
+              }
+            },
+            {
+              "type": "WARNING",
+              "content": "Nada aqui é baseado em teoria de curso bonito. Tudo foi testado com centenas de restaurantes reais, dentro da operação. As estratégias que você vai ver reduziram custo, aumentaram lucro e fizeram restaurante sair do fundo do app direto para o topo.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "INFO",
+              "content": "Se você quer só “dicas genéricas” de internet, esse curso não é para você. Se quer controle, clareza e lucro de verdade, com estratégia de campo, o conteúdo a seguir entrega exatamente isso.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Entendi que gerenciar no iFood não é só cadastrar cardápio e ativar promoção",
+                "Assumi que o resultado depende de estratégia e dados, não de sorte"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "0.2",
+          "title": "O que você vai aprender neste curso",
+          "objective": "Mapear o que o curso entrega e quais decisões práticas você vai conseguir tomar ao final.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "O que você vai aprender aqui",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Este curso organiza o que realmente muda o resultado da loja no iFood: funil, margem, cardápio, combos, campanhas e operação."
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Como funciona o funil de vendas do iFood — com todas as armadilhas embutidas\nComo ler o funil invisível, separando novos de recorrentes\nComo precificar certo, sem depender de CMV ou fórmulas complicadas\nComo estruturar um cardápio que realmente converte\nComo criar combos e complementos que aumentam margem sem parecer caro\nComo entender se uma campanha está dando retorno ou só queimando grana\nComo ler os relatórios certos e transformar dados em decisões práticas\nComo não cair nas pegadinhas do algoritmo — e até usá-lo a seu favor",
+              "settings": {
+                "items": [
+                  "Como funciona o funil de vendas do iFood — com todas as armadilhas embutidas",
+                  "Como ler o funil invisível, separando novos de recorrentes",
+                  "Como precificar certo, sem depender de CMV ou fórmulas complicadas",
+                  "Como estruturar um cardápio que realmente converte",
+                  "Como criar combos e complementos que aumentam margem sem parecer caro",
+                  "Como entender se uma campanha está dando retorno ou só queimando grana",
+                  "Como ler os relatórios certos e transformar dados em decisões práticas",
+                  "Como não cair nas pegadinhas do algoritmo — e até usá-lo a seu favor"
+                ]
+              }
+            },
+            {
+              "type": "TIP",
+              "content": "O objetivo do curso é te entregar uma loja que seja visível, simples de entender e fácil de pedir. Cada módulo existe para corrigir um tipo de perda — e não para encher de teoria.",
+              "settings": { "title": "Dica" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Sei o que o curso cobre (funil, precificação, cardápio, combos, campanhas e algoritmo)",
+                "Entendi que o objetivo final é loja visível, simples de entender e fácil de pedir"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "0.3",
+          "title": "Sua loja precisa se adaptar ao iFood",
+          "objective": "Internalizar a regra central: o iFood é gigante e a loja se adapta à plataforma — não o contrário.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Mude a mentalidade antes de mexer em qualquer botão",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "É super importante você mudar a mentalidade entendendo isso: o iFood é gigante. Você precisa dele — e não o contrário."
+            },
+            {
+              "type": "WARNING",
+              "content": "Não cometa o erro que a maioria comete: sua loja se adapta ao iFood. Não o iFood à sua loja. Todo o conteúdo deste curso existe para fazer você vender dentro das regras da plataforma.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Configurar o cardápio igual à loja física é um erro",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Na loja física, o jogo é outro:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "O cliente já te conhece\nNão tem concorrência no cardápio\nEle tem tempo\nTem funcionário para tirar dúvida",
+              "settings": {
+                "items": [
+                  "O cliente já te conhece",
+                  "Não tem concorrência no cardápio",
+                  "Ele tem tempo",
+                  "Tem funcionário para tirar dúvida"
+                ]
+              }
+            },
+            {
+              "type": "TEXT",
+              "content": "No iFood?"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "É autoatendimento\nTem concorrente na próxima rolagem de dedo\nQualquer dúvida, ele vai embora",
+              "settings": {
+                "items": [
+                  "É autoatendimento",
+                  "Tem concorrente na próxima rolagem de dedo",
+                  "Qualquer dúvida, ele vai embora"
+                ]
+              }
+            },
+            {
+              "type": "INFO",
+              "content": "O objetivo deste curso é te entregar uma loja que seja: visível, simples de entender e fácil de pedir. Pronto para virar a chave?",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Entendi que minha loja precisa se adaptar ao iFood, e não o contrário",
+                "Entendi a diferença entre a lógica da loja física e a lógica do app"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "1",
+      "title": "Entendendo o funil de vendas",
+      "objective": "Ensinar o dono do restaurante a enxergar o iFood como ele realmente é: um funil de conversão, onde cada etapa influencia diretamente o volume de pedidos.",
+      "pdfChapter": "Capítulo 1",
+      "lessons": [
+        {
+          "number": "1.1",
+          "title": "Como funciona o funil do iFood",
+          "objective": "Entender as cinco etapas do funil de conversão mostradas no painel da loja e por que o iFood não é uma vitrine estática.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "O que é o funil do iFood?",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "O iFood não é uma vitrine estática. Ele é uma sequência de etapas pelas quais o cliente passa antes de fechar um pedido."
+            },
+            {
+              "type": "TEXT",
+              "content": "Essas etapas são chamadas de funil de conversão, e o iFood mostra isso no painel da loja com os seguintes dados:"
+            },
+            {
+              "type": "NUMBERED_LIST",
+              "content": "Visitas da loja\nVisualização no cardápio\nAdições à sacola\nRevisão do pedido\nPedidos concluídos",
+              "settings": {
+                "items": [
+                  "Visitas da loja",
+                  "Visualização no cardápio",
+                  "Adições à sacola",
+                  "Revisão do pedido",
+                  "Pedidos concluídos"
+                ]
+              }
+            },
+            {
+              "type": "INFO",
+              "content": "Cada etapa tem uma função clara. E quando uma está ruim, ela trava todas as outras.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "O que o dono normalmente enxerga",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Muitos donos só olham o número final de pedidos. Se caiu, bate o desespero. Se subiu, relaxa. Mas essa visão é superficial."
+            },
+            {
+              "type": "WARNING",
+              "content": "O segredo do crescimento está em descobrir qual etapa do funil está matando o resultado — e não reagir apenas ao número final de pedidos.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Sei localizar as 5 etapas do funil no painel do iFood",
+                "Entendi que o iFood funciona como funil de conversão, não como vitrine estática"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "1.2",
+          "title": "Como encontrar o gargalo real",
+          "objective": "Usar um exemplo real de funil para enxergar onde a conversão trava e por que o número total pode enganar.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Exemplo de gargalo real",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Imagine uma loja com os seguintes dados semanais:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "2.000 visitas\n1.200 visualizações\n700 adições à sacola\n400 revisões\n200 pedidos concluídos",
+              "settings": {
+                "items": [
+                  "2.000 visitas",
+                  "1.200 visualizações",
+                  "700 adições à sacola",
+                  "400 revisões",
+                  "200 pedidos concluídos"
+                ]
+              }
+            },
+            {
+              "type": "EXAMPLE",
+              "content": "“A conversão está boa, né?” Não necessariamente. Esse dado inclui cliente recorrente — aquele que já compra e pula várias etapas. Se você não separar os clientes novos, está iludido com o número total.",
+              "settings": { "title": "Exemplo" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "O que o dono precisa entender agora",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Cada número do funil é um termômetro de uma parte da sua loja\nQuando um desses dados cai, é possível corrigir\nOs dados brutos enganam (tema do próximo módulo)",
+              "settings": {
+                "items": [
+                  "Cada número do funil é um termômetro de uma parte da sua loja",
+                  "Quando um desses dados cai, é possível corrigir",
+                  "Os dados brutos enganam (tema do próximo módulo)"
+                ]
+              }
+            },
+            {
+              "type": "TIP",
+              "content": "Não olhe só o total de pedidos. Compare etapa com etapa e anote onde acontece a maior perda de gente. É ali que está o gargalo.",
+              "settings": { "title": "Dica" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Anotei os números semanais das 5 etapas do funil da minha loja",
+                "Sei que o total de pedidos sozinho não explica o gargalo real"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "1.3",
+          "title": "O que cada etapa revela sobre sua loja",
+          "objective": "Ler o funil como termômetro da operação e entender o que cada etapa revela sobre a loja.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Por que entender o funil muda tudo?",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Porque ele mostra exatamente o que está acontecendo na jornada do cliente:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Se sua loja está sendo vista\nSe seu cardápio está atraente\nSe seus produtos estão com preço e imagem bons\nSe sua taxa de entrega está matando o pedido\nSe o cliente está desistindo antes de finalizar",
+              "settings": {
+                "items": [
+                  "Se sua loja está sendo vista",
+                  "Se seu cardápio está atraente",
+                  "Se seus produtos estão com preço e imagem bons",
+                  "Se sua taxa de entrega está matando o pedido",
+                  "Se o cliente está desistindo antes de finalizar"
+                ]
+              }
+            },
+            {
+              "type": "INFO",
+              "content": "Isso é ouro. Dono que sabe ler o funil não opera no escuro.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Resumo do módulo",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "O iFood funciona como um funil de vendas\nCada etapa representa um comportamento do cliente\nO número final de pedidos não explica o motivo do resultado\nDono que entende o funil assume o controle da operação",
+              "settings": {
+                "items": [
+                  "O iFood funciona como um funil de vendas",
+                  "Cada etapa representa um comportamento do cliente",
+                  "O número final de pedidos não explica o motivo do resultado",
+                  "Dono que entende o funil assume o controle da operação"
+                ]
+              }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Sei o que cada etapa do funil revela sobre a loja",
+                "Entendi que o funil é a base para diagnosticar qualquer queda de resultado"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "2",
+      "title": "O funil invisível",
+      "objective": "Mostrar que os dados do funil fornecidos pelo iFood incluem clientes antigos e recorrentes, o que gera ilusão de conversão alta. Você só entende a real performance quando isola os clientes novos.",
+      "pdfChapter": "Capítulo 2",
+      "lessons": [
+        {
+          "number": "2.1",
+          "title": "A armadilha dos dados bonitos",
+          "objective": "Entender por que a conversão do painel engana e o que é o funil invisível.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Por que os dados enganam?",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "O funil mostrado no painel do iFood junta todo mundo:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Cliente novo que está conhecendo sua loja agora\nCliente antigo que já sabe o que quer e pula etapas do funil",
+              "settings": {
+                "items": [
+                  "Cliente novo que está conhecendo sua loja agora",
+                  "Cliente antigo que já sabe o que quer e pula etapas do funil"
+                ]
+              }
+            },
+            {
+              "type": "TEXT",
+              "content": "O resultado? A conversão parece maravilhosa… mas você continua com pouco pedido de novos clientes."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Exemplo clássico da ilusão",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "EXAMPLE",
+              "content": "Loja A: 2.000 visitas da loja, 1.500 visualizações no cardápio, 1.000 adições à sacola e 500 pedidos concluídos. Conversão: 25%. Mas, ao olhar o número de clientes novos, só 70 pedidos foram de novos. Conversão real com novos: 3,5%. Um funil “campeão” virou um funil capenga.",
+              "settings": { "title": "Exemplo" }
+            },
+            {
+              "type": "WARNING",
+              "content": "Esse é o funil invisível: o que realmente importa, mas não está na sua cara. Essa informação é ouro — e o próprio iFood não te ensina isso. É por isso que a maioria dos donos acha que está indo bem, mas continua perdendo venda atrás de venda.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Entendi a diferença entre conversão total e conversão com novos",
+                "Sei que clientes recorrentes inflacionam o funil do painel"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "2.2",
+          "title": "Como calcular a conversão real",
+          "objective": "Aplicar a fórmula de conversão real com clientes novos e saber o mínimo aceitável.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Como descobrir a conversão real",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Você precisa comparar:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Número total de pedidos\nNúmero de clientes novos (disponível no painel iFood)",
+              "settings": {
+                "items": [
+                  "Número total de pedidos",
+                  "Número de clientes novos (disponível no painel iFood)"
+                ]
+              }
+            },
+            {
+              "type": "INFO",
+              "content": "Conversão real = clientes novos ÷ visitas da loja",
+              "settings": { "title": "Fórmula" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "O que é uma conversão ruim?",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "A média real de conversão com novos (depois de filtrar os dados bonitos) é bem mais baixa do que a maioria imagina. Muitas lojas estão com 5%, 4% ou até 2% de conversão com novos. O número que parece “25%” no painel pode ser só uma ilusão causada por clientes fiéis."
+            },
+            {
+              "type": "WARNING",
+              "content": "O mínimo aceitável de conversão com novos clientes é 12%. Abaixo disso, o problema não está no tráfego — e sim na sua vitrine e nos gatilhos de decisão.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Calculei minha conversão real com a fórmula clientes novos ÷ visitas",
+                "Sei se estou acima ou abaixo do mínimo de 12%"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "2.3",
+          "title": "Novos clientes crescendo e vendas caindo",
+          "objective": "Identificar o cenário crítico em que novos sobem, mas o faturamento cai porque a recompra despencou.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Cenário crítico: conversão oculta com queda no resultado",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Esse é um dos erros de interpretação mais perigosos que o dono pode cometer. Você entra no painel do iFood e vê que:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "As visitas da loja aumentaram\nO número de clientes novos subiu\nE até a conversão por etapa parece boa",
+              "settings": {
+                "items": [
+                  "As visitas da loja aumentaram",
+                  "O número de clientes novos subiu",
+                  "E até a conversão por etapa parece boa"
+                ]
+              }
+            },
+            {
+              "type": "TEXT",
+              "content": "Mas quando olha o faturamento… as vendas caíram. “Ué, como assim? Estou recebendo mais gente nova, mas estou vendendo menos?”"
+            },
+            {
+              "type": "INFO",
+              "content": "Isso acontece quando a recompra despenca. Os novos estão chegando, mas os antigos pararam de comprar. Você cresce num pedaço do funil (topo), mas desmorona no fundo dele. O resultado? Volume total de vendas cai, e parece que “o iFood está fraco”, quando na real o problema está na fidelização da sua base.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Exemplo prático de leitura real",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "EXAMPLE",
+              "content": "Semana 1: 150 pedidos (30 novos, 120 recorrentes). Semana 2: 40 novos (ótimo!), mas só 50 recorrentes. Total caiu de 150 para 90 pedidos. Ou seja, você está mandando bem na captação, mas perdeu os clientes que já estavam na casa. E isso é um alerta gravíssimo.",
+              "settings": { "title": "Exemplo" }
+            },
+            {
+              "type": "WARNING",
+              "content": "Por que isso é perigoso? Porque esse tipo de queda não aparece de cara no funil tradicional. Ele mostra que o funil está “ativo”, com tráfego e ação. Mas se o dono não analisa os dois lados (aquisição e retenção), continua investindo energia onde está funcionando (atração) e ignora onde está vazando tudo (recompra).",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Sei separar pedidos de novos x recorrentes semana a semana",
+                "Consigo identificar o cenário de novos subindo e vendas caindo"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "2.4",
+          "title": "Estratégias para recuperar clientes antigos",
+          "objective": "Montar um plano prático de retenção sem parar de atrair clientes novos.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Como resolver esse tipo de queda?",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Esse cenário exige um plano de ação focado em retomar a base antiga, sem parar de atrair os novos."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Estratégias práticas",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "NUMBERED_LIST",
+              "content": "Experiência na entrega impecável\nCampanha de segunda compra com brinde ou cupom\nMensagem emocional no produto ou imagem\nProdutos sazonais ou combos exclusivos para recorrência\nRelatório semanal com foco na recompra",
+              "settings": {
+                "items": [
+                  "Experiência na entrega impecável",
+                  "Campanha de segunda compra com brinde ou cupom",
+                  "Mensagem emocional no produto ou imagem",
+                  "Produtos sazonais ou combos exclusivos para recorrência",
+                  "Relatório semanal com foco na recompra"
+                ]
+              }
+            },
+            {
+              "type": "TIP",
+              "content": "A chave está no equilíbrio. Atrair cliente novo é ótimo, mas não sustenta operação sozinho. A loja que cresce de verdade é aquela que consegue segurar os novos e manter os antigos comprando. É como encher um balde furado: você até joga água, mas nunca enche.",
+              "settings": { "title": "Dica" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Resumo do módulo",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "O funil do iFood mistura dados de novos e antigos\nSem separar clientes novos, você analisa errado\nConversão real abaixo de 12% mostra que sua vitrine não está funcionando\nSe os novos estão subindo, mas as vendas caem, o problema é recompra\nEssa sacada sobre o funil invisível é rara e valiosa — o iFood não te ensina isso",
+              "settings": {
+                "items": [
+                  "O funil do iFood mistura dados de novos e antigos",
+                  "Sem separar clientes novos, você analisa errado",
+                  "Conversão real abaixo de 12% mostra que sua vitrine não está funcionando",
+                  "Se os novos estão subindo, mas as vendas caem, o problema é recompra",
+                  "Essa sacada sobre o funil invisível é rara e valiosa — o iFood não te ensina isso"
+                ]
+              }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Escolhi pelo menos uma ação de recompra para ativar se a base antiga cair",
+                "Vou acompanhar recompra em um relatório semanal"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "3",
+      "title": "Precificação inteligente",
+      "objective": "Ensinar o dono a precificar com inteligência dentro do iFood, sem cair na armadilha de usar porcentagens genéricas ou seguir apenas o que está no contrato da plataforma.",
+      "pdfChapter": "Capítulo 3",
+      "lessons": [
+        {
+          "number": "3.1",
+          "title": "O perigo da porcentagem chutada",
+          "objective": "Abandonar o hábito de precificar com percentual genérico ou de ouvido.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "O erro mais comum (e invisível)",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Muitos donos usam o seguinte raciocínio: “Na loja é R$20, então no iFood boto R$25 para compensar a taxa.”"
+            },
+            {
+              "type": "TEXT",
+              "content": "Por quê? Porque alguém falou que a taxa é de 23%. Ou porque o contrato diz isso. Ou pior: porque o vizinho também faz assim."
+            },
+            {
+              "type": "WARNING",
+              "content": "ERRO PERIGOSO. A verdade é: a taxa varia muito de loja para loja, depende de campanha, cupom, entrega e um monte de outras variáveis. Pare de precificar com base em achismo ou contrato. Precifique com base em dados reais.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Entendi por que precificar com porcentagem chutada é perigoso",
+                "Pare de usar só o contrato ou “o que o vizinho faz” como base de preço"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "3.2",
+          "title": "Como descobrir sua taxa real",
+          "objective": "Calcular, com dados do painel, quanto o iFood realmente desconta da sua operação.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Como descobrir quanto o iFood está te tirando",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Você encontra os dois dados mais importantes no próprio painel da plataforma:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Faturamento bruto da semana ou mês\nValor total descontado pelo iFood",
+              "settings": {
+                "items": [
+                  "Faturamento bruto da semana ou mês",
+                  "Valor total descontado pelo iFood"
+                ]
+              }
+            },
+            {
+              "type": "INFO",
+              "content": "Taxa real (%) = (Valor descontado ÷ Faturamento bruto) × 100",
+              "settings": { "title": "Fórmula" }
+            },
+            {
+              "type": "TEXT",
+              "content": "Esse número é o único que importa."
+            },
+            {
+              "type": "EXAMPLE",
+              "content": "Faturamento bruto: R$10.000. Total descontado pelo iFood: R$2.700. Taxa real: 27%. Se você precificou achando que era 23%… você está vendendo no prejuízo e nem viu.",
+              "settings": { "title": "Exemplo" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Localizei faturamento bruto e valor descontado no painel",
+                "Calculei minha taxa real com a fórmula"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "3.3",
+          "title": "Como proteger sua margem",
+          "objective": "Precificar com inteligência usando taxa real, margem de segurança, combos e complementos.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Como precificar com inteligência",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "NUMBERED_LIST",
+              "content": "Use o preço da loja física como referência\nDescubra a sua taxa real (com o cálculo da aula anterior)\nAdicione margem de segurança para campanhas, cupons e variação\nTrabalhe combos e complementos para aumentar o ticket médio",
+              "settings": {
+                "items": [
+                  "Use o preço da loja física como referência",
+                  "Descubra a sua taxa real (com o cálculo da aula anterior)",
+                  "Adicione margem de segurança para campanhas, cupons e variação",
+                  "Trabalhe combos e complementos para aumentar o ticket médio"
+                ]
+              }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Estratégia prática que funciona",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Em vez de aumentar tudo e parecer caro, você pode:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Manter o preço unitário parecido com o da loja física\nCriar combos com margem embutida (combo é percepção de vantagem)\nUsar complementos estratégicos (bacon, batata, refri) com alta margem\nPosicionar esses combos e complementos no topo do cardápio",
+              "settings": {
+                "items": [
+                  "Manter o preço unitário parecido com o da loja física",
+                  "Criar combos com margem embutida (combo é percepção de vantagem)",
+                  "Usar complementos estratégicos (bacon, batata, refri) com alta margem",
+                  "Posicionar esses combos e complementos no topo do cardápio"
+                ]
+              }
+            },
+            {
+              "type": "TIP",
+              "content": "O cliente sente que está ganhando… e você realmente ganha, com margem e ticket maior.",
+              "settings": { "title": "Dica" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Evite esses erros comuns",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Precificar com base em percentual “chutado”\nIgnorar campanhas e cupons no cálculo\nFazer promoções sem entender a margem\nConfiar só no que está escrito no contrato do iFood",
+              "settings": {
+                "items": [
+                  "Precificar com base em percentual “chutado”",
+                  "Ignorar campanhas e cupons no cálculo",
+                  "Fazer promoções sem entender a margem",
+                  "Confiar só no que está escrito no contrato do iFood"
+                ]
+              }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Resumo do módulo",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "A taxa do iFood varia — e muda tudo no seu lucro\nNunca precifique com base em porcentagem genérica\nFaça o cálculo real com os seus dados\nUse combos e complementos como ferramenta de margem\nDono que entende isso, vende com lucro e dorme em paz",
+              "settings": {
+                "items": [
+                  "A taxa do iFood varia — e muda tudo no seu lucro",
+                  "Nunca precifique com base em porcentagem genérica",
+                  "Faça o cálculo real com os seus dados",
+                  "Use combos e complementos como ferramenta de margem",
+                  "Dono que entende isso, vende com lucro e dorme em paz"
+                ]
+              }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Defini um preço-base considerando minha taxa real e margem de segurança",
+                "Tenho pelo menos um combo ou complemento pensado para embutir margem"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "4",
+      "title": "ROI e decisões com base em resultado",
+      "objective": "Mostrar ao dono como avaliar se uma ação — campanha, promoção ou mudança no cardápio — deu lucro ou prejuízo. Chega de achômetro: o nome do jogo é ROI.",
+      "pdfChapter": "Capítulo 4",
+      "lessons": [
+        {
+          "number": "4.1",
+          "title": "O que é ROI",
+          "objective": "Entender o conceito de Retorno Sobre o Investimento e praticar a fórmula com exemplos positivos e negativos.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "O que é ROI?",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "ROI significa Retorno Sobre o Investimento. Ou seja: para cada real que você colocou numa ação, quanto voltou?"
+            },
+            {
+              "type": "INFO",
+              "content": "ROI = (Lucro gerado – Investimento) ÷ Investimento × 100",
+              "settings": { "title": "Fórmula" }
+            },
+            {
+              "type": "EXAMPLE",
+              "content": "Se você investiu R$100 e teve R$300 de lucro: ROI = (300 – 100) ÷ 100 × 100 = 200%. Você triplicou o dinheiro investido. ROI positivo. Agora, se investiu R$100 e lucrou só R$50: ROI = (50 – 100) ÷ 100 × 100 = -50%. Negativo. Perdeu grana.",
+              "settings": { "title": "Exemplo" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Sei calcular ROI positivo e negativo com a fórmula",
+                "Entendi que ROI substitui o achômetro nas decisões da loja"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "4.2",
+          "title": "Como aplicar ROI no iFood",
+          "objective": "Aplicar o cálculo de ROI a campanhas e ações dentro do iFood, distinguindo volume de lucro real.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Como isso se aplica no iFood?",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Você ativa uma campanha, dá um desconto, coloca um combo novo, paga um anúncio externo… Tudo isso é investimento. Mas a pergunta é: isso trouxe lucro real ou só volume?"
+            },
+            {
+              "type": "EXAMPLE",
+              "content": "Campanha “Compre 2, leve 3”: você vendeu R$2.000 com ela, mas perdeu margem nos produtos e ainda pagou taxa sobre o total. Faturou muito, mas o lucro caiu. Aí entra o ROI. Só ele te diz se vale repetir ou cancelar.",
+              "settings": { "title": "Exemplo" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "ROI de campanha no iFood: como medir?",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "NUMBERED_LIST",
+              "content": "Veja quanto vendeu com a campanha ativa\nVeja quanto a mais ela trouxe em comparação com a semana anterior\nSubtraia os descontos dados e o custo da ação\nAplique a fórmula",
+              "settings": {
+                "items": [
+                  "Veja quanto vendeu com a campanha ativa",
+                  "Veja quanto a mais ela trouxe em comparação com a semana anterior",
+                  "Subtraia os descontos dados e o custo da ação",
+                  "Aplique a fórmula"
+                ]
+              }
+            },
+            {
+              "type": "INFO",
+              "content": "ROI = (lucro gerado – custo da campanha) ÷ custo da campanha × 100",
+              "settings": { "title": "Fórmula" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Sei medir o ROI de uma campanha no iFood",
+                "Entendi que faturar muito não é o mesmo que lucrar"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "4.3",
+          "title": "Como decidir se uma estratégia deve continuar",
+          "objective": "Usar ROI em qualquer ação da loja e decidir com base em número, não em emoção.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "ROI também vale para outras ações",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Criou combo novo? Veja se aumentou o ticket médio\nMudou a taxa de entrega? Veja se subiu os pedidos\nContratou gestor externo? Veja se o faturamento aumentou de forma sustentável\nFez panfleto, tráfego pago, SMS, WhatsApp? ROI neles também",
+              "settings": {
+                "items": [
+                  "Criou combo novo? Veja se aumentou o ticket médio",
+                  "Mudou a taxa de entrega? Veja se subiu os pedidos",
+                  "Contratou gestor externo? Veja se o faturamento aumentou de forma sustentável",
+                  "Fez panfleto, tráfego pago, SMS, WhatsApp? ROI neles também"
+                ]
+              }
+            },
+            {
+              "type": "WARNING",
+              "content": "Sem ROI, toda decisão é emocional. E decisão emocional custa caro. O dono que não mede retorno se engana com o volume. Às vezes acha que está bombando, mas está pagando para vender.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Resumo do módulo",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "ROI mostra se uma ação deu lucro ou prejuízo\nA fórmula é simples e serve para tudo: campanha, combo, anúncio, delivery\nSó volume de pedido não significa sucesso\nDono que mede ROI toma decisões certas e cresce com controle",
+              "settings": {
+                "items": [
+                  "ROI mostra se uma ação deu lucro ou prejuízo",
+                  "A fórmula é simples e serve para tudo: campanha, combo, anúncio, delivery",
+                  "Só volume de pedido não significa sucesso",
+                  "Dono que mede ROI toma decisões certas e cresce com controle"
+                ]
+              }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Listei pelo menos uma ação recente da loja para calcular o ROI",
+                "Vou decidir continuar, ajustar ou cancelar com base no número — não na sensação"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "5",
+      "title": "Estruturando um cardápio que converte",
+      "objective": "Ensinar o dono a montar um cardápio no iFood focado em conversão, credibilidade e ticket médio, usando dados reais e estratégias testadas.",
+      "pdfChapter": "Capítulo 6",
+      "lessons": [
+        {
+          "number": "5.1",
+          "title": "O cardápio como ferramenta de vendas",
+          "objective": "Tratar o cardápio como arma de vendas e só mexer nele depois de entender o funil.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "O cardápio não é enfeite — é arma de vendas",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "A maioria dos donos monta o cardápio baseado em gosto pessoal. Só que o cliente não vê o cardápio como você vê. Ele quer vantagem, clareza e segurança para comprar."
+            },
+            {
+              "type": "INFO",
+              "content": "Um bom cardápio vende por você, mesmo sem cupom ou promoção.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Comece pelo funil",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Você só deve mexer no cardápio depois de entender:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Em que etapa do funil está o gargalo\nQual item tem boa ou má conversão\nSe sua taxa com clientes novos está acima de 12%",
+              "settings": {
+                "items": [
+                  "Em que etapa do funil está o gargalo",
+                  "Qual item tem boa ou má conversão",
+                  "Se sua taxa com clientes novos está acima de 12%"
+                ]
+              }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Revisei meu funil antes de planejar mudanças no cardápio",
+                "Sei se minha conversão com novos está acima de 12%"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "5.2",
+          "title": "Imagens que geram desejo e conversão",
+          "objective": "Usar conversão de imagem (mínimo 40%) e foto de capa profissional para gerar desejo e credibilidade.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Imagem do produto: não é gosto, é dado",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Não coloque a foto que você acha bonita. O iFood mostra a taxa de conversão de cada item com aquela imagem."
+            },
+            {
+              "type": "WARNING",
+              "content": "Regra prática: imagem boa tem no mínimo 40% de conversão. Abaixo disso? Troca. E é real: muitas vezes a foto que converte é justamente a que você não gosta.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Foto de capa (da loja)",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Tem que ser de um produto real da loja\nFundo limpo, iluminação boa, ângulo de desejo\nNada de montagem ou imagem genérica",
+              "settings": {
+                "items": [
+                  "Tem que ser de um produto real da loja",
+                  "Fundo limpo, iluminação boa, ângulo de desejo",
+                  "Nada de montagem ou imagem genérica"
+                ]
+              }
+            },
+            {
+              "type": "TIP",
+              "content": "Isso mostra para o cliente que você tem uma cozinha profissional, e não é um amador vendendo da cozinha de casa. Resultado: ele aceita pagar mais caro sem questionar.",
+              "settings": { "title": "Dica" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Verifiquei a conversão das imagens dos meus produtos principais",
+                "Troquei ou marquei para trocar imagens abaixo de 40% de conversão",
+                "Revisei se a foto de capa é de produto real, com fundo limpo e boa iluminação"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "5.3",
+          "title": "Descrições que conquistam o clique",
+          "objective": "Escrever descrições que fisgam no começo e constroem credibilidade com palavras-chave e história.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Descrição: fisgue no começo",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "No celular, o cliente só vê o início da descrição. Se isso não chamar atenção, ele não clica no item. Comece com curiosidade ou quebra de padrão."
+            },
+            {
+              "type": "EXAMPLE",
+              "content": "Exemplos que geram clique:\n• “A batata que vem escondida nesse combo surpreende…”\n• “Esse lanche virou o mais pedido da casa, sabe por quê?”\n• “O combo que parece caro, mas economiza de verdade.”\n• “Começou como lanche de teste e virou vício da galera.”\n\nDepois que ele clica, aí sim você detalha ingredientes e opções.",
+              "settings": { "title": "Exemplo" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Palavras-chave e credibilidade",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Na descrição completa, inclua:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Ingredientes com apelo de qualidade (ex: “pão brioche, cheddar verdadeiro, carne 100% Angus”)\nTermos estratégicos (“combo econômico”, “opção vegana”, “lanche premiado”)\nUm toque da história da marca (ex: “Receita criada em 2017 por dois amigos que só sabiam fazer lanche bom”)",
+              "settings": {
+                "items": [
+                  "Ingredientes com apelo de qualidade (ex: “pão brioche, cheddar verdadeiro, carne 100% Angus”)",
+                  "Termos estratégicos (“combo econômico”, “opção vegana”, “lanche premiado”)",
+                  "Um toque da história da marca (ex: “Receita criada em 2017 por dois amigos que só sabiam fazer lanche bom”)"
+                ]
+              }
+            },
+            {
+              "type": "TIP",
+              "content": "Isso gera confiança e identificação — e aumenta a chance de o cliente clicar e converter.",
+              "settings": { "title": "Dica" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Reescrevi a descrição de pelo menos um produto com gancho no início",
+                "Incluí palavras-chave de qualidade e, se couber, um toque da história da marca"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "5.4",
+          "title": "Organização, posicionamento e ancoragem",
+          "objective": "Organizar o cardápio com lógica de consumo, destaque para campeões e ancoragem de preço do barato para o caro.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Organização lógica = mais cliques",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Nunca deixe o cardápio bagunçado. Use lógica de consumo:"
+            },
+            {
+              "type": "NUMBERED_LIST",
+              "content": "Combos principais no topo\nItens avulsos depois\nBebidas e complementos por último",
+              "settings": {
+                "items": [
+                  "Combos principais no topo",
+                  "Itens avulsos depois",
+                  "Bebidas e complementos por último"
+                ]
+              }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Análise de vendas e posicionamento",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Analise os produtos que mais vendem. Eles devem ter:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Combos derivados (para empurrar ticket médio)\nDestaque visual no cardápio\nDescrição otimizada\nImagem testada",
+              "settings": {
+                "items": [
+                  "Combos derivados (para empurrar ticket médio)",
+                  "Destaque visual no cardápio",
+                  "Descrição otimizada",
+                  "Imagem testada"
+                ]
+              }
+            },
+            {
+              "type": "TEXT",
+              "content": "O que já vende tem que brilhar mais."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Ancoragem de preço",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "INFO",
+              "content": "Sempre comece o cardápio com produtos mais baratos. Isso cria um efeito psicológico: o cliente vê R$12, depois R$19, depois R$25… e continua rolando. Agora, se você começa com o mais caro, ele fecha o app.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Resumo do módulo",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "O cardápio é sua principal ferramenta de venda\nImagem só entra se converter acima de 40%\nDescrição tem que gerar clique logo no começo\nPalavras-chave + história = credibilidade\nProduto mais vendido tem que ter combo e destaque\nComece o cardápio do barato para o caro (ancoragem de preço)\nFoto de capa boa mostra profissionalismo e valoriza seu preço",
+              "settings": {
+                "items": [
+                  "O cardápio é sua principal ferramenta de venda",
+                  "Imagem só entra se converter acima de 40%",
+                  "Descrição tem que gerar clique logo no começo",
+                  "Palavras-chave + história = credibilidade",
+                  "Produto mais vendido tem que ter combo e destaque",
+                  "Comece o cardápio do barato para o caro (ancoragem de preço)",
+                  "Foto de capa boa mostra profissionalismo e valoriza seu preço"
+                ]
+              }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Planejei a ordem do cardápio: combos → avulsos → bebidas/complementos",
+                "Vou começar a lista de preços do mais barato para o mais caro",
+                "Marquei destaque e combo derivado para o produto campeão"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "6",
+      "title": "Combos que aumentam o lucro",
+      "objective": "Ensinar o dono a montar combos com alta margem, que aumentam o ticket médio, vendem mais e fazem o cliente sentir que está levando vantagem — mesmo quando está gastando mais.",
+      "pdfChapter": "Capítulo 7",
+      "lessons": [
+        {
+          "number": "6.1",
+          "title": "Combo não é apenas desconto",
+          "objective": "Mudar a mentalidade: combo é estratégia de margem e posicionamento, não brinde.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Combos não são “brinde” — são estratégia",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "A maioria acha que combo é só “juntar tudo e dar desconto”. Isso é o jeito errado de pensar."
+            },
+            {
+              "type": "WARNING",
+              "content": "Combo é onde você embute margem sem parecer caro, posiciona o produto como “melhor escolha” e faz o cliente gastar mais, sorrindo.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Parei de pensar em combo só como desconto",
+                "Entendi que combo é ferramenta de margem e ticket médio"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "6.2",
+          "title": "Como criar combos usando produtos campeões",
+          "objective": "Criar combos a partir dos produtos que mais saem e embutir margem com itens de baixo custo.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Crie combo com base nos produtos que mais saem",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Analise seu painel: veja quais produtos têm mais pedidos individuais e transforme em combo."
+            },
+            {
+              "type": "EXAMPLE",
+              "content": "Se o “X-Bacon” é campeão de venda, crie:\n• “Combo X-Bacon + Refri”\n• “X-Bacon Duplo + Batata por R$XX”\n• “X-Bacon Família – Serve 2”\n\nVocê usa o que já tem aceitação e aumenta o ticket sem forçar a barra.",
+              "settings": { "title": "Exemplo" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Monte combos com margem embutida",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Você pode colocar um combo com “R$5 de economia” — mesmo que tenha R$10 a mais de lucro. Por quê? Porque no combo você controla o que vai dentro, usa itens com custo menor (ex: batata, bebida), junta tudo e o cliente sente que está ganhando."
+            },
+            {
+              "type": "EXAMPLE",
+              "content": "Descrições persuasivas para combo:\n• “Combo explosão: 1 X-Bacon + Batata crocante + Refri gelado — R$6 de economia na escolha favorita da casa.”\n• “O pedido mais feito da semana, agora em combo. Serve 1 pessoa faminta ou 2 dividindo a culpa.”\n\nEssas descrições ativam desejo, passam confiança e ainda geram curiosidade.",
+              "settings": { "title": "Exemplo" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Identifiquei meu produto campeão no painel",
+                "Montei pelo menos um combo a partir desse produto com item de baixo custo embutido"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "6.3",
+          "title": "Margem, complementos e percepção de vantagem",
+          "objective": "Posicionar combos no topo, usar complementos de alta margem e criar contraste com preços avulsos.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Posicionamento estratégico",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Coloque os combos:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "No topo do cardápio\nCom imagem bem feita\nNome com “combo”, “família”, “economia”, “favorito”, etc.\nÍcone visual (🔥, ⭐, 🧲 se quiser reforçar)",
+              "settings": {
+                "items": [
+                  "No topo do cardápio",
+                  "Com imagem bem feita",
+                  "Nome com “combo”, “família”, “economia”, “favorito”, etc.",
+                  "Ícone visual (🔥, ⭐, 🧲 se quiser reforçar)"
+                ]
+              }
+            },
+            {
+              "type": "TEXT",
+              "content": "Eles devem ser o primeiro clique do cliente."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Complementos dentro do combo",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Use produtos com alta margem e baixo custo como parte dos combos:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Porção pequena de batata\nCopo de suco ou refri 200ml\nSobremesa caseira simples",
+              "settings": {
+                "items": [
+                  "Porção pequena de batata",
+                  "Copo de suco ou refri 200ml",
+                  "Sobremesa caseira simples"
+                ]
+              }
+            },
+            {
+              "type": "TEXT",
+              "content": "Você valoriza o combo e embute a margem."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Crie a sensação de vantagem",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "O cliente não precisa saber que você teve mais lucro — ele precisa sentir que fez um bom negócio. Para isso, o cardápio precisa ser claro e bem organizado:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Crie categorias com todos os produtos individuais\nMantenha o preço deles visível e fácil de comparar\nAssim o cliente entende rapidamente que levar o combo vale mais a pena",
+              "settings": {
+                "items": [
+                  "Crie categorias com todos os produtos individuais",
+                  "Mantenha o preço deles visível e fácil de comparar",
+                  "Assim o cliente entende rapidamente que levar o combo vale mais a pena"
+                ]
+              }
+            },
+            {
+              "type": "INFO",
+              "content": "Esse contraste entre o preço avulso e o do combo aumenta a percepção de ganho.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Resumo do módulo",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Combo bom tem margem, não só volume\nUse os produtos que já vendem bem como base\nEmbuta margem com itens baratos e apresentação inteligente\nFaça o cliente sentir que está ganhando — mesmo gastando mais\nPosicione os combos no topo do cardápio com imagem e nome atrativos\nUse o cardápio como âncora: mostre os preços avulsos para valorizar o combo",
+              "settings": {
+                "items": [
+                  "Combo bom tem margem, não só volume",
+                  "Use os produtos que já vendem bem como base",
+                  "Embuta margem com itens baratos e apresentação inteligente",
+                  "Faça o cliente sentir que está ganhando — mesmo gastando mais",
+                  "Posicione os combos no topo do cardápio com imagem e nome atrativos",
+                  "Use o cardápio como âncora: mostre os preços avulsos para valorizar o combo"
+                ]
+              }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Meus combos estão (ou serão) posicionados no topo do cardápio",
+                "Os preços avulsos estão visíveis para reforçar o contraste de vantagem"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "7",
+      "title": "Campanhas do iFood sem prejuízo",
+      "objective": "Ensinar o dono a usar as campanhas disponíveis no iFood com estratégia, aumentando visibilidade e venda sem queimar margem.",
+      "pdfChapter": "Capítulo 8",
+      "lessons": [
+        {
+          "number": "7.1",
+          "title": "Defina o objetivo antes de ativar",
+          "objective": "Conhecer as campanhas e só ativar com meta clara e margem protegida.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "A campanha certa posiciona sua loja",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "WARNING",
+              "content": "Mas a campanha errada… destrói sua margem. O problema é que muita loja ativa tudo e espera o milagre.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "TEXT",
+              "content": "O iFood oferece várias campanhas automáticas:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Primeira compra\nCompre 2 leve 3\nDesconto progressivo\nProduto em destaque\nCupom de entrega grátis\nCombos e destaque manual",
+              "settings": {
+                "items": [
+                  "Primeira compra",
+                  "Compre 2 leve 3",
+                  "Desconto progressivo",
+                  "Produto em destaque",
+                  "Cupom de entrega grátis",
+                  "Combos e destaque manual"
+                ]
+              }
+            },
+            {
+              "type": "INFO",
+              "content": "Todas são boas dependendo do objetivo.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Qual o objetivo da campanha?",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Antes de ativar, pergunte:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Quero atrair clientes novos?\nQuero fazer quem já compra voltar?\nQuero girar um produto parado?\nQuero aumentar o ticket médio?",
+              "settings": {
+                "items": [
+                  "Quero atrair clientes novos?",
+                  "Quero fazer quem já compra voltar?",
+                  "Quero girar um produto parado?",
+                  "Quero aumentar o ticket médio?"
+                ]
+              }
+            },
+            {
+              "type": "TEXT",
+              "content": "A campanha tem que bater direto nessa meta. Se não tem meta, não tem como medir retorno."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Quando a campanha dá prejuízo?",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Quando você dá desconto em produto que já vende bem\nQuando sua precificação não tem margem para suportar\nQuando ativa e não monitora o retorno",
+              "settings": {
+                "items": [
+                  "Quando você dá desconto em produto que já vende bem",
+                  "Quando sua precificação não tem margem para suportar",
+                  "Quando ativa e não monitora o retorno"
+                ]
+              }
+            },
+            {
+              "type": "EXAMPLE",
+              "content": "Desconto de 20% em lanche que já era o mais vendido, sem revisão de preço e sem embutir margem. Resultado: vende mais, mas lucra menos.",
+              "settings": { "title": "Exemplo" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Defini o objetivo antes de escolher qualquer campanha",
+                "Revisei se a precificação tem margem para suportar a ação"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "7.2",
+          "title": "Primeira compra e produto em destaque",
+          "objective": "Usar Primeira Compra e Produto em Destaque com estratégia de atração e margem.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Estratégias práticas de campanha",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Primeira Compra",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Use para atrair novos. Combine com:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Um combo exclusivo para primeira vez\nBrinde + cupom\nImagem diferenciada com texto tipo “só hoje”",
+              "settings": {
+                "items": [
+                  "Um combo exclusivo para primeira vez",
+                  "Brinde + cupom",
+                  "Imagem diferenciada com texto tipo “só hoje”"
+                ]
+              }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Produto em Destaque",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Coloque um combo que tenha margem e bom apelo visual."
+            },
+            {
+              "type": "WARNING",
+              "content": "Cuidado: se destacar um item que converte mal, só aumenta a frustração do cliente.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Se for atrair novos, planejei Primeira Compra com combo ou brinde",
+                "Para destaque, escolhi item com margem e boa conversão visual"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "7.3",
+          "title": "Compre 2, leve 3 e entrega grátis",
+          "objective": "Aplicar Compre 2, leve 3 e cupom de entrega grátis só quando a margem e o contexto fazem sentido.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Compre 2, leve 3",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Só use em produtos com alta margem e boa aceitação. Ideal para lanches menores, sobremesas ou bebidas."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Cupom de entrega grátis",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Use em regiões com alta taxa de abandono por frete. Mas lembre de considerar o custo dessa entrega na margem do produto."
+            },
+            {
+              "type": "WARNING",
+              "content": "Sem embutir o custo do frete na margem, a campanha de entrega grátis vira prejuízo disfarçado de volume.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Só usarei Compre 2, leve 3 em produto de alta margem",
+                "Se ativar entrega grátis, já considerei o custo do frete na margem"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "7.4",
+          "title": "Como saber se a campanha está funcionando",
+          "objective": "Monitorar campanhas com relatório, comparar volume x lucro e aplicar ROI.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Como saber se a campanha está funcionando?",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Use o relatório do próprio iFood e compare:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Faturamento com e sem campanha\nAumento de novos clientes\nTicket médio durante a campanha\nQuantidade de vendas x lucro líquido",
+              "settings": {
+                "items": [
+                  "Faturamento com e sem campanha",
+                  "Aumento de novos clientes",
+                  "Ticket médio durante a campanha",
+                  "Quantidade de vendas x lucro líquido"
+                ]
+              }
+            },
+            {
+              "type": "WARNING",
+              "content": "Se o volume subiu, mas o lucro caiu… campanha mal feita.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Sempre faça conta antes",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Use o cálculo de ROI (que você já aprendeu no Módulo 4):"
+            },
+            {
+              "type": "INFO",
+              "content": "ROI = (Lucro gerado – custo da campanha) ÷ custo da campanha × 100. Campanha boa é a que paga seu custo e ainda te deixa com lucro.",
+              "settings": { "title": "Fórmula" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Resumo do módulo",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Nem toda campanha é boa para toda loja\nAtive com objetivo claro e margem protegida\nNunca dê desconto em item que já vende bem sem analisar\nUse as campanhas para alavancar produto parado, atrair novo ou subir ticket\nMonitore sempre o ROI e desative rápido se não der retorno",
+              "settings": {
+                "items": [
+                  "Nem toda campanha é boa para toda loja",
+                  "Ative com objetivo claro e margem protegida",
+                  "Nunca dê desconto em item que já vende bem sem analisar",
+                  "Use as campanhas para alavancar produto parado, atrair novo ou subir ticket",
+                  "Monitore sempre o ROI e desative rápido se não der retorno"
+                ]
+              }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Sei quais métricas comparar com e sem campanha",
+                "Vou calcular o ROI antes de manter ou desativar qualquer campanha"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "8",
+      "title": "Diagnóstico final",
+      "objective": "Ajudar o dono a identificar com clareza onde está perdendo dinheiro no iFood e montar um plano de ação prático, com base no comportamento do cliente.",
+      "pdfChapter": "Capítulo 9",
+      "lessons": [
+        {
+          "number": "8.1",
+          "title": "Por onde começar",
+          "objective": "Começar pelo diagnóstico do funil real (sem recorrentes) antes de mexer em cardápio, preço ou campanha.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Você não precisa fazer tudo — precisa fazer certo",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Mexer no cardápio, ativar campanha, subir preço, criar combo… Se isso for feito sem saber onde está o real problema, vira tiro no escuro."
+            },
+            {
+              "type": "INFO",
+              "content": "A chave é o diagnóstico: ele te mostra onde está o furo no balde.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Passo 1: entenda seu funil real (sem clientes recorrentes)",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Abra seu painel no iFood e veja:"
+            },
+            {
+              "type": "NUMBERED_LIST",
+              "content": "Número de visitas da loja\nQuantos pedidos foram de clientes novos\nFaça o cálculo de conversão real",
+              "settings": {
+                "items": [
+                  "Número de visitas da loja",
+                  "Quantos pedidos foram de clientes novos",
+                  "Faça o cálculo de conversão real"
+                ]
+              }
+            },
+            {
+              "type": "INFO",
+              "content": "Clientes novos ÷ Visitas da loja = Conversão real com novos. Se estiver abaixo de 12%, o funil está comprometido. E sim, o iFood inclui recorrentes nos dados — por isso esse ajuste é essencial.",
+              "settings": { "title": "Fórmula" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Recalculei minha conversão real antes de decidir qualquer ação",
+                "Sei se o funil está acima ou abaixo de 12% com novos"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "8.2",
+          "title": "Poucas visitas ou visualizações",
+          "objective": "Diagnosticar e corrigir gargalos no topo do funil: visitas da loja e visualizações no cardápio.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "1. Poucas visitas da loja",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "O cliente não escolheu sua loja — mesmo vendo ela listada no app."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Causas",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Nome da loja sem palavra-chave clara (ex: “Delícias da Ana” em vez de “Restaurante - Ana Marmitex”)\nTempo de entrega alto\nLoja fora das listas promocionais\nNota baixa\nFalta de campanhas de atração (ex: Primeira compra, Produto em destaque)\nImagem da loja é só uma logo genérica",
+              "settings": {
+                "items": [
+                  "Nome da loja sem palavra-chave clara (ex: “Delícias da Ana” em vez de “Restaurante - Ana Marmitex”)",
+                  "Tempo de entrega alto",
+                  "Loja fora das listas promocionais",
+                  "Nota baixa",
+                  "Falta de campanhas de atração (ex: Primeira compra, Produto em destaque)",
+                  "Imagem da loja é só uma logo genérica"
+                ]
+              }
+            },
+            {
+              "type": "TIP",
+              "content": "Troque a logo por uma foto real de um produto (de preferência o mais vendido). Isso gera identificação imediata — o cliente já vê o que quer comer antes mesmo de clicar. Enquanto a maioria das lojas usa uma marca fria, você já ativa desejo visual.",
+              "settings": { "title": "Dica" }
+            },
+            {
+              "type": "HEADING",
+              "content": "2. Poucas visualizações no cardápio",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "O cliente entrou na sua loja, mas não rolou para baixo ou não clicou em nada."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Causas",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Imagem de capa fraca, sem padrão, ou genérica\nTítulos pouco chamativos ou explicativos demais\nProduto mais caro da loja logo no topo\nDescrições que não despertam curiosidade nos primeiros segundos\nFotos que informam, mas não geram desejo\nEstrutura bagunçada: mistura de categorias, sem lógica de consumo",
+              "settings": {
+                "items": [
+                  "Imagem de capa fraca, sem padrão, ou genérica",
+                  "Títulos pouco chamativos ou explicativos demais",
+                  "Produto mais caro da loja logo no topo",
+                  "Descrições que não despertam curiosidade nos primeiros segundos",
+                  "Fotos que informam, mas não geram desejo",
+                  "Estrutura bagunçada: mistura de categorias, sem lógica de consumo"
+                ]
+              }
+            },
+            {
+              "type": "WARNING",
+              "content": "Isso transmite falta de profissionalismo. Se a apresentação espanta, o cliente não vai explorar o cardápio — e muito menos comprar.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "INFO",
+              "content": "Ação recomendada — visitas baixas: nome com palavra-chave, foto de produto no lugar da logo, reduzir tempo de entrega, campanhas, listas promocionais. Visualização baixa: imagem de capa atrativa, título chamativo, produto mais barato no topo, descrição com curiosidade, fotos que geram desejo.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Avaliei se o problema da loja está em visitas ou em visualizações",
+                "Listei pelo menos uma ação corretiva para o gargalo do topo do funil"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "8.3",
+          "title": "Poucas adições ou revisões",
+          "objective": "Diagnosticar e corrigir gargalos de adição à sacola e revisão do pedido.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "3. Poucas adições à sacola",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "O cliente viu o cardápio, mas não adicionou nada."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Causas",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Complementos obrigatórios com valores altos e sem lógica (ex: cobrar R$6 para escolher pão)\nComplementos caros e mal posicionados, que espantam no clique\nExcesso de opções de complemento, que geram dúvida, preguiça e desistência",
+              "settings": {
+                "items": [
+                  "Complementos obrigatórios com valores altos e sem lógica (ex: cobrar R$6 para escolher pão)",
+                  "Complementos caros e mal posicionados, que espantam no clique",
+                  "Excesso de opções de complemento, que geram dúvida, preguiça e desistência"
+                ]
+              }
+            },
+            {
+              "type": "WARNING",
+              "content": "Se o cliente sente que está sendo obrigado a fazer escolhas confusas ou caras demais, ele simplesmente sai.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "HEADING",
+              "content": "4. Pouca revisão do pedido",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "O cliente colocou no carrinho, mas não finalizou o pedido. Geralmente isso acontece porque a etapa anterior já veio mal feita."
+            },
+            {
+              "type": "INFO",
+              "content": "Corrigir a adição à sacola já resolve a revisão na maioria dos casos. Mas ainda assim, observe: frete alto demais, falta de clareza no valor total, tempo de entrega longo no final e forma de pagamento não disponível.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "TIP",
+              "content": "Ação recomendada — adição baixa: revisar complementos obrigatórios, cortar opções confusas, simplificar e dar vantagem clara. Revisão fraca: corrigir adição, ajustar entrega, simplificar fechamento.",
+              "settings": { "title": "Dica" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Revisei complementos obrigatórios e opções confusas",
+                "Chequei frete, clareza de valor total, tempo de entrega e formas de pagamento no fechamento"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "8.4",
+          "title": "Conversão boa e vendas em queda",
+          "objective": "Reconhecer queda de recompra disfarçada de funil “bonito” e agir na fidelização.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "5. Conversão boa, mas vendas em queda",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "O funil parece bonito. Mas o faturamento só desce? Atenção: isso é sinal de que a recompra caiu."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Causas",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Cliente novo até compra, mas não volta\nTaxa de entrega alta, que desestimula a fidelização\nPoucas formas de pagamento\nNão oferece pagamento na entrega\nSem campanha de segunda compra, brinde ou ação de retorno",
+              "settings": {
+                "items": [
+                  "Cliente novo até compra, mas não volta",
+                  "Taxa de entrega alta, que desestimula a fidelização",
+                  "Poucas formas de pagamento",
+                  "Não oferece pagamento na entrega",
+                  "Sem campanha de segunda compra, brinde ou ação de retorno"
+                ]
+              }
+            },
+            {
+              "type": "WARNING",
+              "content": "Aqui o perigo é parecer que está tudo indo bem — quando na verdade você está perdendo os fiéis.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "INFO",
+              "content": "Ação recomendada: fortalecer recompra, trabalhar entrega e fidelização, abrir formas de pagamento.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Sei identificar o cenário de conversão boa com vendas em queda",
+                "Planejei pelo menos uma ação de recompra (segunda compra, brinde, pagamento ou entrega)"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "8.5",
+          "title": "Plano de ação semanal",
+          "objective": "Transformar o diagnóstico em um plano realista: poucos gargalos, uma mudança por semana e monitoramento sem emoção.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Passo 3: ações práticas para cada gargalo",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Visitas baixas → nome com palavra-chave, foto de produto no lugar da logo, reduzir tempo de entrega, campanhas, listas promocionais\nVisualização baixa → imagem de capa atrativa, título chamativo, produto mais barato no topo, descrição com curiosidade, fotos que geram desejo\nAdição baixa → revisar complementos obrigatórios, cortar opções confusas, simplificar e dar vantagem clara\nRevisão fraca → corrigir adição, ajustar entrega, simplificar fechamento\nConversão boa com vendas em queda → fortalecer recompra, trabalhar entrega e fidelização, abrir formas de pagamento",
+              "settings": {
+                "items": [
+                  "Visitas baixas → nome com palavra-chave, foto de produto no lugar da logo, reduzir tempo de entrega, campanhas, listas promocionais",
+                  "Visualização baixa → imagem de capa atrativa, título chamativo, produto mais barato no topo, descrição com curiosidade, fotos que geram desejo",
+                  "Adição baixa → revisar complementos obrigatórios, cortar opções confusas, simplificar e dar vantagem clara",
+                  "Revisão fraca → corrigir adição, ajustar entrega, simplificar fechamento",
+                  "Conversão boa com vendas em queda → fortalecer recompra, trabalhar entrega e fidelização, abrir formas de pagamento"
+                ]
+              }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Passo 4: plano de ação realista",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "NUMBERED_LIST",
+              "content": "Liste os três maiores gargalos da sua loja\nResolva um por semana, com calma e precisão\nUse os módulos anteriores como guia\nAcompanhe os dados no painel — sem emoção, só análise",
+              "settings": {
+                "items": [
+                  "Liste os três maiores gargalos da sua loja",
+                  "Resolva um por semana, com calma e precisão",
+                  "Use os módulos anteriores como guia",
+                  "Acompanhe os dados no painel — sem emoção, só análise"
+                ]
+              }
+            },
+            {
+              "type": "TIP",
+              "content": "Dono que age com estratégia, não fica no escuro. O segredo não é fazer tudo, é fazer o que resolve — uma mudança por vez, com monitoramento semanal.",
+              "settings": { "title": "Dica" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Resumo do módulo",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Nem todo problema é onde você acha que está\nO funil invisível (com foco nos novos clientes) é sua melhor ferramenta de diagnóstico\nCada etapa mostra um tipo de perda, com solução clara\nO segredo não é fazer tudo, é fazer o que resolve\nUma mudança por vez, com monitoramento semanal",
+              "settings": {
+                "items": [
+                  "Nem todo problema é onde você acha que está",
+                  "O funil invisível (com foco nos novos clientes) é sua melhor ferramenta de diagnóstico",
+                  "Cada etapa mostra um tipo de perda, com solução clara",
+                  "O segredo não é fazer tudo, é fazer o que resolve",
+                  "Uma mudança por vez, com monitoramento semanal"
+                ]
+              }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Listei meus três maiores gargalos",
+                "Defini qual vou atacar primeiro nesta semana",
+                "Vou acompanhar o painel semanalmente sem reagir só pela emoção"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": "9",
+      "title": "Bônus: operação e algoritmo do iFood",
+      "objective": "Revelar os bastidores do algoritmo do iFood e mostrar como o dono pode se destacar não só pela comida, mas pelo comportamento operacional.",
+      "pdfChapter": "Capítulo Bônus",
+      "lessons": [
+        {
+          "number": "9.1",
+          "title": "O iFood funciona como um e-commerce",
+          "objective": "Entender o ranqueamento automático e os critérios que decidem quem aparece primeiro no feed.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "O iFood é um e-commerce, não um aplicativo de comida",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Muita gente pensa que o iFood é um app bonitinho onde o cliente escolhe o que comer. Mas por trás da tela, ele é um verdadeiro shopping digital, com milhares de lojas competindo por um espaço no feed do cliente."
+            },
+            {
+              "type": "TEXT",
+              "content": "Quem decide quem aparece primeiro? Um robô. Esse robô usa critérios automáticos de ranqueamento, como:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Cumprimento de horários\nReclamações\nCancelamentos\nTempo de entrega\nTaxa de resposta\nAvaliação média",
+              "settings": {
+                "items": [
+                  "Cumprimento de horários",
+                  "Reclamações",
+                  "Cancelamentos",
+                  "Tempo de entrega",
+                  "Taxa de resposta",
+                  "Avaliação média"
+                ]
+              }
+            },
+            {
+              "type": "INFO",
+              "content": "Sua posição no feed depende de comportamento operacional, não só da qualidade da comida.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Entendi que o iFood funciona como e-commerce com ranqueamento automático",
+                "Sei quais critérios o algoritmo observa"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "9.2",
+          "title": "Tempo aberto e comportamento operacional",
+          "objective": "Cumprir horário programado e evitar pausas que derrubam a taxa de tempo aberto.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Tempo aberto é regra sagrada",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "O iFood espera que você cumpra o horário que você mesmo programou. Se você diz que vai ficar aberto até 23h e fecha antes, está mentindo para o robô. E ele percebe."
+            },
+            {
+              "type": "WARNING",
+              "content": "Se você cumprir menos de 92% do horário prometido, já começa a perder visibilidade. E mesmo que cumpra os 92%, se outra loja tiver 92,1%… ela passa na sua frente.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "O que derruba sua pontuação (e o iFood não te ensina)",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Pausar a loja manualmente ou usar “pausa programada” — o iFood entende que você abriu, mas não deu conta da demanda. Resultado: sua taxa de tempo aberto cai\nModo invisível no app Gestor de Pedidos — faz a loja sumir do app em alguns momentos. Você acha que está online, mas não está — e a taxa cai",
+              "settings": {
+                "items": [
+                  "Pausar a loja manualmente ou usar “pausa programada” — o iFood entende que você abriu, mas não deu conta da demanda. Resultado: sua taxa de tempo aberto cai",
+                  "Modo invisível no app Gestor de Pedidos — faz a loja sumir do app em alguns momentos. Você acha que está online, mas não está — e a taxa cai"
+                ]
+              }
+            },
+            {
+              "type": "TIP",
+              "content": "Pesquise ou desative o modo invisível nas configurações do Gestor de Pedidos.",
+              "settings": { "title": "Dica" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Sei que preciso cumprir mais de 92% do horário prometido",
+                "Vou evitar pausa manual e verificar se o modo invisível está desativado"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "9.3",
+          "title": "Dispositivo, internet e fechamento correto",
+          "objective": "Configurar dispositivo e internet para não cair e fechar a loja pelo portal sem penalizar o algoritmo.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Dispositivo mal configurado",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Se você usa notebook ou PC:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Configure para não entrar em suspensão ou repouso\nDeixe o navegador com o portal do parceiro aberto em uma aba\nIsso garante que o sistema acuse na hora se a loja cair fora do ar",
+              "settings": {
+                "items": [
+                  "Configure para não entrar em suspensão ou repouso",
+                  "Deixe o navegador com o portal do parceiro aberto em uma aba",
+                  "Isso garante que o sistema acuse na hora se a loja cair fora do ar"
+                ]
+              }
+            },
+            {
+              "type": "TEXT",
+              "content": "Se usa celular:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Ative permissão para funcionar em segundo plano\nVerifique se o app está conectado e recebendo pedidos",
+              "settings": {
+                "items": [
+                  "Ative permissão para funcionar em segundo plano",
+                  "Verifique se o app está conectado e recebendo pedidos"
+                ]
+              }
+            },
+            {
+              "type": "WARNING",
+              "content": "Internet instável: sem conexão, sua loja fecha e você nem percebe.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Como fechar sem prejudicar o algoritmo?",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Nunca pause a loja."
+            },
+            {
+              "type": "INFO",
+              "content": "Se precisar fechar, vá no portal do parceiro > horários > e remova o horário daquele dia. O algoritmo vai entender que você nem abriu, e não vai te punir.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Configurei dispositivo e internet para a loja não cair sem perceber",
+                "Sei fechar pelo portal (horários), sem pausa manual"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "9.4",
+          "title": "Cancelamentos, reclamações e entrega",
+          "objective": "Evitar o que detona o ranqueamento e ajustar tempo de entrega com estratégia em tempo real.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Cancelamentos e reclamações: tolerância zero",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "O iFood pode relevar um atraso ou outro. Mas não tolera reclamação nem cancelamento."
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Principais causas que detonam seu ranqueamento",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Item faltando\nProduto chegou revirado\nPedido cancelado por falta de preparo\nCliente reclamou que a comida demorou ou chegou errada",
+              "settings": {
+                "items": [
+                  "Item faltando",
+                  "Produto chegou revirado",
+                  "Pedido cancelado por falta de preparo",
+                  "Cliente reclamou que a comida demorou ou chegou errada"
+                ]
+              }
+            },
+            {
+              "type": "WARNING",
+              "content": "Isso derruba sua loja na busca mais rápido do que você imagina.",
+              "settings": { "title": "Atenção" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Tempo de entrega: nem alto demais, nem enganação",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "TEXT",
+              "content": "Erro comum: colocar o tempo de entrega lá em cima (ex: 90 minutos) para evitar cancelamento. Resultado? O cliente nem entra na sua loja."
+            },
+            {
+              "type": "NUMBERED_LIST",
+              "content": "Comece com tempo baixo\nSe a demanda aumentar, aumente o tempo no meio do expediente\nQuando a operação normalizar, baixe de novo",
+              "settings": {
+                "items": [
+                  "Comece com tempo baixo",
+                  "Se a demanda aumentar, aumente o tempo no meio do expediente",
+                  "Quando a operação normalizar, baixe de novo"
+                ]
+              }
+            },
+            {
+              "type": "TIP",
+              "content": "Sim, dá trabalho. Mas não existe ganhar mais dinheiro sem esforço operacional.",
+              "settings": { "title": "Dica" }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Sei quais erros de operação derrubam o ranqueamento mais rápido",
+                "Vou ajustar o tempo de entrega conforme a demanda do dia, sem exagerar no início"
+              ]
+            }
+          ]
+        },
+        {
+          "number": "9.5",
+          "title": "Super Restaurante",
+          "objective": "Entender o selo Super Restaurante e o que manter para dobrar a visibilidade.",
+          "blocks": [
+            {
+              "type": "HEADING",
+              "content": "Super Restaurante: o selo que dobra sua visibilidade",
+              "settings": { "level": 2 }
+            },
+            {
+              "type": "TEXT",
+              "content": "O iFood tem um programa chamado Super Restaurante. Se você:"
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "Cumpre horário\nEvita reclamações\nMantém boa nota\nNão cancela\nFaz tudo redondinho",
+              "settings": {
+                "items": [
+                  "Cumpre horário",
+                  "Evita reclamações",
+                  "Mantém boa nota",
+                  "Não cancela",
+                  "Faz tudo redondinho"
+                ]
+              }
+            },
+            {
+              "type": "INFO",
+              "content": "Você recebe um selo automático, que aumenta sua entrega de visibilidade (literalmente aparece mais no app). Dentro do painel você vê o quanto falta para atingir esse status.",
+              "settings": { "title": "Importante" }
+            },
+            {
+              "type": "SUBHEADING",
+              "content": "Resumo do módulo",
+              "settings": { "level": 3 }
+            },
+            {
+              "type": "BULLET_LIST",
+              "content": "O iFood é um e-commerce: organização e reputação mandam\nCumpra mais de 92% do horário — e com consistência\nNunca pause a loja manualmente\nConfigure seu aparelho e internet para nunca cair\nFeche a loja pelo portal, removendo o horário (sem penalizar)\nEvite cancelamentos a todo custo\nMonitore tempo de entrega e ajuste em tempo real\nBusque se tornar Super Restaurante — e dobrar sua exposição",
+              "settings": {
+                "items": [
+                  "O iFood é um e-commerce: organização e reputação mandam",
+                  "Cumpra mais de 92% do horário — e com consistência",
+                  "Nunca pause a loja manualmente",
+                  "Configure seu aparelho e internet para nunca cair",
+                  "Feche a loja pelo portal, removendo o horário (sem penalizar)",
+                  "Evite cancelamentos a todo custo",
+                  "Monitore tempo de entrega e ajuste em tempo real",
+                  "Busque se tornar Super Restaurante — e dobrar sua exposição"
+                ]
+              }
+            },
+            {
+              "type": "DIVIDER",
+              "content": ""
+            },
+            {
+              "type": "CHECKLIST",
+              "content": "Checklist de conclusão",
+              "settings": { "title": "Checklist de conclusão" },
+              "checklistItems": [
+                "Sei o que o selo Super Restaurante exige",
+                "Vou acompanhar no painel o quanto falta para atingir o status"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
