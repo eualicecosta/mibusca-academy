@@ -680,11 +680,13 @@ export async function saveLessonDocument(input: {
 }): Promise<
   | {
       ok: true;
+      success: true;
+      updatedAt?: string;
       blocks: LessonBlockDTO[];
       checklistItems: Array<{ id: string; text: string; order: number }>;
       idMap: Record<string, string>;
     }
-  | { ok: false; error: string; code?: string }
+  | { ok: false; success: false; error: string; message?: string; code?: string }
 > {
   const started = Date.now();
   try {
@@ -694,10 +696,10 @@ export async function saveLessonDocument(input: {
       where: { id: input.lessonId },
       select: { id: true, moduleId: true }
     });
-    if (!lesson) return { ok: false, error: "Aula não encontrada.", code: "NOT_FOUND" };
+    if (!lesson) return { ok: false, success: false, error: "Aula não encontrada.", code: "NOT_FOUND" };
 
     const title = String(input.title || "").trim().slice(0, 200) || "Sem título";
-    const order = Math.max(1, Math.floor(Number(input.order) || 1));
+    const desiredOrder = Math.max(1, Math.floor(Number(input.order) || 1));
     const status =
       input.status === "DRAFT" || input.status === "PUBLISHED" || input.status === "HIDDEN"
         ? input.status
@@ -724,18 +726,23 @@ export async function saveLessonDocument(input: {
         settings: raw.settings
       });
       if (!validated.ok) {
-        return { ok: false, error: validated.error, code: "VALIDATION_ERROR" };
+        return { ok: false, success: false, error: validated.error, code: "VALIDATION_ERROR" };
       }
       const clientId = String(raw.id || "");
       const isLocal = !clientId || clientId.startsWith("local-") || clientId.startsWith("tmp-");
+      // Never persist blob:/data: or empty fake paths
+      const imagePath =
+        typeof raw.imagePath === "string" && raw.imagePath.trim() && !raw.imagePath.startsWith("blob:")
+          ? raw.imagePath.trim().slice(0, 1000)
+          : null;
       prepared.push({
         clientId: clientId || `local-${index}`,
         isLocal,
         type: validated.type,
         order: index + 1,
         content: validated.content,
-        imagePath: raw.imagePath ?? null,
-        imageCaption: raw.imageCaption ?? null,
+        imagePath,
+        imageCaption: raw.imageCaption ? String(raw.imageCaption).slice(0, 500) : null,
         isVisible: raw.isVisible !== false,
         settings: serializeBlockSettings(validated.settings)
       });
@@ -751,65 +758,91 @@ export async function saveLessonDocument(input: {
 
     const idMap: Record<string, string> = {};
 
-    await prisma.$transaction(async (tx) => {
-      await tx.lesson.update({
-        where: { id: lesson.id },
-        data: {
-          title,
-          order,
-          status,
-          showAutoTitle: Boolean(input.showAutoTitle)
-        }
-      });
-
-      if (toDelete.length) {
-        await tx.contentBlock.deleteMany({ where: { id: { in: toDelete } } });
-      }
-
-      // Clear unique order constraints with a temp range, then write final order.
-      const stillThere = await tx.contentBlock.findMany({
-        where: { lessonId: lesson.id },
-        select: { id: true }
-      });
-      for (const [i, row] of stillThere.entries()) {
-        await tx.contentBlock.update({
-          where: { id: row.id },
-          data: { order: -5000 - i }
-        });
-      }
-
-      for (const block of prepared) {
-        if (!block.isLocal && existingIds.has(block.clientId)) {
-          await tx.contentBlock.update({
-            where: { id: block.clientId },
-            data: {
-              type: block.type,
-              order: block.order,
-              content: block.content,
-              imagePath: block.imagePath,
-              imageCaption: block.imageCaption,
-              isVisible: block.isVisible,
-              settings: block.settings
-            }
-          });
-          idMap[block.clientId] = block.clientId;
-        } else {
-          const created = await tx.contentBlock.create({
-            data: {
-              lessonId: lesson.id,
-              type: block.type,
-              order: block.order,
-              content: block.content,
-              imagePath: block.imagePath,
-              imageCaption: block.imageCaption,
-              isVisible: block.isVisible,
-              settings: block.settings
-            }
-          });
-          idMap[block.clientId] = created.id;
-        }
-      }
+    const currentLesson = await prisma.lesson.findUnique({
+      where: { id: lesson.id },
+      select: { order: true, moduleId: true }
     });
+    if (!currentLesson) return { ok: false, success: false, error: "Aula não encontrada.", code: "NOT_FOUND" };
+
+    await prisma.$transaction(
+      async (tx) => {
+        // Meta first (title/status/title visibility). Order is rewritten carefully if needed.
+        await tx.lesson.update({
+          where: { id: lesson.id },
+          data: {
+            title,
+            status,
+            showAutoTitle: Boolean(input.showAutoTitle),
+            blocksMigrated: true
+          }
+        });
+
+        if (desiredOrder !== currentLesson.order) {
+          const siblings = await tx.lesson.findMany({
+            where: { moduleId: currentLesson.moduleId },
+            orderBy: { order: "asc" },
+            select: { id: true }
+          });
+          const orderedIds = siblings.map((s) => s.id).filter((sid) => sid !== lesson.id);
+          orderedIds.splice(Math.min(desiredOrder - 1, orderedIds.length), 0, lesson.id);
+          for (const [i, sid] of orderedIds.entries()) {
+            await tx.lesson.update({ where: { id: sid }, data: { order: -9000 - i } });
+          }
+          for (const [i, sid] of orderedIds.entries()) {
+            await tx.lesson.update({ where: { id: sid }, data: { order: i + 1 } });
+          }
+        }
+
+        if (toDelete.length) {
+          await tx.contentBlock.deleteMany({ where: { id: { in: toDelete } } });
+        }
+
+        // Clear unique order constraints with a temp range, then write final order.
+        const stillThere = await tx.contentBlock.findMany({
+          where: { lessonId: lesson.id },
+          select: { id: true }
+        });
+        for (const [i, row] of stillThere.entries()) {
+          await tx.contentBlock.update({
+            where: { id: row.id },
+            data: { order: -5000 - i }
+          });
+        }
+
+        for (const block of prepared) {
+          if (!block.isLocal && existingIds.has(block.clientId)) {
+            await tx.contentBlock.update({
+              where: { id: block.clientId },
+              data: {
+                type: block.type,
+                order: block.order,
+                content: block.content,
+                imagePath: block.imagePath,
+                imageCaption: block.imageCaption,
+                isVisible: block.isVisible,
+                settings: block.settings
+              }
+            });
+            idMap[block.clientId] = block.clientId;
+          } else {
+            const created = await tx.contentBlock.create({
+              data: {
+                lessonId: lesson.id,
+                type: block.type,
+                order: block.order,
+                content: block.content,
+                imagePath: block.imagePath,
+                imageCaption: block.imageCaption,
+                isVisible: block.isVisible,
+                settings: block.settings
+              }
+            });
+            idMap[block.clientId] = created.id;
+          }
+        }
+      },
+      { timeout: 60_000 }
+    );
 
     // Checklist once at the end (not per keystroke).
     const checklistItems = await syncChecklistItems(lesson.id, input.checklistItems || []);
@@ -822,6 +855,7 @@ export async function saveLessonDocument(input: {
     // Single controlled revalidation after full save (not on every keystroke).
     revalidateTag("course-structure");
     revalidatePath(`/curso/${lesson.id}`);
+    revalidatePath(`/admin/conteudo/${currentLesson.moduleId}`);
 
     console.info(
       JSON.stringify({
@@ -835,13 +869,21 @@ export async function saveLessonDocument(input: {
 
     return {
       ok: true,
+      success: true as const,
+      updatedAt: new Date().toISOString(),
       blocks: blocks.map(toDTO),
       checklistItems,
       idMap
     };
   } catch (error) {
     logActionError("saveLessonDocument", { lessonId: input.lessonId }, error);
-    return { ok: false, error: "Não foi possível salvar a aula.", code: "DATABASE_ERROR" };
+    const message =
+      error instanceof Error && /Unique constraint|P2002/i.test(error.message)
+        ? "Conflito de ordem ao salvar. Atualize a página e tente novamente."
+        : error instanceof Error && /timeout/i.test(error.message)
+          ? "O salvamento demorou demais. Tente novamente com menos alterações de uma vez."
+          : "Não foi possível salvar a aula.";
+    return { ok: false, success: false as const, error: message, message, code: "DATABASE_ERROR" };
   }
 }
 
