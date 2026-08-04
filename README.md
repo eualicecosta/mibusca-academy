@@ -45,6 +45,20 @@ Abra:
 http://localhost:3000
 ```
 
+## Importacao do curso iFood
+
+O conteudo completo do curso **Conhecimento iFood** (PDF, 37 paginas) fica versionado em `data/ifood-course-import.json` e e importado de forma idempotente:
+
+```bash
+# Previa (nao grava)
+npm run db:import:ifood -- --dry-run
+
+# Aplica e publica
+npm run db:import:ifood -- --apply --publish
+```
+
+Estrutura publicada: 10 modulos (0-9) e 37 aulas em blocos editaveis no painel admin. O PDF original nao possui Capitulo 5; o Modulo 5 da plataforma corresponde ao Capitulo 6 do material. Aulas/modulos de teste extras nao sao excluidos automaticamente.
+
 ## Variaveis de imagem
 
 O app usa R2 para imagens novas e migradas:
