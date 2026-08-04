@@ -14,6 +14,12 @@ import {
 } from "@/lib/lesson-blocks";
 import { prisma } from "@/lib/prisma";
 import { uploadImageToR2 } from "@/lib/r2";
+import {
+  approxPayloadBytes,
+  logLessonSavePerformance,
+  newSaveTraceId,
+  PerfClock
+} from "@/lib/save-perf";
 
 function revalidateLesson(moduleId: string, lessonId: string, options?: { quiet?: boolean }) {
   // Quiet autosaves must NOT revalidate routes — that can interrupt the editor RSC tree.
@@ -29,7 +35,7 @@ function revalidateLesson(moduleId: string, lessonId: string, options?: { quiet?
   revalidatePath("/curso");
 }
 
-function logActionError(action: string, meta: Record<string, string | undefined>, error: unknown) {
+function logActionError(action: string, meta: Record<string, string | number | boolean | undefined>, error: unknown) {
   const message = error instanceof Error ? error.message : "unknown";
   console.error(
     JSON.stringify({
@@ -666,6 +672,8 @@ export async function saveLessonDocument(input: {
   order: number;
   status: "DRAFT" | "PUBLISHED" | "HIDDEN";
   showAutoTitle: boolean;
+  /** Client-generated audit id (prompt27). No PII. */
+  saveTraceId?: string;
   blocks: Array<{
     id: string;
     type: string;
@@ -682,22 +690,59 @@ export async function saveLessonDocument(input: {
       ok: true;
       success: true;
       updatedAt?: string;
+      saveTraceId: string;
+      perf?: Record<string, number | boolean>;
       blocks: LessonBlockDTO[];
       checklistItems: Array<{ id: string; text: string; order: number }>;
       idMap: Record<string, string>;
     }
-  | { ok: false; success: false; error: string; message?: string; code?: string }
+  | {
+      ok: false;
+      success: false;
+      error: string;
+      message?: string;
+      code?: string;
+      saveTraceId?: string;
+      perf?: Record<string, number | boolean>;
+    }
 > {
-  const started = Date.now();
-  try {
-    await requireAdmin();
+  const saveTraceId = input.saveTraceId || newSaveTraceId();
+  const clock = new PerfClock();
+  clock.mark("start");
+  let blocksCreated = 0;
+  let blocksUpdated = 0;
+  let blocksDeleted = 0;
+  let orderChanged = false;
+  let lessonUpdateMs = 0;
+  let blocksDeleteMs = 0;
+  let blocksReorderMs = 0;
+  let blocksWriteMs = 0;
 
+  try {
+    clock.mark("auth_start");
+    await requireAdmin();
+    clock.mark("auth_end");
+    clock.countQuery(2); // auth() path + profile lookup (typical)
+
+    clock.mark("lesson_read_start");
     const lesson = await prisma.lesson.findUnique({
       where: { id: input.lessonId },
       select: { id: true, moduleId: true }
     });
-    if (!lesson) return { ok: false, success: false, error: "Aula não encontrada.", code: "NOT_FOUND" };
+    clock.mark("lesson_read_end");
+    clock.countQuery();
+    if (!lesson) {
+      logLessonSavePerformance({
+        saveTraceId,
+        lessonId: input.lessonId,
+        success: false,
+        code: "NOT_FOUND",
+        timings: { totalMs: clock.ms("start"), authMs: clock.ms("auth_start", "auth_end") }
+      });
+      return { ok: false, success: false, error: "Aula não encontrada.", code: "NOT_FOUND", saveTraceId };
+    }
 
+    clock.mark("validation_start");
     const title = String(input.title || "").trim().slice(0, 200) || "Sem título";
     const desiredOrder = Math.max(1, Math.floor(Number(input.order) || 1));
     const status =
@@ -726,7 +771,31 @@ export async function saveLessonDocument(input: {
         settings: raw.settings
       });
       if (!validated.ok) {
-        return { ok: false, success: false, error: validated.error, code: "VALIDATION_ERROR" };
+        logLessonSavePerformance({
+          saveTraceId,
+          lessonId: input.lessonId,
+          success: false,
+          code: "VALIDATION_ERROR",
+          timings: {
+            totalMs: clock.ms("start"),
+            authMs: clock.ms("auth_start", "auth_end"),
+            validationMs: clock.ms("validation_start"),
+            blockCount: input.blocks.length,
+            checklistCount: input.checklistItems.length,
+            payloadBytesApprox: approxPayloadBytes({
+              lessonId: input.lessonId,
+              blockCount: input.blocks.length,
+              checklistCount: input.checklistItems.length
+            })
+          }
+        });
+        return {
+          ok: false,
+          success: false,
+          error: validated.error,
+          code: "VALIDATION_ERROR",
+          saveTraceId
+        };
       }
       const clientId = String(raw.id || "");
       const isLocal = !clientId || clientId.startsWith("local-") || clientId.startsWith("tmp-");
@@ -747,14 +816,18 @@ export async function saveLessonDocument(input: {
         settings: serializeBlockSettings(validated.settings)
       });
     }
+    clock.mark("validation_end");
 
+    clock.mark("existing_read_start");
     const existing = await prisma.contentBlock.findMany({
       where: { lessonId: lesson.id },
       select: { id: true }
     });
+    clock.countQuery();
     const existingIds = new Set(existing.map((b) => b.id));
     const keepIds = new Set(prepared.filter((b) => !b.isLocal && existingIds.has(b.clientId)).map((b) => b.clientId));
     const toDelete = existing.filter((b) => !keepIds.has(b.id)).map((b) => b.id);
+    blocksDeleted = toDelete.length;
 
     const idMap: Record<string, string> = {};
 
@@ -762,10 +835,16 @@ export async function saveLessonDocument(input: {
       where: { id: lesson.id },
       select: { order: true, moduleId: true }
     });
-    if (!currentLesson) return { ok: false, success: false, error: "Aula não encontrada.", code: "NOT_FOUND" };
+    clock.countQuery();
+    clock.mark("existing_read_end");
+    if (!currentLesson) {
+      return { ok: false, success: false, error: "Aula não encontrada.", code: "NOT_FOUND", saveTraceId };
+    }
 
+    clock.mark("tx_start");
     await prisma.$transaction(
       async (tx) => {
+        const tLesson = performance.now();
         // Meta first (title/status/title visibility). Order is rewritten carefully if needed.
         await tx.lesson.update({
           where: { id: lesson.id },
@@ -776,39 +855,53 @@ export async function saveLessonDocument(input: {
             blocksMigrated: true
           }
         });
+        clock.countQuery();
+        lessonUpdateMs = Math.round(performance.now() - tLesson);
 
         if (desiredOrder !== currentLesson.order) {
+          orderChanged = true;
           const siblings = await tx.lesson.findMany({
             where: { moduleId: currentLesson.moduleId },
             orderBy: { order: "asc" },
             select: { id: true }
           });
+          clock.countQuery();
           const orderedIds = siblings.map((s) => s.id).filter((sid) => sid !== lesson.id);
           orderedIds.splice(Math.min(desiredOrder - 1, orderedIds.length), 0, lesson.id);
           for (const [i, sid] of orderedIds.entries()) {
             await tx.lesson.update({ where: { id: sid }, data: { order: -9000 - i } });
+            clock.countQuery();
           }
           for (const [i, sid] of orderedIds.entries()) {
             await tx.lesson.update({ where: { id: sid }, data: { order: i + 1 } });
+            clock.countQuery();
           }
         }
 
+        const tDel = performance.now();
         if (toDelete.length) {
           await tx.contentBlock.deleteMany({ where: { id: { in: toDelete } } });
+          clock.countQuery();
         }
+        blocksDeleteMs = Math.round(performance.now() - tDel);
 
         // Clear unique order constraints with a temp range, then write final order.
+        const tReorder = performance.now();
         const stillThere = await tx.contentBlock.findMany({
           where: { lessonId: lesson.id },
           select: { id: true }
         });
+        clock.countQuery();
         for (const [i, row] of stillThere.entries()) {
           await tx.contentBlock.update({
             where: { id: row.id },
             data: { order: -5000 - i }
           });
+          clock.countQuery();
         }
+        blocksReorderMs = Math.round(performance.now() - tReorder);
 
+        const tWrite = performance.now();
         for (const block of prepared) {
           if (!block.isLocal && existingIds.has(block.clientId)) {
             await tx.contentBlock.update({
@@ -823,7 +916,9 @@ export async function saveLessonDocument(input: {
                 settings: block.settings
               }
             });
+            clock.countQuery();
             idMap[block.clientId] = block.clientId;
+            blocksUpdated += 1;
           } else {
             const created = await tx.contentBlock.create({
               data: {
@@ -837,53 +932,120 @@ export async function saveLessonDocument(input: {
                 settings: block.settings
               }
             });
+            clock.countQuery();
             idMap[block.clientId] = created.id;
+            blocksCreated += 1;
           }
         }
+        blocksWriteMs = Math.round(performance.now() - tWrite);
       },
       { timeout: 60_000 }
     );
+    clock.mark("tx_end");
 
     // Checklist once at the end (not per keystroke).
+    clock.mark("checklist_start");
     const checklistItems = await syncChecklistItems(lesson.id, input.checklistItems || []);
+    // syncChecklistItems: findMany + transaction + final findMany (~3–N queries)
+    clock.countQuery(3 + Math.max(1, input.checklistItems.length));
+    clock.mark("checklist_end");
 
+    clock.mark("final_read_start");
     const blocks = await prisma.contentBlock.findMany({
       where: { lessonId: lesson.id },
       orderBy: { order: "asc" }
     });
+    clock.countQuery();
+    clock.mark("final_read_end");
 
     // Single controlled revalidation after full save (not on every keystroke).
+    clock.mark("revalidate_start");
     revalidateTag("course-structure");
     revalidatePath(`/curso/${lesson.id}`);
     revalidatePath(`/admin/conteudo/${currentLesson.moduleId}`);
+    clock.mark("revalidate_end");
 
-    console.info(
-      JSON.stringify({
-        scope: "lesson-editor",
-        action: "saveLessonDocument",
-        lessonId: lesson.id,
-        blocks: blocks.length,
-        ms: Date.now() - started
-      })
-    );
+    const totalMs = clock.ms("start");
+    const perf = {
+      authMs: clock.ms("auth_start", "auth_end"),
+      validationMs: clock.ms("validation_start", "validation_end"),
+      existingReadMs: clock.ms("existing_read_start", "existing_read_end"),
+      transactionMs: clock.ms("tx_start", "tx_end"),
+      lessonUpdateMs,
+      blocksDeleteMs,
+      blocksReorderMs,
+      blocksWriteMs,
+      checklistMs: clock.ms("checklist_start", "checklist_end"),
+      finalReadMs: clock.ms("final_read_start", "final_read_end"),
+      revalidationMs: clock.ms("revalidate_start", "revalidate_end"),
+      totalMs,
+      queryCount: clock.queries,
+      blocksCreated,
+      blocksUpdated,
+      blocksDeleted,
+      checklistItemsUpdated: checklistItems.length,
+      r2Called: false,
+      orderChanged,
+      payloadBytesApprox: approxPayloadBytes({
+        lessonId: input.lessonId,
+        blockCount: prepared.length,
+        checklistCount: input.checklistItems.length,
+        // content length only — not content itself
+        contentChars: prepared.reduce((n, b) => n + (b.content?.length || 0), 0)
+      }),
+      blockCount: prepared.length,
+      checklistCount: input.checklistItems.length
+    };
+
+    logLessonSavePerformance({
+      saveTraceId,
+      lessonId: lesson.id,
+      success: true,
+      timings: perf
+    });
 
     return {
       ok: true,
       success: true as const,
       updatedAt: new Date().toISOString(),
+      saveTraceId,
+      perf,
       blocks: blocks.map(toDTO),
       checklistItems,
       idMap
     };
   } catch (error) {
-    logActionError("saveLessonDocument", { lessonId: input.lessonId }, error);
+    logActionError("saveLessonDocument", { lessonId: input.lessonId, saveTraceId }, error);
     const message =
       error instanceof Error && /Unique constraint|P2002/i.test(error.message)
         ? "Conflito de ordem ao salvar. Atualize a página e tente novamente."
         : error instanceof Error && /timeout/i.test(error.message)
           ? "O salvamento demorou demais. Tente novamente com menos alterações de uma vez."
           : "Não foi possível salvar a aula.";
-    return { ok: false, success: false as const, error: message, message, code: "DATABASE_ERROR" };
+    logLessonSavePerformance({
+      saveTraceId,
+      lessonId: input.lessonId,
+      success: false,
+      code: "DATABASE_ERROR",
+      timings: {
+        totalMs: clock.ms("start"),
+        authMs: clock.ms("auth_start", "auth_end"),
+        transactionMs: clock.ms("tx_start", "tx_end"),
+        queryCount: clock.queries,
+        blocksCreated,
+        blocksUpdated,
+        blocksDeleted,
+        r2Called: false
+      }
+    });
+    return {
+      ok: false,
+      success: false as const,
+      error: message,
+      message,
+      code: "DATABASE_ERROR",
+      saveTraceId
+    };
   }
 }
 

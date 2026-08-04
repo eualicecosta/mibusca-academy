@@ -210,8 +210,42 @@ export function LessonBlockBuilder({
   const saveAll = useCallback(async () => {
     if (!selectedId || !meta) return;
     if (saveStatus === "saving") return;
+
+    // Immediate visual feedback (before any await).
+    const t0 = performance.now();
     setSaveStatus("saving");
     setError(null);
+
+    const saveTraceId = `save_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+    const payloadBlocks = blocks.map((b, index) => ({
+      id: b.id,
+      type: b.type,
+      order: index + 1,
+      content: b.content,
+      imagePath: b.imagePath,
+      imageCaption: b.imageCaption,
+      isVisible: b.isVisible,
+      settings: b.settings
+    }));
+    const payloadChecklist = checklistItems.map(({ id, text }) => ({
+      id: id.startsWith("tmp-") || id.startsWith("local-") ? undefined : id,
+      text
+    }));
+    const tPayload = performance.now();
+    let payloadBytes = 0;
+    try {
+      payloadBytes = JSON.stringify({
+        lessonId: selectedId,
+        blockCount: payloadBlocks.length,
+        checklistCount: payloadChecklist.length,
+        contentChars: payloadBlocks.reduce((n, b) => n + (b.content?.length || 0), 0)
+      }).length;
+    } catch {
+      payloadBytes = 0;
+    }
+
+    const hasImage = payloadBlocks.some((b) => b.type === "IMAGE" && b.imagePath);
+    const tRequest = performance.now();
 
     try {
       const result = await saveLessonDocument({
@@ -220,25 +254,32 @@ export function LessonBlockBuilder({
         order: meta.order,
         status: meta.status as "DRAFT" | "PUBLISHED" | "HIDDEN",
         showAutoTitle: meta.showAutoTitle,
-        blocks: blocks.map((b, index) => ({
-          id: b.id,
-          type: b.type,
-          order: index + 1,
-          content: b.content,
-          imagePath: b.imagePath,
-          imageCaption: b.imageCaption,
-          isVisible: b.isVisible,
-          settings: b.settings
-        })),
-        checklistItems: checklistItems.map(({ id, text }) => ({
-          id: id.startsWith("tmp-") || id.startsWith("local-") ? undefined : id,
-          text
-        }))
+        saveTraceId,
+        blocks: payloadBlocks,
+        checklistItems: payloadChecklist
       });
+      const tResponse = performance.now();
 
       if (!result.ok) {
         setError(result.error || result.message || "Não foi possível salvar a aula.");
         setSaveStatus("error");
+        console.info(
+          JSON.stringify({
+            event: "lesson_save_client_performance",
+            saveTraceId: result.saveTraceId || saveTraceId,
+            lessonId: selectedId,
+            success: false,
+            blockCount: payloadBlocks.length,
+            checklistCount: payloadChecklist.length,
+            payloadBytesApprox: payloadBytes,
+            hasImage,
+            fullDocumentSave: true,
+            save_click_to_payload_ms: Math.round(tPayload - t0),
+            request_ms: Math.round(tResponse - tRequest),
+            total_client_ms: Math.round(tResponse - t0),
+            serverPerf: result.perf || null
+          })
+        );
         return;
       }
 
@@ -249,9 +290,42 @@ export function LessonBlockBuilder({
       setMeta((m) => (m ? { ...m, blocksMigrated: true } : m));
       dirtyRef.current = false;
       setSaveStatus("saved");
+      const tUi = performance.now();
+
+      console.info(
+        JSON.stringify({
+          event: "lesson_save_client_performance",
+          saveTraceId: result.saveTraceId || saveTraceId,
+          lessonId: selectedId,
+          success: true,
+          blockCount: payloadBlocks.length,
+          checklistCount: payloadChecklist.length,
+          payloadBytesApprox: payloadBytes,
+          hasImage,
+          fullDocumentSave: true,
+          requestsPerClick: 1,
+          save_click_to_ui_ms: Math.round(tPayload - t0),
+          payload_ready_ms: Math.round(tPayload - t0),
+          request_started_ms: Math.round(tRequest - t0),
+          server_response_ms: Math.round(tResponse - tRequest),
+          local_state_updated_ms: Math.round(tUi - tResponse),
+          total_client_ms: Math.round(tUi - t0),
+          serverPerf: result.perf || null
+        })
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível salvar a aula.");
       setSaveStatus("error");
+      console.info(
+        JSON.stringify({
+          event: "lesson_save_client_performance",
+          saveTraceId,
+          lessonId: selectedId,
+          success: false,
+          total_client_ms: Math.round(performance.now() - t0),
+          error: "client_exception"
+        })
+      );
     }
   }, [selectedId, meta, blocks, checklistItems, saveStatus]);
 
