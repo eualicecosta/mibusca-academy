@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Inter } from "next/font/google";
 import { NavigationProgress } from "@/components/navigation-progress";
+import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
 const inter = Inter({
@@ -28,10 +29,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     >
       <html lang="pt-BR">
         <body className={inter.variable}>
-          <Suspense fallback={null}>
-            <NavigationProgress />
-          </Suspense>
-          {children}
+          <ToastProvider>
+            <Suspense fallback={null}>
+              <NavigationProgress />
+            </Suspense>
+            {children}
+          </ToastProvider>
         </body>
       </html>
     </ClerkProvider>

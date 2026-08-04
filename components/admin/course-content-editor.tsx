@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ThemeSelect } from "@/components/ui/theme-select";
+import { useToast } from "@/components/ui/toast";
 import {
   createCategoria,
   createBanner,
@@ -147,8 +149,32 @@ function ToggleField({ name, defaultChecked, label }: { name: string; defaultChe
   );
 }
 
+const CONTENT_STATUS_OPTIONS = [
+  { value: "PUBLISHED", label: "Publicado" },
+  { value: "DRAFT", label: "Rascunho" },
+  { value: "HIDDEN", label: "Oculto" }
+];
+
+/** Native select with dark theme (fallback for complex dynamic option lists). */
 function SelectField(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className="min-h-11 rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-white outline-none focus:border-[#8A1DEE]" />;
+  return (
+    <select
+      {...props}
+      className="min-h-11 rounded-lg border border-white/10 bg-black/35 px-3 py-2 text-white outline-none focus:border-[#8A1DEE] [color-scheme:dark]"
+    />
+  );
+}
+
+function StatusSelect({
+  name,
+  defaultValue,
+  options = CONTENT_STATUS_OPTIONS
+}: {
+  name: string;
+  defaultValue?: string;
+  options?: Array<{ value: string; label: string }>;
+}) {
+  return <ThemeSelect name={name} defaultValue={defaultValue || options[0]?.value} options={options} />;
 }
 
 function ConfirmActionButton({
@@ -156,15 +182,22 @@ function ConfirmActionButton({
   confirmText,
   icon,
   variant,
-  action
+  action,
+  successMessage,
+  errorMessage,
+  pendingLabel = "Salvando..."
 }: {
   label: string;
   confirmText?: string;
   icon: React.ReactNode;
   variant?: "secondary" | "destructive" | "outline";
   action: () => Promise<void>;
+  successMessage?: string;
+  errorMessage?: string;
+  pendingLabel?: string;
 }) {
   const [pending, startTransition] = useTransition();
+  const toast = useToast();
 
   return (
     <Button
@@ -174,13 +207,18 @@ function ConfirmActionButton({
       disabled={pending}
       onClick={() => {
         if (confirmText && !window.confirm(confirmText)) return;
-        startTransition(() => {
-          void action();
+        startTransition(async () => {
+          try {
+            await action();
+            if (successMessage) toast.success(successMessage);
+          } catch {
+            toast.error(errorMessage || "Não foi possível concluir a ação. Tente novamente.");
+          }
         });
       }}
     >
       {icon}
-      {pending ? "Salvando..." : label}
+      {pending ? pendingLabel : label}
     </Button>
   );
 }
@@ -704,21 +742,27 @@ function CategoriaSettingsDialog({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92dvh] max-w-3xl overflow-y-auto">
-        <DialogTitle>Editar categoria</DialogTitle>
+      <DialogContent className="flex max-h-[min(92dvh,900px)] max-w-3xl flex-col gap-0 overflow-hidden p-0">
+        <div className="shrink-0 border-b border-white/10 px-4 py-4">
+          <DialogTitle>Editar categoria</DialogTitle>
+        </div>
         <form
-          className="grid gap-4"
+          className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4"
           action={(formData) => {
             setError(null);
             startTransition(async () => {
               try {
                 await updateCategoria(formData);
+                toast.success("Categoria salva com sucesso.");
                 onOpenChange(false);
               } catch {
-                setError("Não foi possível salvar a categoria.");
+                const msg = "Ocorreu um erro ao salvar a categoria.";
+                setError(msg);
+                toast.error(msg);
               }
             });
           }}
@@ -736,17 +780,18 @@ function CategoriaSettingsDialog({
             <TextArea name="description" defaultValue={categoria.description || ""} rows={3} />
           </Field>
           <Field label="Status">
-            <SelectField name="status" defaultValue={categoria.status}>
-              <option value="PUBLISHED">Publicado</option>
-              <option value="DRAFT">Rascunho</option>
-              <option value="HIDDEN">Oculto</option>
-            </SelectField>
+            <StatusSelect name="status" defaultValue={categoria.status} />
           </Field>
           {error ? <p className="text-sm text-red-200">{error}</p> : null}
-          <Button type="submit" className="w-fit" disabled={pending}>
-            <Save className="h-4 w-4" />
-            {pending ? "Salvando..." : "Salvar categoria"}
-          </Button>
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button type="submit" className="w-fit" disabled={pending}>
+              <Save className="h-4 w-4" />
+              {pending ? "Salvando..." : "Salvar categoria"}
+            </Button>
+            <Button type="button" variant="secondary" disabled={pending} onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
@@ -976,6 +1021,7 @@ function ModuleSettingsDialog({
   const [removeCover, setRemoveCover] = useState(false);
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [previewModule, setPreviewModule] = useState(module);
+  const toast = useToast();
 
   useEffect(() => {
     if (open) {
@@ -989,9 +1035,14 @@ function ModuleSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92dvh] max-w-4xl overflow-y-auto">
-        <DialogTitle>Editar módulo</DialogTitle>
-        <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <DialogContent className="flex max-h-[min(92dvh,900px)] max-w-4xl flex-col gap-0 overflow-hidden p-0">
+        <div className="shrink-0 border-b border-white/10 px-4 py-4">
+          <DialogTitle>Editar módulo</DialogTitle>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-[#b07af5]">
+            Módulo {module.number}
+          </p>
+        </div>
+        <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto p-4 lg:grid-cols-[240px_minmax(0,1fr)]">
           <div className="space-y-3">
             <ModuleCard
               module={{
@@ -1004,6 +1055,7 @@ function ModuleSettingsDialog({
               <ConfirmActionButton
                 label={module.status === "PUBLISHED" ? "Ocultar" : "Publicar"}
                 icon={module.status === "PUBLISHED" ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                successMessage={module.status === "PUBLISHED" ? "Módulo ocultado." : "Módulo publicado."}
                 action={() => updateModuleStatus(module.id, module.status === "PUBLISHED" ? "HIDDEN" : "PUBLISHED")}
               />
               <ConfirmActionButton
@@ -1011,7 +1063,12 @@ function ModuleSettingsDialog({
                 icon={<Trash2 className="h-4 w-4" />}
                 variant="destructive"
                 confirmText="Excluir este módulo e todas as aulas/progressos associados?"
-                action={() => deleteModule(module.id)}
+                successMessage="Módulo excluído."
+                errorMessage="Não foi possível excluir o módulo."
+                action={async () => {
+                  await deleteModule(module.id);
+                  onOpenChange(false);
+                }}
               />
             </div>
           </div>
@@ -1023,9 +1080,12 @@ function ModuleSettingsDialog({
               startTransition(async () => {
                 try {
                   await updateModule(formData);
+                  toast.success("Módulo salvo com sucesso.");
                   onOpenChange(false);
                 } catch {
-                  setError("Não foi possível salvar o módulo. Tente novamente.");
+                  const msg = "Não foi possível salvar o módulo. Tente novamente.";
+                  setError(msg);
+                  toast.error(msg);
                 }
               });
             }}

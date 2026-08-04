@@ -95,9 +95,55 @@ a {
   outline-offset: 2px;
 }
 
+/* Global themed scrollbars (Chrome/Edge/Firefox) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(138, 29, 238, 0.72) rgba(7, 4, 12, 0.35);
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(138, 29, 238, 0.55);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(183, 108, 255, 0.75);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: #8a1dee rgba(245, 243, 243, 0.08);
+  scrollbar-color: rgba(138, 29, 238, 0.72) rgba(7, 4, 12, 0.2);
+}
+
+/* Native select options inside themed forms (fallback when ThemeSelect not used) */
+select {
+  color-scheme: dark;
+  background-color: rgba(0, 0, 0, 0.35);
+  color: #f5f3f3;
+}
+
+select option,
+select optgroup {
+  background-color: #151019;
+  color: #f5f3f3;
 }
 
 /* Admin Notion-like lesson canvas */
