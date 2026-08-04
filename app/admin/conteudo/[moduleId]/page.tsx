@@ -33,7 +33,7 @@ export default async function AdminModuleContentPage({ params }: { params: Promi
   }
 
   return (
-    <div className="-mx-4 -my-8 flex h-[calc(100dvh-72px)] min-h-0 flex-col overflow-hidden lg:-mr-8">
+    <div className="-mx-4 -my-8 flex h-[calc(100dvh-72px)] min-h-0 w-auto min-w-0 flex-col overflow-hidden bg-[#121018] lg:-mr-8">
       <LessonBlockBuilder
         moduleId={courseModule.id}
         storageBaseUrl={getR2PublicBaseUrl()}

@@ -607,38 +607,40 @@ export function LessonBlockBuilder({
   }
 
   const lessonListPanel = (
-    <div className="flex h-full min-h-0 flex-col bg-[#121018]">
-      <div className="shrink-0 space-y-3 border-b border-white/[0.06] p-3">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col bg-[#121018]">
+      <div className="w-full min-w-0 shrink-0 space-y-3 border-b border-white/[0.06] p-3">
         <Button
           type="button"
-          className="w-full"
+          className="w-full max-w-full"
           onClick={() => {
             setCreateError(null);
             setCreateOpen(true);
           }}
         >
-          <Plus className="h-4 w-4" />
-          Criar aula
+          <Plus className="h-4 w-4 shrink-0" />
+          <span className="truncate">Criar aula</span>
         </Button>
       </div>
-      <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain p-2">
+      <ul className="min-h-0 w-full min-w-0 flex-1 space-y-0.5 overflow-x-hidden overflow-y-auto overscroll-contain p-2">
         {lessonList.map((lesson) => {
           const active = lesson.id === selectedId;
           return (
-            <li key={lesson.id}>
+            <li key={lesson.id} className="min-w-0">
               <button
                 type="button"
                 onClick={() => selectLesson(lesson.id)}
                 aria-current={active ? "true" : undefined}
                 className={cn(
-                  "w-full rounded-lg px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A1DEE]/50",
+                  "block w-full min-w-0 max-w-full overflow-hidden rounded-lg px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A1DEE]/50",
                   active ? "bg-[#8A1DEE]/18 ring-1 ring-[#8A1DEE]/35" : "hover:bg-white/[0.04]"
                 )}
               >
-                <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#b07af5]">
+                <span className="block truncate text-[11px] font-semibold uppercase tracking-wide text-[#b07af5]">
                   Aula {lesson.number}
                 </span>
-                <span className="mt-0.5 block line-clamp-2 text-sm text-white/90">{lesson.title}</span>
+                <span className="mt-0.5 block min-w-0 break-words text-sm leading-snug text-white/90 [overflow-wrap:anywhere] line-clamp-2">
+                  {lesson.title}
+                </span>
               </button>
             </li>
           );
@@ -651,39 +653,14 @@ export function LessonBlockBuilder({
   );
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-1 overflow-hidden border-t border-white/[0.06] bg-[#0c0a10]">
-      {/* Desktop left column */}
-      <aside className="hidden h-full min-h-0 w-[260px] shrink-0 border-r border-white/10 md:flex md:w-[240px] lg:w-[280px]">
+    <div className="relative h-full min-h-0 w-full min-w-0 flex-1 overflow-hidden border-t border-white/[0.06] bg-[#121018]">
+      <div className="grid h-full min-h-0 w-full min-w-0 grid-cols-1 overflow-hidden md:grid-cols-[280px_minmax(0,1fr)]">
+      {/* Desktop left column — fixed 280px track; content cannot expand the column */}
+      <aside className="hidden h-full min-h-0 min-w-0 overflow-hidden border-r border-white/10 bg-[#121018] md:block">
         {lessonListPanel}
       </aside>
 
-      {/* Mobile lesson list drawer */}
-      {mobileListOpen ? (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/60"
-            aria-label="Fechar lista de aulas"
-            onClick={() => setMobileListOpen(false)}
-          />
-          <div className="absolute left-0 top-0 flex h-full w-[min(88vw,300px)] flex-col border-r border-white/10 bg-[#121018] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-white/[0.06] px-3 py-3">
-              <p className="text-sm font-semibold text-white">Aulas</p>
-              <button
-                type="button"
-                className="rounded-lg p-2 text-white/70 hover:bg-white/10"
-                aria-label="Fechar"
-                onClick={() => setMobileListOpen(false)}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="min-h-0 flex-1">{lessonListPanel}</div>
-          </div>
-        </div>
-      ) : null}
-
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-[#1a1520]">
         {!selectedId ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
             <p className="max-w-md text-sm text-white/55">
@@ -963,6 +940,33 @@ export function LessonBlockBuilder({
           </div>
         )}
       </section>
+      </div>
+
+      {/* Mobile lesson list drawer — outside grid so it never creates an extra column */}
+      {mobileListOpen ? (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            aria-label="Fechar lista de aulas"
+            onClick={() => setMobileListOpen(false)}
+          />
+          <div className="absolute left-0 top-0 flex h-full w-[min(88vw,300px)] max-w-[300px] flex-col overflow-hidden border-r border-white/10 bg-[#121018] shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-3 py-3">
+              <p className="text-sm font-semibold text-white">Aulas</p>
+              <button
+                type="button"
+                className="rounded-lg p-2 text-white/70 hover:bg-white/10"
+                aria-label="Fechar"
+                onClick={() => setMobileListOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">{lessonListPanel}</div>
+          </div>
+        </div>
+      ) : null}
 
       <Dialog
         open={createOpen}
