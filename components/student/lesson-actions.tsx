@@ -13,7 +13,8 @@ export function LessonActions({
   previousTitle,
   nextId,
   nextTitle,
-  completed
+  completed,
+  modulesHref = "/dashboard"
 }: {
   lessonId: string;
   previousId?: string;
@@ -21,6 +22,8 @@ export function LessonActions({
   nextId?: string;
   nextTitle?: string;
   completed: boolean;
+  /** Shown when there is no next lesson in the current module. */
+  modulesHref?: string;
 }) {
   const [pending, setPending] = useState(false);
   const [isComplete, setIsComplete] = useState(completed);
@@ -78,7 +81,7 @@ export function LessonActions({
               <ArrowLeft className="h-3.5 w-3.5" />
               Aula anterior
             </span>
-            <span className="text-sm text-white/35">Início do curso</span>
+            <span className="text-sm text-white/35">Início do módulo</span>
           </div>
         )}
 
@@ -99,13 +102,16 @@ export function LessonActions({
             ) : null}
           </Link>
         ) : (
-          <div className="flex min-h-14 min-w-0 flex-col justify-center gap-0.5 rounded-xl border border-white/5 bg-white/[0.02] px-4 py-3 opacity-45 sm:text-right">
-            <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-white/40 sm:justify-end">
-              Próxima aula
+          <Link
+            href={modulesHref}
+            className="group flex min-h-14 min-w-0 flex-col justify-center gap-0.5 rounded-xl border border-[#8A1DEE]/35 bg-gradient-to-r from-[#53009F]/25 to-[#8A1DEE]/20 px-4 py-3 transition hover:border-[#8A1DEE]/60 sm:text-right"
+          >
+            <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-[#c4a0f7] sm:justify-end">
+              Voltar aos módulos
               <ArrowRight className="h-3.5 w-3.5" />
             </span>
-            <span className="text-sm text-white/35">Fim da sequência</span>
-          </div>
+            <span className="text-sm font-semibold text-white/85">Fim deste módulo</span>
+          </Link>
         )}
       </nav>
     </div>

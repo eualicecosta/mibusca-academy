@@ -694,12 +694,11 @@ function SortableCard({ id, children, fullWidth = false }: { id: string; childre
 
 function CategoriaSettingsDialog({
   categoria,
-  storageUploadReady,
   open,
   onOpenChange
 }: {
   categoria: CategoriaEditor;
-  storageUploadReady: boolean;
+  storageUploadReady?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -742,9 +741,6 @@ function CategoriaSettingsDialog({
               <option value="DRAFT">Rascunho</option>
               <option value="HIDDEN">Oculto</option>
             </SelectField>
-          </Field>
-          <Field label="Capa da categoria">
-            <FileInput name="coverFile" disabled={!storageUploadReady} />
           </Field>
           {error ? <p className="text-sm text-red-200">{error}</p> : null}
           <Button type="submit" className="w-fit" disabled={pending}>
@@ -1380,7 +1376,7 @@ function ModuleShelf({ categoria, storageBaseUrl, storageUploadReady }: { catego
   );
 }
 
-function NewCategoryDialog({ courseId, storageUploadReady }: { courseId: string; storageUploadReady: boolean }) {
+function NewCategoryDialog({ courseId }: { courseId: string; storageUploadReady?: boolean }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -1398,9 +1394,6 @@ function NewCategoryDialog({ courseId, storageUploadReady }: { courseId: string;
           </Field>
           <Field label="Descricao">
             <TextArea name="description" rows={3} />
-          </Field>
-          <Field label="Capa da categoria">
-            <FileInput name="coverFile" disabled={!storageUploadReady} />
           </Field>
           <Button type="submit" className="w-fit">
             <Save className="h-4 w-4" />

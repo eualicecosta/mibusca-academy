@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Suspense } from "react";
-import { ArrowRight, BookOpen, CheckCircle2, Lock } from "lucide-react";
+import { ArrowRight, BookOpen, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { RolePreviewBanner } from "@/components/role-preview-banner";
 import { SupportButton } from "@/components/support-button";
@@ -214,8 +214,9 @@ function CategorySection({ categoria }: { categoria: Awaited<ReturnType<typeof g
             <div className="module-shelf flex snap-x gap-4 overflow-x-auto pb-5">
               {categoria.modules.length ? (
                 categoria.modules.map((module) => {
-                  const targetLesson = module.lessons.find((lesson) => !lesson.locked) || module.lessons[0];
-                  const href = !module.locked && targetLesson ? `/curso/${targetLesson.id}` : null;
+                  const targetLesson =
+                    module.lessons.find((lesson) => !lesson.completed) || module.lessons[0];
+                  const href = targetLesson ? `/curso/${targetLesson.id}` : null;
                   const coverUrl = resolveAssetUrl(module.coverImagePath);
                   const showModuleText = !coverUrl && !module.hideText;
                   const card = (
@@ -229,11 +230,6 @@ function CategorySection({ categoria }: { categoria: Awaited<ReturnType<typeof g
                       {showModuleText ? <div className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/65 text-xs font-bold text-white shadow-lg">
                         {module.percent}%
                       </div> : null}
-                      {showModuleText && module.locked ? (
-                        <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white/75">
-                          <Lock className="h-4 w-4" />
-                        </div>
-                      ) : null}
                       {showModuleText ? (
                         <div className="absolute inset-x-0 bottom-0 p-4">
                           <p className="text-xs font-bold uppercase tracking-wide text-[#8A1DEE]">Modulo {module.number}</p>

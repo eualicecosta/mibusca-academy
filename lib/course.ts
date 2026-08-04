@@ -121,20 +121,16 @@ async function loadStudentCourse(userId: string) {
       };
     });
 
-    // Locks computed once per module/lesson for sidebar, navigation, and guards.
-    const modulesWithLocks = modules.map((module, index) => {
-      const previousModulesComplete = modules.slice(0, index).every((item) => item.complete || item.lessonCount === 0);
-      let previousLessonsComplete = true;
+    // All published lessons are accessible — no sequential lock between modules/lessons.
+    const modulesOpen = modules.map((module) => {
       const lessons = module.lessons.map((lesson) => {
         const completed = completedLessonIds.has(lesson.id);
-        const locked = !previousModulesComplete || !previousLessonsComplete;
-        previousLessonsComplete = completed;
-        return { ...lesson, completed, locked };
+        return { ...lesson, completed, locked: false as const };
       });
-      return { ...module, locked: !previousModulesComplete, lessons };
+      return { ...module, locked: false as const, lessons };
     });
 
-    return { ...categoria, modules: modulesWithLocks };
+    return { ...categoria, modules: modulesOpen };
   });
 
   const modulesWithLocks = categorias.flatMap((categoria) => categoria.modules);
@@ -245,6 +241,7 @@ export async function getLessonForStudent(userId: string, lessonId: string) {
   };
 }
 
-export function firstUnlockedLesson<T extends { id: string; completed: boolean; locked: boolean }>(flatLessons: T[]) {
-  return flatLessons.find((lesson) => !lesson.completed && !lesson.locked) || flatLessons.find((lesson) => !lesson.locked);
+/** First incomplete published lesson, or the first lesson if all complete. */
+export function firstUnlockedLesson<T extends { id: string; completed: boolean; locked?: boolean }>(flatLessons: T[]) {
+  return flatLessons.find((lesson) => !lesson.completed) || flatLessons[0];
 }

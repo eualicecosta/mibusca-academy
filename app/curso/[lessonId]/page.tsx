@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import Image from "next/image";
 import { AlertTriangle, ImageIcon, Lightbulb, Target } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
@@ -60,22 +60,23 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
 async function LessonShell({ userId, lessonId }: { userId: string; lessonId: string }) {
   const shellStartedAt = process.env.NODE_ENV === "development" ? performance.now() : 0;
 
-  // Start lesson body fetch in parallel with course structure + lock computation.
-  // Content is only rendered after the lock check below.
+  // Start lesson body fetch in parallel with course structure (no sequential locks).
   const contentPromise = getLessonContentForStudent(userId, lessonId);
   const data = await getStudentCourse(userId);
   const currentIndex = data.flatLessons.findIndex((lesson) => lesson.id === lessonId);
   const current = currentIndex >= 0 ? data.flatLessons[currentIndex] : null;
 
   if (!current) {
+    // Unpublished / hidden / unknown lessons stay inaccessible.
     notFound();
   }
-  if (current.locked) {
-    redirect("/dashboard");
-  }
 
-  const previous = currentIndex > 0 ? data.flatLessons[currentIndex - 1] : null;
-  const next = currentIndex < data.flatLessons.length - 1 ? data.flatLessons[currentIndex + 1] : null;
+  // Previous / next only within the current module's published order.
+  const moduleLessons = data.flatLessons.filter((lesson) => lesson.moduleId === current.moduleId);
+  const moduleIndex = moduleLessons.findIndex((lesson) => lesson.id === lessonId);
+  const previous = moduleIndex > 0 ? moduleLessons[moduleIndex - 1] : null;
+  const next =
+    moduleIndex >= 0 && moduleIndex < moduleLessons.length - 1 ? moduleLessons[moduleIndex + 1] : null;
   const moduleProgress = data.modules.find((module) => module.id === current.moduleId);
 
   if (process.env.NODE_ENV === "development") {
@@ -363,11 +364,12 @@ async function LessonArticle({
           </div>
           <LessonActions
             lessonId={current.id}
-            previousId={previous?.locked ? undefined : previous?.id}
-            previousTitle={previous && !previous.locked ? previous.title : undefined}
-            nextId={next?.locked ? undefined : next?.id}
-            nextTitle={next && !next.locked ? next.title : undefined}
+            previousId={previous?.id}
+            previousTitle={previous?.title}
+            nextId={next?.id}
+            nextTitle={next?.title}
             completed={current.completed}
+            modulesHref="/dashboard"
           />
         </section>
       </div>

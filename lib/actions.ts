@@ -500,7 +500,7 @@ export async function createCategoria(formData: FormData) {
   const courseId = String(formData.get("courseId") || "");
   const title = String(formData.get("title") || "").trim() || "Nova categoria";
   const description = String(formData.get("description") || "").trim();
-  const coverPath = await uploadImageFile(formData.get("coverFile"), "categorias");
+  // Categories no longer use cover images (prompt30). Do not upload/process coverFile.
 
   if (!courseId) {
     return;
@@ -518,7 +518,7 @@ export async function createCategoria(formData: FormData) {
       courseId,
       title,
       description: description || null,
-      coverImagePath: coverPath,
+      coverImagePath: null,
       order: last ? last.order + 1 : 1,
       status: "PUBLISHED",
       dashboardBlock: {
@@ -539,7 +539,7 @@ export async function createCategoria(formData: FormData) {
 export async function updateCategoria(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") || "");
-  const coverPath = await uploadImageFile(formData.get("coverFile"), `categoria-${id}`);
+  // Categories no longer accept cover uploads — leave existing DB values untouched.
   const requestedOrder = Math.max(1, Number(formData.get("order") || 999));
 
   const categoria = await prisma.categoria.update({
@@ -547,8 +547,7 @@ export async function updateCategoria(formData: FormData) {
     data: {
       title: String(formData.get("title") || ""),
       description: String(formData.get("description") || "") || null,
-      status: String(formData.get("status") || "PUBLISHED") as "DRAFT" | "PUBLISHED" | "HIDDEN",
-      ...(coverPath ? { coverImagePath: coverPath } : {})
+      status: String(formData.get("status") || "PUBLISHED") as "DRAFT" | "PUBLISHED" | "HIDDEN"
     },
     select: { courseId: true }
   });
