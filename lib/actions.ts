@@ -974,6 +974,87 @@ export async function createLesson(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+/** Compact create used by the lesson editor modal (returns data, no redirect). */
+export async function createLessonQuick(input: {
+  moduleId: string;
+  title: string;
+  status?: "DRAFT" | "PUBLISHED" | "HIDDEN";
+}): Promise<
+  | {
+      ok: true;
+      lesson: {
+        id: string;
+        number: string;
+        title: string;
+        order: number;
+        status: string;
+      };
+    }
+  | { ok: false; error: string }
+> {
+  try {
+    await requireAdmin();
+    const moduleId = String(input.moduleId || "").trim();
+    const title = String(input.title || "").trim().slice(0, 200);
+    if (!moduleId || !title) {
+      return { ok: false, error: "Informe o título da aula." };
+    }
+
+    const moduleRow = await prisma.module.findUnique({
+      where: { id: moduleId },
+      select: { id: true, number: true }
+    });
+    if (!moduleRow) return { ok: false, error: "Módulo não encontrado." };
+
+    const lastLesson = await prisma.lesson.findFirst({
+      where: { moduleId },
+      orderBy: { order: "desc" },
+      select: { order: true, number: true }
+    });
+    const order = lastLesson ? lastLesson.order + 1 : 1;
+    // Prefer dotted module.lesson style when module has a stable number.
+    const number = moduleRow.number ? `${moduleRow.number}.${order}` : String(order);
+    const status =
+      input.status === "DRAFT" || input.status === "PUBLISHED" || input.status === "HIDDEN"
+        ? input.status
+        : "DRAFT";
+
+    const lesson = await prisma.lesson.create({
+      data: {
+        moduleId,
+        number,
+        title,
+        order,
+        status,
+        showAutoTitle: true,
+        blocksMigrated: true
+      },
+      select: {
+        id: true,
+        number: true,
+        title: true,
+        order: true,
+        status: true
+      }
+    });
+
+    revalidateTag("course-structure");
+    revalidatePath("/admin/conteudo");
+    revalidatePath(`/admin/conteudo/${moduleId}`);
+
+    return { ok: true, lesson };
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        scope: "lesson-editor",
+        action: "createLessonQuick",
+        error: error instanceof Error ? error.message : "unknown"
+      })
+    );
+    return { ok: false, error: "Não foi possível criar a aula." };
+  }
+}
+
 export async function uploadCourseImage(formData: FormData) {
   await requireAdmin();
   const folder = sanitizeStorageName(String(formData.get("folder") || "geral"));

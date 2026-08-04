@@ -34,13 +34,15 @@ import {
   Loader2,
   Minus,
   MoreHorizontal,
+  PanelLeft,
   Plus,
   Save,
   Settings2,
   Sparkles,
   Text,
   Trash2,
-  Type
+  Type,
+  X
 } from "lucide-react";
 import {
   AlertDialog,
@@ -50,6 +52,8 @@ import {
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { createLessonQuick } from "@/lib/actions";
 import { resolveAssetUrl } from "@/lib/assets";
 import { getLessonBlocksAdmin, saveLessonDocument, uploadLessonBlockImage } from "@/lib/lesson-block-actions";
 import {
@@ -73,7 +77,6 @@ type LessonListItem = {
   title: string;
   order: number;
   status: string;
-  completedCount: number;
 };
 
 type SaveStatus = "idle" | "dirty" | "saving" | "saved" | "error";
@@ -134,14 +137,16 @@ function emptyBlock(type: LessonBlockType, order: number, lessonId: string): Loc
 }
 
 export function LessonBlockBuilder({
-  lessons,
+  lessons: initialLessons,
+  moduleId,
   storageBaseUrl = null
 }: {
-  moduleId?: string;
+  moduleId: string;
   lessons: LessonListItem[];
   storageBaseUrl?: string | null;
 }) {
-  const [selectedId, setSelectedId] = useState<string | null>(lessons[0]?.id || null);
+  const [lessonList, setLessonList] = useState<LessonListItem[]>(initialLessons);
+  const [selectedId, setSelectedId] = useState<string | null>(initialLessons[0]?.id || null);
   const [blocks, setBlocks] = useState<LocalBlock[]>([]);
   const [checklistItems, setChecklistItems] = useState<Array<{ id: string; text: string; order: number }>>([]);
   const [meta, setMeta] = useState<{
@@ -160,7 +165,17 @@ export function LessonBlockBuilder({
   const [pending, startTransition] = useTransition();
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState("");
+  const [createStatus, setCreateStatus] = useState<"DRAFT" | "PUBLISHED" | "HIDDEN">("DRAFT");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [mobileListOpen, setMobileListOpen] = useState(false);
   const dirtyRef = useRef(false);
+
+  useEffect(() => {
+    setLessonList(initialLessons);
+  }, [initialLessons]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -288,6 +303,13 @@ export function LessonBlockBuilder({
       setBlocks(mapped);
       setChecklistItems(result.checklistItems);
       setMeta((m) => (m ? { ...m, blocksMigrated: true } : m));
+      setLessonList((prev) =>
+        prev.map((l) =>
+          l.id === selectedId
+            ? { ...l, title: meta.title, order: meta.order, status: meta.status }
+            : l
+        )
+      );
       dirtyRef.current = false;
       setSaveStatus("saved");
       const tUi = performance.now();
@@ -539,71 +561,179 @@ export function LessonBlockBuilder({
     if (id === selectedId) return;
     if (!confirmDiscardUnsaved()) return;
     setSelectedId(id);
+    setMobileListOpen(false);
   }
 
+  async function handleCreateLesson() {
+    if (creating) return;
+    const title = createTitle.trim();
+    if (!title) {
+      setCreateError("Informe o título da aula.");
+      return;
+    }
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const result = await createLessonQuick({
+        moduleId,
+        title,
+        status: createStatus
+      });
+      if (!result.ok) {
+        setCreateError(result.error);
+        return;
+      }
+      const created: LessonListItem = {
+        id: result.lesson.id,
+        number: result.lesson.number,
+        title: result.lesson.title,
+        order: result.lesson.order,
+        status: result.lesson.status
+      };
+      setLessonList((prev) => [...prev, created].sort((a, b) => a.order - b.order));
+      setCreateOpen(false);
+      setCreateTitle("");
+      setCreateStatus("DRAFT");
+      if (!confirmDiscardUnsaved()) {
+        // Keep list updated but stay on current lesson if user cancels discard.
+        return;
+      }
+      setSelectedId(created.id);
+    } catch {
+      setCreateError("Não foi possível criar a aula.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const lessonListPanel = (
+    <div className="flex h-full min-h-0 flex-col bg-[#121018]">
+      <div className="shrink-0 space-y-3 border-b border-white/[0.06] p-3">
+        <Button
+          type="button"
+          className="w-full"
+          onClick={() => {
+            setCreateError(null);
+            setCreateOpen(true);
+          }}
+        >
+          <Plus className="h-4 w-4" />
+          Criar aula
+        </Button>
+      </div>
+      <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto overscroll-contain p-2">
+        {lessonList.map((lesson) => {
+          const active = lesson.id === selectedId;
+          return (
+            <li key={lesson.id}>
+              <button
+                type="button"
+                onClick={() => selectLesson(lesson.id)}
+                aria-current={active ? "true" : undefined}
+                className={cn(
+                  "w-full rounded-lg px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8A1DEE]/50",
+                  active ? "bg-[#8A1DEE]/18 ring-1 ring-[#8A1DEE]/35" : "hover:bg-white/[0.04]"
+                )}
+              >
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#b07af5]">
+                  Aula {lesson.number}
+                </span>
+                <span className="mt-0.5 block line-clamp-2 text-sm text-white/90">{lesson.title}</span>
+              </button>
+            </li>
+          );
+        })}
+        {!lessonList.length ? (
+          <li className="px-3 py-6 text-center text-xs text-white/40">Nenhuma aula neste módulo.</li>
+        ) : null}
+      </ul>
+    </div>
+  );
+
   return (
-    <div className="grid min-h-0 gap-6 xl:grid-cols-[260px_minmax(0,1fr)]">
-      <aside className="rounded-xl border border-white/10 bg-[#121018]">
-        <div className="border-b border-white/[0.06] px-4 py-3">
-          <p className="text-sm font-semibold text-white">Aulas</p>
-          <p className="mt-0.5 text-xs text-white/40">Edite e clique em Salvar</p>
-        </div>
-        <ul className="max-h-[min(70vh,640px)] space-y-0.5 overflow-y-auto p-2 scrollbar-thin">
-          {lessons.map((lesson) => {
-            const active = lesson.id === selectedId;
-            return (
-              <li key={lesson.id}>
-                <button
-                  type="button"
-                  onClick={() => selectLesson(lesson.id)}
-                  className={cn(
-                    "w-full rounded-lg px-3 py-2.5 text-left transition",
-                    active ? "bg-[#8A1DEE]/18 ring-1 ring-[#8A1DEE]/35" : "hover:bg-white/[0.04]"
-                  )}
-                >
-                  <span className="block text-[11px] font-semibold uppercase tracking-wide text-[#b07af5]">
-                    Aula {lesson.number}
-                  </span>
-                  <span className="mt-0.5 block line-clamp-2 text-sm text-white/90">{lesson.title}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+    <div className="flex h-full min-h-0 w-full flex-1 overflow-hidden border-t border-white/[0.06] bg-[#0c0a10]">
+      {/* Desktop left column */}
+      <aside className="hidden h-full min-h-0 w-[260px] shrink-0 border-r border-white/10 md:flex md:w-[240px] lg:w-[280px]">
+        {lessonListPanel}
       </aside>
 
-      <section className="min-w-0">
-        {!meta ? (
-          <div className="rounded-2xl border border-dashed border-white/10 bg-[#0c0a10] px-6 py-20 text-center text-sm text-white/45">
-            {loading ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" /> Carregando documento…
-              </span>
-            ) : (
-              "Selecione uma aula para editar."
-            )}
+      {/* Mobile lesson list drawer */}
+      {mobileListOpen ? (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            aria-label="Fechar lista de aulas"
+            onClick={() => setMobileListOpen(false)}
+          />
+          <div className="absolute left-0 top-0 flex h-full w-[min(88vw,300px)] flex-col border-r border-white/10 bg-[#121018] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/[0.06] px-3 py-3">
+              <p className="text-sm font-semibold text-white">Aulas</p>
+              <button
+                type="button"
+                className="rounded-lg p-2 text-white/70 hover:bg-white/10"
+                aria-label="Fechar"
+                onClick={() => setMobileListOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1">{lessonListPanel}</div>
+          </div>
+        </div>
+      ) : null}
+
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {!selectedId ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+            <p className="max-w-md text-sm text-white/55">
+              Este módulo ainda não possui aulas. Crie a primeira aula para começar.
+            </p>
+            <Button type="button" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Criar aula
+            </Button>
+          </div>
+        ) : !meta && !loading ? (
+          <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-white/45">
+            Não foi possível carregar esta aula.
+          </div>
+        ) : !meta ? (
+          <div className="flex flex-1 items-center justify-center text-sm text-white/45">
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando documento…
+            </span>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-white/[0.07] bg-[#1a1520] shadow-2xl">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#1a1520]">
             {saveStatus === "dirty" || saveStatus === "error" ? (
-              <div className="border-b border-amber-400/30 bg-amber-500/15 px-4 py-2.5 sm:px-6">
+              <div className="shrink-0 border-b border-amber-400/30 bg-amber-500/15 px-4 py-2 sm:px-6">
                 <p className="text-sm font-medium text-amber-100">
                   {saveStatus === "error"
                     ? "Não foi possível salvar. Suas alterações locais foram preservadas — use o botão Salvar para tentar de novo."
-                    : "Alterações não salvas — clique em Salvar (canto superior direito) para gravar. Se sair agora, elas serão perdidas."}
+                    : "Alterações não salvas — clique em Salvar para gravar."}
                 </p>
               </div>
             ) : null}
 
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] bg-[#121018]/80 px-4 py-2.5 sm:px-6">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] bg-[#121018]/90 px-3 py-2.5 sm:px-5">
               <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-white/45">
-                <span className="font-medium text-white/60">Aula {meta.number}</span>
-                <span className="text-white/20">·</span>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1.5 text-white/70 md:hidden"
+                  onClick={() => setMobileListOpen(true)}
+                  aria-label="Abrir lista de aulas"
+                >
+                  <PanelLeft className="h-3.5 w-3.5" />
+                  Aulas
+                </button>
+                <span className="font-medium text-white/70">Aula {meta.number}</span>
+                <span className="hidden text-white/20 sm:inline">·</span>
                 <SaveBadge status={saveStatus} pending={pending} />
                 {error ? (
                   <button
                     type="button"
-                    className="max-w-[220px] truncate text-red-300/90 underline-offset-2 hover:underline"
+                    className="max-w-[180px] truncate text-red-300/90 underline-offset-2 hover:underline sm:max-w-[240px]"
                     onClick={() => setError(null)}
                     title={error}
                   >
@@ -618,14 +748,14 @@ export function LessonBlockBuilder({
                   className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-white/55 transition hover:bg-white/5 hover:text-white"
                 >
                   <Settings2 className="h-3.5 w-3.5" />
-                  Configurações
+                  <span className="hidden sm:inline">Configurações</span>
                 </button>
                 <button
                   type="button"
                   disabled={saveStatus === "saving" || (saveStatus !== "dirty" && saveStatus !== "error")}
                   onClick={() => startTransition(() => void saveAll())}
                   className={cn(
-                    "inline-flex min-w-[7.5rem] items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition",
+                    "inline-flex min-w-[7rem] items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition",
                     saveStatus === "dirty" || saveStatus === "error"
                       ? "bg-gradient-to-r from-[#53009F] to-[#8A1DEE] text-white hover:opacity-95"
                       : "border border-white/10 bg-white/[0.04] text-white/45 disabled:opacity-50"
@@ -642,7 +772,7 @@ export function LessonBlockBuilder({
             </div>
 
             {settingsOpen ? (
-              <div className="border-b border-white/[0.06] bg-[#0f0c14] px-4 py-3 sm:px-6">
+              <div className="shrink-0 border-b border-white/[0.06] bg-[#0f0c14] px-4 py-3 sm:px-6">
                 <div className="grid gap-3 sm:grid-cols-3">
                   <label className="grid gap-1 text-xs text-white/50">
                     Ordem
@@ -688,7 +818,7 @@ export function LessonBlockBuilder({
             ) : null}
 
             <div
-              className="lesson-editor-canvas max-h-[min(78vh,900px)] overflow-y-auto overflow-x-hidden px-4 py-8 sm:px-10 sm:py-12 md:px-16"
+              className="lesson-editor-canvas min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-6 sm:px-10 sm:py-10 md:px-16"
               onClick={(e) => {
                 if (e.target === e.currentTarget && !blocks.length) {
                   ensureTextBlock();
@@ -833,6 +963,74 @@ export function LessonBlockBuilder({
           </div>
         )}
       </section>
+
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          if (creating) return;
+          setCreateOpen(open);
+          if (!open) {
+            setCreateError(null);
+            setCreateTitle("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogTitle>Criar aula</DialogTitle>
+          <p className="text-sm text-white/55">
+            Informe o título da nova aula. Você poderá editar o conteúdo em seguida.
+          </p>
+          <div className="grid gap-4">
+            <label className="grid gap-2 text-sm font-semibold text-white/65">
+              Título da aula
+              <input
+                value={createTitle}
+                onChange={(e) => setCreateTitle(e.target.value)}
+                placeholder="Ex.: Como funciona o funil do iFood"
+                className="min-h-11 rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-white outline-none focus:border-[#8A1DEE]"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void handleCreateLesson();
+                  }
+                }}
+              />
+            </label>
+            <label className="grid gap-2 text-sm font-semibold text-white/65">
+              Status inicial
+              <select
+                value={createStatus}
+                onChange={(e) => setCreateStatus(e.target.value as "DRAFT" | "PUBLISHED" | "HIDDEN")}
+                className="min-h-11 rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-white outline-none focus:border-[#8A1DEE]"
+              >
+                <option value="DRAFT">Rascunho</option>
+                <option value="PUBLISHED">Publicada</option>
+                <option value="HIDDEN">Oculta</option>
+              </select>
+            </label>
+            {createError ? <p className="text-sm text-red-200">{createError}</p> : null}
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="secondary" disabled={creating} onClick={() => setCreateOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="button" disabled={creating || !createTitle.trim()} onClick={() => void handleCreateLesson()}>
+                {creating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    Criar aula
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={Boolean(deleteTargetId)}
