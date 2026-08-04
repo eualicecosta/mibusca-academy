@@ -14,6 +14,7 @@
     "prisma:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "db:backfill:blocks": "tsx scripts/backfill-dashboard-blocks.ts",
+    "db:import:ifood": "tsx scripts/import-ifood-course.ts",
     "storage:migrate:r2": "tsx scripts/migrate-supabase-storage-to-r2.ts"
   },
   "prisma": {
