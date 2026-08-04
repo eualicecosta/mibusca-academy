@@ -47,10 +47,14 @@ async function getOrCreateGeneralCategoria(courseId: string) {
   return created.id;
 }
 
+/**
+ * Normalize module `order` (1-based unique per category) and display `number`
+ * (0-based index within the category). Titles are never overwritten.
+ */
 async function normalizeModuleOrders(categoriaId: string) {
   const modules = await prisma.module.findMany({
     where: { categoriaId },
-    orderBy: { order: "asc" },
+    orderBy: [{ order: "asc" }, { id: "asc" }],
     select: { id: true }
   });
 
@@ -68,7 +72,8 @@ async function normalizeModuleOrders(categoriaId: string) {
     ...modules.map((module, index) =>
       prisma.module.update({
         where: { id: module.id },
-        data: { order: index + 1 }
+        // order: position for unique constraint; number: visual index starting at 0
+        data: { order: index + 1, number: String(index) }
       })
     )
   ]);
@@ -798,22 +803,24 @@ export async function createModule(formData: FormData) {
     return;
   }
 
-  const [moduleCount, lastModule] = await Promise.all([
-    prisma.module.count({ where: { courseId: categoria.courseId } }),
+  const [countInCategory, lastModule] = await Promise.all([
+    prisma.module.count({ where: { categoriaId } }),
     prisma.module.findFirst({
       where: { categoriaId },
       orderBy: { order: "desc" },
       select: { order: true }
     })
   ]);
-  const coverPath = await uploadImageFile(formData.get("coverFile"), `modulo-${moduleCount}`);
+  const coverPath = await uploadImageFile(formData.get("coverFile"), `modulo-cat-${categoriaId.slice(0, 8)}`);
   const order = lastModule ? lastModule.order + 1 : 1;
+  // Visual number restarts at 0 inside each category.
+  const number = String(countInCategory);
 
   await prisma.module.create({
     data: {
       courseId: categoria.courseId,
       categoriaId,
-      number: String(moduleCount),
+      number,
       title,
       objective: objective || null,
       order,
@@ -822,6 +829,8 @@ export async function createModule(formData: FormData) {
       coverImagePath: coverPath
     }
   });
+
+  await normalizeModuleOrders(categoriaId);
 
   revalidateTag("course-structure");
   revalidatePath("/admin/conteudo");
