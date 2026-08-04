@@ -16,7 +16,7 @@ import { PrismaClient, type ContentBlockType, type ContentStatus, type Prisma } 
 const prisma = new PrismaClient();
 
 const CONTENT_PATH = path.join(process.cwd(), "data", "ifood-course-import.json");
-const SOURCE_PREFIX = "ifood-import-v1";
+const DEFAULT_SOURCE_PREFIX = "ifood-import-v1";
 const CATEGORIA_TITLE = "Curso completo";
 
 type BlockInput = {
@@ -155,14 +155,15 @@ async function replaceLessonBlocks(
   lessonId: string,
   lessonNumber: string,
   blocks: BlockInput[],
-  tx: Prisma.TransactionClient
+  tx: Prisma.TransactionClient,
+  sourcePrefix: string
 ): Promise<number> {
   await tx.contentBlock.deleteMany({ where: { lessonId } });
 
   let order = 1;
   for (const [index, block] of blocks.entries()) {
     const type = block.type as ContentBlockType;
-    const source = `${SOURCE_PREFIX}:lesson:${lessonNumber}:b${String(index + 1).padStart(3, "0")}`;
+    const source = `${sourcePrefix}:lesson:${lessonNumber}:b${String(index + 1).padStart(3, "0")}`;
     const settings = serializeSettings(block.settings, source);
     const content = String(block.content || "");
 
@@ -206,6 +207,7 @@ async function replaceChecklistItems(
 async function run() {
   const { dryRun, publish } = parseArgs();
   const content = loadContent();
+  const SOURCE_PREFIX = content.importVersion || DEFAULT_SOURCE_PREFIX;
   const counts = countBlocks(content);
   const status: ContentStatus = publish ? "PUBLISHED" : "DRAFT";
   const stats: Stats = {
@@ -461,7 +463,8 @@ async function run() {
             lessonRow.id,
             lesson.number,
             lesson.blocks,
-            tx
+            tx,
+            SOURCE_PREFIX
           );
           stats.blocksReplaced += replaced;
           stats.blocksCreated += replaced;
