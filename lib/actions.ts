@@ -864,9 +864,12 @@ export async function updateModule(formData: FormData) {
   const id = String(formData.get("id"));
   const currentModule = await prisma.module.findUnique({
     where: { id },
-    select: { number: true }
+    select: { number: true, coverImagePath: true }
   });
-  const coverPath = await uploadImageFile(formData.get("coverFile"), `modulo-${currentModule?.number || id}`);
+  const removeCover = formData.get("removeCover") === "1" || formData.get("removeCover") === "on";
+  const coverPath = removeCover
+    ? null
+    : await uploadImageFile(formData.get("coverFile"), `modulo-${currentModule?.number || id}`);
   const requestedOrder = Math.max(1, Number(formData.get("order") || 999));
   const moduleRecord = await prisma.module.update({
     where: { id },
@@ -874,7 +877,12 @@ export async function updateModule(formData: FormData) {
       title: String(formData.get("title") || ""),
       objective: String(formData.get("objective") || ""),
       hideText: formData.get("hideText") === "on",
-      ...(coverPath ? { coverImagePath: coverPath } : {})
+      // Explicit removal clears cover; new upload replaces; otherwise preserve current.
+      ...(removeCover
+        ? { coverImagePath: null }
+        : coverPath
+          ? { coverImagePath: coverPath }
+          : {})
     },
     select: { categoriaId: true }
   });

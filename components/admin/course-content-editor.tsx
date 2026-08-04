@@ -977,6 +977,19 @@ function ModuleSettingsDialog({
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [removeCover, setRemoveCover] = useState(false);
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const [previewModule, setPreviewModule] = useState(module);
+
+  useEffect(() => {
+    if (open) {
+      setPreviewModule(module);
+      setRemoveCover(false);
+      setError(null);
+    }
+  }, [open, module]);
+
+  const coverUrl = removeCover ? null : assetUrl(previewModule.coverImagePath, storageBaseUrl);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -984,7 +997,13 @@ function ModuleSettingsDialog({
         <DialogTitle>Editar módulo</DialogTitle>
         <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
           <div className="space-y-3">
-            <ModuleCard module={module} storageBaseUrl={storageBaseUrl} />
+            <ModuleCard
+              module={{
+                ...previewModule,
+                coverImagePath: removeCover ? null : previewModule.coverImagePath
+              }}
+              storageBaseUrl={storageBaseUrl}
+            />
             <div className="flex flex-wrap gap-2">
               <ConfirmActionButton
                 label={module.status === "PUBLISHED" ? "Ocultar" : "Publicar"}
@@ -1004,6 +1023,7 @@ function ModuleSettingsDialog({
             className="grid min-w-0 gap-4 rounded-lg border border-white/10 bg-white/[0.03] p-4"
             action={(formData) => {
               setError(null);
+              if (removeCover) formData.set("removeCover", "1");
               startTransition(async () => {
                 try {
                   await updateModule(formData);
@@ -1015,6 +1035,7 @@ function ModuleSettingsDialog({
             }}
           >
             <input type="hidden" name="id" value={module.id} />
+            {removeCover ? <input type="hidden" name="removeCover" value="1" /> : null}
             <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_120px]">
               <Field label="Título">
                 <TextInput name="title" defaultValue={module.title} />
@@ -1027,9 +1048,46 @@ function ModuleSettingsDialog({
               <TextArea name="objective" defaultValue={module.objective || ""} rows={3} />
             </Field>
             <ToggleField name="hideText" defaultChecked={module.hideText} label="Ocultar texto" />
-            <Field label="Capa do módulo">
-              <FileInput name="coverFile" disabled={!storageUploadReady} />
-            </Field>
+            <div className="grid gap-3">
+              <p className="text-sm font-semibold text-white/65">Capa do módulo</p>
+              {coverUrl ? (
+                <div className="relative overflow-hidden rounded-lg border border-white/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={coverUrl} alt="Capa atual" className="h-40 w-full object-cover" />
+                  <div className="flex flex-wrap gap-2 border-t border-white/10 bg-black/40 p-3">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      disabled={pending}
+                      onClick={() => setRemoveConfirmOpen(true)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Remover imagem
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="rounded-lg border border-dashed border-white/10 bg-white/[0.02] px-3 py-4 text-sm text-white/50">
+                  Sem capa. O módulo será exibido com título e objetivo.
+                </p>
+              )}
+              <Field label={coverUrl ? "Substituir capa" : "Escolher capa"}>
+                <FileInput
+                  name="coverFile"
+                  disabled={!storageUploadReady || pending || removeCover}
+                  onChange={() => {
+                    // Choosing a new file cancels pending removal intent.
+                    if (removeCover) setRemoveCover(false);
+                  }}
+                />
+              </Field>
+              {removeCover ? (
+                <p className="text-sm text-amber-200/90">
+                  A capa será removida ao salvar. O módulo voltará a exibir apenas texto.
+                </p>
+              ) : null}
+            </div>
             {error ? <p className="text-sm text-red-200">{error}</p> : null}
             <div className="flex flex-wrap gap-2">
               <Button type="submit" className="w-fit" disabled={pending}>
@@ -1042,6 +1100,36 @@ function ModuleSettingsDialog({
             </div>
           </form>
         </div>
+
+        <AlertDialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogTitle>Remover imagem de capa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza de que deseja remover a capa deste módulo? O módulo passará a ser exibido apenas com
+              título e objetivo. A alteração será aplicada ao salvar.
+            </AlertDialogDescription>
+            <div className="flex flex-wrap justify-end gap-2">
+              <AlertDialogCancel asChild>
+                <Button type="button" variant="secondary">
+                  Cancelar
+                </Button>
+              </AlertDialogCancel>
+              <AlertDialogAction asChild>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => {
+                    setRemoveCover(true);
+                    setPreviewModule((prev) => ({ ...prev, coverImagePath: null }));
+                    setRemoveConfirmOpen(false);
+                  }}
+                >
+                  Remover imagem
+                </Button>
+              </AlertDialogAction>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
       </DialogContent>
     </Dialog>
   );
